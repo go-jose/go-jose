@@ -146,7 +146,7 @@ func TestOptionalDateClaims(t *testing.T) {
 		},
 		{
 			"fail nbf",
-			Claims{NotBefore: NewNumericDate(time.Now())},
+			Claims{NotBefore: NewNumericDate(time.Now().Add(2 * time.Minute))},
 			ErrNotValidYet,
 		},
 		{
@@ -156,7 +156,7 @@ func TestOptionalDateClaims(t *testing.T) {
 		},
 		{
 			"fail iat",
-			Claims{IssuedAt: NewNumericDate(time.Now())},
+			Claims{IssuedAt: NewNumericDate(time.Now().Add(2 * time.Minute))},
 			ErrIssuedInTheFuture,
 		},
 	}
@@ -165,6 +165,11 @@ func TestOptionalDateClaims(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			expect := Expected{}.WithTime(epoch.Add(-24 * time.Hour))
 			err := tc.claim.Validate(expect)
+			assert.Equal(t, tc.want, err)
+
+			// test with zero expected time: should not change anything
+			expect = Expected{}
+			err = tc.claim.Validate(expect)
 			assert.Equal(t, tc.want, err)
 		})
 	}
