@@ -367,6 +367,35 @@ func TestRoundtripX509Hex(t *testing.T) {
 	require.Empty(t, cmp.Diff(j1, j2))
 }
 
+func TestCertificatesURL(t *testing.T) {
+	var urlJWK = `{
+   "kty":"RSA",
+   "n":"u7LUr30Mhrh8N79-H4rKiHQ123q6xaBZPYbf1nV4GM19rizSnbEfyebG1kpfCv-XY6c499XiM6lOvcPL-0goTOcfW6Lg7AAR895GbnMeXEmnxICaI8rAZHK6t1WPmiWp82y_qhK2F_pYUaT3GSuiTFiMGq_GNwdpWuMlsInnnMNv1nxFbxtDPwzmCp0fEBxbH5d1EtXZwTPOHMyj8rfa-NIA5Nl4h_5RrbOWveKwBr26_CDAratJgOWh9xcd5g0ot_uDGcMoAgB6xeTuYklfaxCPptvu49kvoxw1J71fp6nKW_ZuhDRAp2F_BQ9inKpTo05sPLJg8tPTdjaeouOuJQ",
+   "e":"AQAB",
+   "x5u": "https://example.com/keys.json"
+}`
+	var jwk2 JSONWebKey
+	err := jwk2.UnmarshalJSON([]byte(urlJWK))
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/keys.json", jwk2.CertificatesURL.String())
+
+	js, err := jwk2.MarshalJSON()
+	require.NoError(t, err)
+	var j1, j2 map[string]interface{}
+	require.NoError(t, json.Unmarshal(js, &j1))
+	require.NoError(t, json.Unmarshal([]byte(urlJWK), &j2))
+	require.Empty(t, cmp.Diff(j1, j2))
+
+	var invalidURLJWK = `{
+   "kty":"RSA",
+   "n":"u7LUr30Mhrh8N79-H4rKiHQ123q6xaBZPYbf1nV4GM19rizSnbEfyebG1kpfCv-XY6c499XiM6lOvcPL-0goTOcfW6Lg7AAR895GbnMeXEmnxICaI8rAZHK6t1WPmiWp82y_qhK2F_pYUaT3GSuiTFiMGq_GNwdpWuMlsInnnMNv1nxFbxtDPwzmCp0fEBxbH5d1EtXZwTPOHMyj8rfa-NIA5Nl4h_5RrbOWveKwBr26_CDAratJgOWh9xcd5g0ot_uDGcMoAgB6xeTuYklfaxCPptvu49kvoxw1J71fp6nKW_ZuhDRAp2F_BQ9inKpTo05sPLJg8tPTdjaeouOuJQ",
+   "e":"AQAB",
+   "x5u": "://example.com/keys.json"
+}`
+	err = jwk2.UnmarshalJSON([]byte(invalidURLJWK))
+	require.EqualError(t, err, "square/go-jose: invalid JWK, x5u header is invalid URL: parse \"://example.com/keys.json\": missing protocol scheme")
+}
+
 func TestInvalidThumbprintsX509(t *testing.T) {
 	// Too short
 	jwk := JSONWebKey{
