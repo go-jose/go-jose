@@ -156,7 +156,7 @@ func (b *byteBuffer) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	decoded, err := base64.RawURLEncoding.DecodeString(encoded)
+	decoded, err := base64URLDecode(encoded)
 	if err != nil {
 		return err
 	}
@@ -184,4 +184,10 @@ func (b byteBuffer) bigInt() *big.Int {
 
 func (b byteBuffer) toInt() int {
 	return int(b.bigInt().Int64())
+}
+
+// base64URLDecode is implemented as defined in https://www.rfc-editor.org/rfc/rfc7515.html#appendix-C
+func base64URLDecode(value string) ([]byte, error) {
+	value = strings.TrimRight(value, "=")
+	return base64.RawURLEncoding.DecodeString(value)
 }
