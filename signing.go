@@ -347,7 +347,8 @@ func (obj JSONWebSignature) UnsafePayloadWithoutVerification() []byte {
 // is only useful if you have a payload and signature that are separated from
 // each other.
 func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey interface{}) error {
-	verifier, err := newVerifier(verificationKey)
+	key := tryJWKS(verificationKey, obj.headers()...)
+	verifier, err := newVerifier(key)
 	if err != nil {
 		return err
 	}
@@ -405,7 +406,8 @@ func (obj JSONWebSignature) VerifyMulti(verificationKey interface{}) (int, Signa
 // separated from each other, and the signature can have multiple signers at the
 // same time.
 func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey interface{}) (int, Signature, error) {
-	verifier, err := newVerifier(verificationKey)
+	key := tryJWKS(verificationKey, obj.headers()...)
+	verifier, err := newVerifier(key)
 	if err != nil {
 		return -1, Signature{}, err
 	}
@@ -437,4 +439,12 @@ outer:
 	}
 
 	return -1, Signature{}, ErrCryptoFailure
+}
+
+func (obj JSONWebSignature) headers() []Header {
+	headers := make([]Header, len(obj.Signatures))
+	for i, sig := range obj.Signatures {
+		headers[i] = sig.Header
+	}
+	return headers
 }

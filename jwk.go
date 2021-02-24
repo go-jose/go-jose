@@ -757,3 +757,29 @@ func (key rawJSONWebKey) symmetricKey() ([]byte, error) {
 	}
 	return key.K.bytes(), nil
 }
+
+func tryJWKS(key interface{}, headers ...Header) interface{} {
+	jwks, ok := key.(*JSONWebKeySet)
+	if !ok {
+		return key
+	}
+
+	var kid string
+	for _, header := range headers {
+		if header.KeyID != "" {
+			kid = header.KeyID
+			break
+		}
+	}
+
+	if kid == "" {
+		return key
+	}
+
+	keys := jwks.Key(kid)
+	if len(keys) == 0 {
+		return key
+	}
+
+	return keys[0].Key
+}
