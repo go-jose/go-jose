@@ -765,13 +765,13 @@ func (key rawJSONWebKey) symmetricKey() ([]byte, error) {
 	return key.K.bytes(), nil
 }
 
-func tryJWKS(headers []jose.Header, key interface{}) interface{} {
-	var jwks jose.JSONWebKeySet
+func tryJWKS(key interface{}, headers ...Header) interface{} {
+	var jwks JSONWebKeySet
 
 	switch jwksType := key.(type) {
-	case *jose.JSONWebKeySet:
+	case *JSONWebKeySet:
 		jwks = *jwksType
-	case jose.JSONWebKeySet:
+	case JSONWebKeySet:
 		jwks = jwksType
 	default:
 		return key
