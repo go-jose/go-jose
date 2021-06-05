@@ -481,7 +481,7 @@ func TestNullHeaderValue(t *testing.T) {
 }
 
 // Test for bug:
-// https://github.com/square/go-jose/issues/157
+// https://github.com/go-jose/go-jose/issues/157
 func TestEmbedJWKBug(t *testing.T) {
 	signerKey := SigningKey{
 		Key: &JSONWebKey{
@@ -512,7 +512,7 @@ func TestEmbedJWKBug(t *testing.T) {
 	}
 
 	// This used to panic with:
-	// json: error calling MarshalJSON for type *jose.JSONWebKey: square/go-jose: unknown key type '%!s(<nil>)'
+	// json: error calling MarshalJSON for type *jose.JSONWebKey: go-jose/go-jose: unknown key type '%!s(<nil>)'
 	output := jws.FullSerialize()
 	outputNoEmbed := jwsNoEmbed.FullSerialize()
 

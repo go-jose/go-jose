@@ -23,7 +23,7 @@ import (
 	"fmt"
 
 	"github.com/go-jose/go-jose/v3"
-	"github.com/square/go-jose/jose-util/generator"
+	"github.com/go-jose/go-jose/jose-util/generator"
 )
 
 func generate() {

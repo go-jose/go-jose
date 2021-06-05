@@ -393,7 +393,7 @@ func TestCertificatesURL(t *testing.T) {
    "x5u": "://example.com/keys.json"
 }`
 	err = jwk2.UnmarshalJSON([]byte(invalidURLJWK))
-	require.EqualError(t, err, "square/go-jose: invalid JWK, x5u header is invalid URL: parse \"://example.com/keys.json\": missing protocol scheme")
+	require.EqualError(t, err, "go-jose/go-jose: invalid JWK, x5u header is invalid URL: parse \"://example.com/keys.json\": missing protocol scheme")
 }
 
 func TestInvalidThumbprintsX509(t *testing.T) {
@@ -1073,8 +1073,8 @@ func TestJWKBufferSizeCheck(t *testing.T) {
 		t.Fatal("key should be invalid")
 	}
 	jwk.Valid() // true
-	// panic: square/go-jose: invalid call to newFixedSizeBuffer (len(data) > length)
-	// github.com/square/go-jose.newFixedSizeBuffer(0xc420014557, 0x41, 0x41, 0x20, 0x0)
+	// panic: go-jose/go-jose: invalid call to newFixedSizeBuffer (len(data) > length)
+	// github.com/go-jose/go-jose.newFixedSizeBuffer(0xc420014557, 0x41, 0x41, 0x20, 0x0)
 	jwk.Thumbprint(crypto.SHA256)
 }
 
