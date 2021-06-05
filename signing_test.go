@@ -413,6 +413,14 @@ func TestSignerKid(t *testing.T) {
 	if err != nil {
 		t.Error("problem creating signer with JSONWebKey", err)
 	}
+
+	// Verify with JWKS
+	_, err = parsed.Verify(&JSONWebKeySet{
+		Keys: []JSONWebKey{jwk.Public()},
+	})
+	if err != nil {
+		t.Error("problem verifying with JWKS", err)
+	}
 }
 
 func TestEmbedJwk(t *testing.T) {
