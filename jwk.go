@@ -237,7 +237,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 
 	if certPub != nil && keyPub != nil {
 		if !reflect.DeepEqual(certPub, keyPub) {
-			return errors.New("square/go-jose: invalid JWK, public keys in key and x5c fields to not match")
+			return errors.New("square/go-jose: invalid JWK, public keys in key and x5c fields do not match")
 		}
 	}
 
@@ -259,7 +259,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 	if len(x5tSHA1bytes) == 2*sha1.Size {
 		hx, err := hex.DecodeString(string(x5tSHA1bytes))
 		if err != nil {
-			return fmt.Errorf("square/go-jose: invalid JWK, unable to hex decode x5t: %w", err)
+			return fmt.Errorf("square/go-jose: invalid JWK, unable to hex decode x5t: %v", err)
 
 		}
 		x5tSHA1bytes = hx
@@ -275,7 +275,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 	if len(x5tSHA256bytes) == 2*sha256.Size {
 		hx256, err := hex.DecodeString(string(x5tSHA256bytes))
 		if err != nil {
-			return fmt.Errorf("square/go-jose: invalid JWK, unable to hex decode x5t#S256: %w", err)
+			return fmt.Errorf("square/go-jose: invalid JWK, unable to hex decode x5t#S256: %v", err)
 		}
 		x5tSHA256bytes = hx256
 	}
@@ -331,7 +331,7 @@ func (s *JSONWebKeySet) Key(kid string) []JSONWebKey {
 
 const rsaThumbprintTemplate = `{"e":"%s","kty":"RSA","n":"%s"}`
 const ecThumbprintTemplate = `{"crv":"%s","kty":"EC","x":"%s","y":"%s"}`
-const edThumbprintTemplate = `{"crv":"%s","kty":"OKP",x":"%s"}`
+const edThumbprintTemplate = `{"crv":"%s","kty":"OKP","x":"%s"}`
 
 func ecThumbprintInput(curve elliptic.Curve, x, y *big.Int) (string, error) {
 	coordLength := curveSize(curve)

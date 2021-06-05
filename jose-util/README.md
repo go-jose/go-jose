@@ -40,6 +40,14 @@ python-cram` See the travis file for how this is used in testing. For example,
 `go build && PATH=$PWD:$PATH cram -v jose-util.t`
 
 
+
+## Testing
+
+`cram` is used for testing.  This can be installed with pip or `sudo apt install
+python-cram` See the travis file for how this is used in testing. For example,
+`go build && PATH=$PWD:$PATH cram -v jose-util.t`
+
+
 ## Examples
 
 ### Generate key pair
