@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	jose "github.com/square/go-jose/v3"
+	jose "github.com/go-jose/go-jose/v3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -81,12 +81,19 @@ func TestDecodeTokenWithJWKS(t *testing.T) {
 	tok, err := ParseSigned(rsaSignedTokenWithKid)
 	if assert.NoError(t, err, "Error parsing signed token.") {
 		cl := make(map[string]interface{})
+		expected := map[string]interface{}{
+			"sub":    "subject",
+			"iss":    "issuer",
+			"scopes": []interface{}{"s1", "s2"},
+		}
+
 		if assert.NoError(t, tok.Claims(jwks, &cl)) {
-			assert.Equal(t, map[string]interface{}{
-				"sub":    "subject",
-				"iss":    "issuer",
-				"scopes": []interface{}{"s1", "s2"},
-			}, cl)
+			assert.Equal(t, expected, cl)
+		}
+
+		cl = make(map[string]interface{})
+		if assert.NoError(t, tok.Claims(*jwks, &cl)) {
+			assert.Equal(t, expected, cl)
 		}
 	}
 }
@@ -102,7 +109,7 @@ func TestDecodeToken(t *testing.T) {
 			assert.Equal(t, []string{"s1", "s2"}, c2.Scopes)
 		}
 	}
-	assert.EqualError(t, tok.Claims([]byte("invalid-secret")), "square/go-jose: error in cryptographic primitive")
+	assert.EqualError(t, tok.Claims([]byte("invalid-secret")), "go-jose/go-jose: error in cryptographic primitive")
 
 	tok2, err := ParseSigned(rsaSignedToken)
 	if assert.NoError(t, err, "Error parsing encrypted token.") {
@@ -115,7 +122,7 @@ func TestDecodeToken(t *testing.T) {
 			}, c)
 		}
 	}
-	assert.EqualError(t, tok.Claims(&testPrivRSAKey2.PublicKey), "square/go-jose: error in cryptographic primitive")
+	assert.EqualError(t, tok.Claims(&testPrivRSAKey2.PublicKey), "go-jose/go-jose: error in cryptographic primitive")
 
 	tok3, err := ParseSigned(invalidPayloadSignedToken)
 	if assert.NoError(t, err, "Error parsing signed token.") {
@@ -123,7 +130,7 @@ func TestDecodeToken(t *testing.T) {
 	}
 
 	_, err = ParseSigned(invalidPartsSignedToken)
-	assert.EqualError(t, err, "square/go-jose: compact JWS format must have three parts")
+	assert.EqualError(t, err, "go-jose/go-jose: compact JWS format must have three parts")
 
 	tok4, err := ParseEncrypted(hmacEncryptedToken)
 	if assert.NoError(t, err, "Error parsing encrypted token.") {
@@ -132,7 +139,7 @@ func TestDecodeToken(t *testing.T) {
 			assert.Equal(t, "foo", c.Subject)
 		}
 	}
-	assert.EqualError(t, tok4.Claims([]byte("invalid-secret-key")), "square/go-jose: error in cryptographic primitive")
+	assert.EqualError(t, tok4.Claims([]byte("invalid-secret-key")), "go-jose/go-jose: error in cryptographic primitive")
 
 	tok5, err := ParseEncrypted(rsaEncryptedToken)
 	if assert.NoError(t, err, "Error parsing encrypted token.") {
@@ -145,7 +152,7 @@ func TestDecodeToken(t *testing.T) {
 			}, c)
 		}
 	}
-	assert.EqualError(t, tok5.Claims(testPrivRSAKey2), "square/go-jose: error in cryptographic primitive")
+	assert.EqualError(t, tok5.Claims(testPrivRSAKey2), "go-jose/go-jose: error in cryptographic primitive")
 
 	tok6, err := ParseEncrypted(invalidPayloadEncryptedToken)
 	if assert.NoError(t, err, "Error parsing encrypted token.") {
@@ -153,7 +160,7 @@ func TestDecodeToken(t *testing.T) {
 	}
 
 	_, err = ParseEncrypted(invalidPartsEncryptedToken)
-	assert.EqualError(t, err, "square/go-jose: compact JWE format must have five parts")
+	assert.EqualError(t, err, "go-jose/go-jose: compact JWE format must have five parts")
 
 	tok7, err := ParseSignedAndEncrypted(signedAndEncryptedToken)
 	if assert.NoError(t, err, "Error parsing signed-then-encrypted token.") {
@@ -165,14 +172,14 @@ func TestDecodeToken(t *testing.T) {
 				"iss":    "issuer",
 				"scopes": []interface{}{"s1", "s2"},
 			}, c)
-			assert.EqualError(t, nested.Claims(testPrivRSAKey2.Public()), "square/go-jose: error in cryptographic primitive")
+			assert.EqualError(t, nested.Claims(testPrivRSAKey2.Public()), "go-jose/go-jose: error in cryptographic primitive")
 		}
 	}
 	_, err = tok7.Decrypt(testPrivRSAKey2)
-	assert.EqualError(t, err, "square/go-jose: error in cryptographic primitive")
+	assert.EqualError(t, err, "go-jose/go-jose: error in cryptographic primitive")
 
 	_, err = ParseSignedAndEncrypted(invalidSignedAndEncryptedToken)
-	assert.EqualError(t, err, "square/go-jose/jwt: expected content type to be JWT (cty header)")
+	assert.EqualError(t, err, "go-jose/go-jose/jwt: expected content type to be JWT (cty header)")
 }
 
 func TestTamperedJWT(t *testing.T) {

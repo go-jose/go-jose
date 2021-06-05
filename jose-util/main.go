@@ -25,8 +25,8 @@ import (
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
-	jose "github.com/square/go-jose/v3"
-	generator "github.com/square/go-jose/jose-util/generator"
+	jose "github.com/go-jose/go-jose/v3"
+	generator "github.com/go-jose/go-jose/jose-util/generator"
 )
 
 var (
