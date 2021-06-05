@@ -62,7 +62,7 @@ type rawJSONWebKey struct {
 	Qi *byteBuffer `json:"qi,omitempty"`
 	// Certificates
 	X5c       []string `json:"x5c,omitempty"`
-	X5u       *url.URL `json:"x5u,omitempty"`
+	X5u       string   `json:"x5u,omitempty"`
 	X5tSHA1   string   `json:"x5t,omitempty"`
 	X5tSHA256 string   `json:"x5t#S256,omitempty"`
 }
@@ -155,7 +155,9 @@ func (k JSONWebKey) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	raw.X5u = k.CertificatesURL
+	if k.CertificatesURL != nil {
+		raw.X5u = k.CertificatesURL.String()
+	}
 
 	return json.Marshal(raw)
 }
@@ -243,7 +245,12 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 
 	*k = JSONWebKey{Key: key, KeyID: raw.Kid, Algorithm: raw.Alg, Use: raw.Use, Certificates: certs}
 
-	k.CertificatesURL = raw.X5u
+	if raw.X5u != "" {
+		k.CertificatesURL, err = url.Parse(raw.X5u)
+		if err != nil {
+			return fmt.Errorf("square/go-jose: invalid JWK, x5u header is invalid URL: %w", err)
+		}
+	}
 
 	// x5t parameters are base64url-encoded SHA thumbprints
 	// See RFC 7517, Section 4.8, https://tools.ietf.org/html/rfc7517#section-4.8
