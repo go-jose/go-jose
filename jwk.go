@@ -247,7 +247,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 
 	// x5t parameters are base64url-encoded SHA thumbprints
 	// See RFC 7517, Section 4.8, https://tools.ietf.org/html/rfc7517#section-4.8
-	x5tSHA1bytes, err := base64.RawURLEncoding.DecodeString(raw.X5tSHA1)
+	x5tSHA1bytes, err := base64URLDecode(raw.X5tSHA1)
 	if err != nil {
 		return errors.New("square/go-jose: invalid JWK, x5t header has invalid encoding")
 	}
@@ -267,7 +267,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 
 	k.CertificateThumbprintSHA1 = x5tSHA1bytes
 
-	x5tSHA256bytes, err := base64.RawURLEncoding.DecodeString(raw.X5tSHA256)
+	x5tSHA256bytes, err := base64URLDecode(raw.X5tSHA256)
 	if err != nil {
 		return errors.New("square/go-jose: invalid JWK, x5t#S256 header has invalid encoding")
 	}
