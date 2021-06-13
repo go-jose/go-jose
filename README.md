@@ -3,8 +3,7 @@
 [![godoc](http://img.shields.io/badge/godoc-jose_package-blue.svg?style=flat)](https://godoc.org/gopkg.in/go-jose/go-jose.v2)
 [![godoc](http://img.shields.io/badge/godoc-jwt_package-blue.svg?style=flat)](https://godoc.org/gopkg.in/go-jose/go-jose.v2/jwt)
 [![license](http://img.shields.io/badge/license-apache_2.0-blue.svg?style=flat)](https://raw.githubusercontent.com/go-jose/go-jose/master/LICENSE)
-[![build](https://travis-ci.org/go-jose/go-jose.svg?branch=master)](https://travis-ci.org/go-jose/go-jose)
-[![coverage](https://coveralls.io/repos/github/go-jose/go-jose/badge.svg?branch=master)](https://coveralls.io/r/go-jose/go-jose)
+[![test](https://img.shields.io/github/checks-status/go-jose/go-jose/v3)](https://github.com/go-jose/go-jose/actions)
 
 Package jose aims to provide an implementation of the Javascript Object Signing
 and Encryption set of standards. This includes support for JSON Web Encryption,
