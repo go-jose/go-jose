@@ -37,7 +37,7 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"gopkg.in/square/go-jose.v2/json"
+	"gopkg.in/go-jose/go-jose.v2/json"
 )
 
 // Test chain of two X.509 certificates
@@ -991,8 +991,8 @@ func TestJWKBufferSizeCheck(t *testing.T) {
 	var jwk JSONWebKey
 	jwk.UnmarshalJSON([]byte(key))
 	jwk.Valid() // true
-	// panic: square/go-jose: invalid call to newFixedSizeBuffer (len(data) > length)
-	// github.com/square/go-jose.newFixedSizeBuffer(0xc420014557, 0x41, 0x41, 0x20, 0x0)
+	// panic: go-jose/go-jose: invalid call to newFixedSizeBuffer (len(data) > length)
+	// github.com/go-jose/go-jose.newFixedSizeBuffer(0xc420014557, 0x41, 0x41, 0x20, 0x0)
 	jwk.Thumbprint(crypto.SHA256)
 }
 
