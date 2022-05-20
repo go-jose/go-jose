@@ -29,7 +29,7 @@ import (
 	"math/big"
 
 	"golang.org/x/crypto/ed25519"
-	"gopkg.in/square/go-jose.v2"
+	"gopkg.in/go-jose/go-jose.v2"
 )
 
 // Opaque creates an OpaqueSigner from a "crypto".Signer

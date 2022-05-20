@@ -26,7 +26,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gopkg.in/square/go-jose.v2/json"
+	"gopkg.in/go-jose/go-jose.v2/json"
 )
 
 type staticNonceSource string

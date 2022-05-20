@@ -173,7 +173,7 @@ func TestRejectUnprotectedJWENonce(t *testing.T) {
 	_, err := ParseEncrypted(input)
 	if err == nil {
 		t.Error("JWE with an unprotected nonce parsed as valid.")
-	} else if err.Error() != "square/go-jose: Nonce parameter included in unprotected header" {
+	} else if err.Error() != "go-jose/go-jose: Nonce parameter included in unprotected header" {
 		t.Errorf("Improper error for unprotected nonce: %v", err)
 	}
 
@@ -191,7 +191,7 @@ func TestRejectUnprotectedJWENonce(t *testing.T) {
 	_, err = ParseEncrypted(input)
 	if err == nil {
 		t.Error("JWE with an unprotected nonce parsed as valid.")
-	} else if err.Error() != "square/go-jose: Nonce parameter included in unprotected header" {
+	} else if err.Error() != "go-jose/go-jose: Nonce parameter included in unprotected header" {
 		t.Errorf("Improper error for unprotected nonce: %v", err)
 	}
 
@@ -210,7 +210,7 @@ func TestRejectUnprotectedJWENonce(t *testing.T) {
 	_, err = ParseEncrypted(input)
 	if err == nil {
 		t.Error("JWS with an unprotected nonce parsed as valid.")
-	} else if err.Error() != "square/go-jose: Nonce parameter included in unprotected header" {
+	} else if err.Error() != "go-jose/go-jose: Nonce parameter included in unprotected header" {
 		t.Errorf("Improper error for unprotected nonce: %v", err)
 	}
 }
