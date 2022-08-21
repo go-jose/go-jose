@@ -7,8 +7,8 @@ with JOSE messages when testing or debugging.
 ## Installation
 
 ```
-$ go get -u github.com/square/go-jose/jose-util
-$ go install github.com/square/go-jose/jose-util
+$ go get -u github.com/go-jose/go-jose/jose-util
+$ go install github.com/go-jose/go-jose/jose-util
 ```
 
 ## Usage
@@ -31,6 +31,14 @@ message, but it's possible to get the JSON Serialization by supplying the
 Keys are specified via the `--key` flag. Supported key types are naked RSA/EC
 keys and X.509 certificates with embedded RSA/EC keys. Keys must be in PEM,
 DER or JWK formats.
+
+
+## Testing
+
+`cram` is used for testing.  This can be installed with pip or `sudo apt install
+python-cram` See the travis file for how this is used in testing. For example,
+`go build && PATH=$PWD:$PATH cram -v jose-util.t`
+
 
 
 ## Testing

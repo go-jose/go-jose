@@ -26,9 +26,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/decred/dcrd/dcrec/secp256k1/v2"
-
-	"github.com/square/go-jose/v3/json"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/go-jose/go-jose/v3/json"
 )
 
 type staticNonceSource string
@@ -419,6 +418,14 @@ func TestSignerKid(t *testing.T) {
 	if err != nil {
 		t.Error("problem creating signer with JSONWebKey", err)
 	}
+
+	// Verify with JWKS
+	_, err = parsed.Verify(&JSONWebKeySet{
+		Keys: []JSONWebKey{jwk.Public()},
+	})
+	if err != nil {
+		t.Error("problem verifying with JWKS", err)
+	}
 }
 
 func TestEmbedJwk(t *testing.T) {
@@ -587,5 +594,15 @@ func TestSignerB64(t *testing.T) {
 
 	if !bytes.Equal(output, input) {
 		t.Errorf("Input/output do not match, got '%s', expected '%s'", output, input)
+	}
+}
+
+func BenchmarkParseSigned(b *testing.B) {
+	msg := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c`
+	for i := 0; i < b.N; i++ {
+		_, err := ParseSigned(msg)
+		if err != nil {
+			b.Errorf("Error on parse: %s", err)
+		}
 	}
 }

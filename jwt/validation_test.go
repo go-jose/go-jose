@@ -44,6 +44,17 @@ func TestFieldsMatch(t *testing.T) {
 		assert.NoError(t, c.Validate(v))
 	}
 
+	claimsWithSingleAudience := Claims{
+		Issuer:   "issuer",
+		Subject:  "subject",
+		Audience: []string{"a1"},
+		ID:       "42",
+	}
+
+	for _, v := range valid {
+		assert.NoError(t, claimsWithSingleAudience.Validate(v))
+	}
+
 	invalid := []struct {
 		Expected Expected
 		Error    error
@@ -75,6 +86,8 @@ func TestExpiryAndNotBefore(t *testing.T) {
 	if assert.Error(t, err) {
 		assert.Equal(t, err, ErrExpired)
 	}
+	// some error is okay (leeway)
+	assert.NoError(t, c.Validate(Expected{Time: now.Add(DefaultLeeway)}))
 
 	// expired - no leeway
 	assert.NoError(t, c.ValidateWithLeeway(Expected{Time: now}, 0))
@@ -89,6 +102,8 @@ func TestExpiryAndNotBefore(t *testing.T) {
 	if assert.Error(t, err) {
 		assert.Equal(t, err, ErrNotValidYet)
 	}
+	// some error is okay (leeway)
+	assert.NoError(t, c.Validate(Expected{Time: twelveHoursAgo.Add(-DefaultLeeway)}))
 }
 
 func TestIssuedInFuture(t *testing.T) {
@@ -142,7 +157,7 @@ func TestOptionalDateClaims(t *testing.T) {
 		},
 		{
 			"fail nbf",
-			Claims{NotBefore: NewNumericDate(time.Now())},
+			Claims{NotBefore: NewNumericDate(time.Now().Add(2 * time.Minute))},
 			ErrNotValidYet,
 		},
 		{
@@ -152,7 +167,7 @@ func TestOptionalDateClaims(t *testing.T) {
 		},
 		{
 			"fail iat",
-			Claims{IssuedAt: NewNumericDate(time.Now())},
+			Claims{IssuedAt: NewNumericDate(time.Now().Add(2 * time.Minute))},
 			ErrIssuedInTheFuture,
 		},
 	}
@@ -161,6 +176,11 @@ func TestOptionalDateClaims(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			expect := Expected{}.WithTime(epoch.Add(-24 * time.Hour))
 			err := tc.claim.Validate(expect)
+			assert.Equal(t, tc.want, err)
+
+			// test with zero expected time: should not change anything
+			expect = Expected{}
+			err = tc.claim.Validate(expect)
 			assert.Equal(t, tc.want, err)
 		})
 	}

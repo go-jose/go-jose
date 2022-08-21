@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/square/go-jose/v3/json"
+	"github.com/go-jose/go-jose/v3/json"
 )
 
 // rawJSONWebSignature represents a raw JWS JSON object. Used for parsing/serializing.
@@ -88,7 +88,7 @@ func ParseSigned(signature string) (*JSONWebSignature, error) {
 // ParseDetached parses a signed message in compact serialization format with detached payload.
 func ParseDetached(signature string, payload []byte) (*JSONWebSignature, error) {
 	if payload == nil {
-		return nil, errors.New("square/go-jose: nil payload")
+		return nil, errors.New("go-jose/go-jose: nil payload")
 	}
 	return parseSignedCompact(stripWhitespace(signature), payload)
 }
@@ -102,14 +102,14 @@ func (sig Signature) mergedHeaders() rawHeader {
 }
 
 // Compute data to be signed
-func (obj JSONWebSignature) computeAuthData(payload []byte, signature *Signature) []byte {
+func (obj JSONWebSignature) computeAuthData(payload []byte, signature *Signature) ([]byte, error) {
 	var authData bytes.Buffer
 
 	protectedHeader := new(rawHeader)
 
 	if signature.original != nil && signature.original.Protected != nil {
 		if err := json.Unmarshal(signature.original.Protected.bytes(), protectedHeader); err != nil {
-			panic(err)
+			return nil, err
 		}
 		authData.WriteString(signature.original.Protected.base64())
 	} else if signature.protected != nil {
@@ -134,7 +134,7 @@ func (obj JSONWebSignature) computeAuthData(payload []byte, signature *Signature
 		authData.Write(payload)
 	}
 
-	return authData.Bytes()
+	return authData.Bytes(), nil
 }
 
 // parseSignedFull parses a message in full format.
@@ -151,7 +151,7 @@ func parseSignedFull(input string) (*JSONWebSignature, error) {
 // sanitized produces a cleaned-up JWS object from the raw JSON.
 func (parsed *rawJSONWebSignature) sanitized() (*JSONWebSignature, error) {
 	if parsed.Payload == nil {
-		return nil, fmt.Errorf("square/go-jose: missing payload in JWS message")
+		return nil, fmt.Errorf("go-jose/go-jose: missing payload in JWS message")
 	}
 
 	obj := &JSONWebSignature{
@@ -215,7 +215,7 @@ func (parsed *rawJSONWebSignature) sanitized() (*JSONWebSignature, error) {
 		// As per RFC 7515 Section 4.1.3, only public keys are allowed to be embedded.
 		jwk := signature.Header.JSONWebKey
 		if jwk != nil && (!jwk.Valid() || !jwk.IsPublic()) {
-			return nil, errors.New("square/go-jose: invalid embedded jwk, must be public key")
+			return nil, errors.New("go-jose/go-jose: invalid embedded jwk, must be public key")
 		}
 
 		obj.Signatures = append(obj.Signatures, signature)
@@ -260,7 +260,7 @@ func (parsed *rawJSONWebSignature) sanitized() (*JSONWebSignature, error) {
 		// As per RFC 7515 Section 4.1.3, only public keys are allowed to be embedded.
 		jwk := obj.Signatures[i].Header.JSONWebKey
 		if jwk != nil && (!jwk.Valid() || !jwk.IsPublic()) {
-			return nil, errors.New("square/go-jose: invalid embedded jwk, must be public key")
+			return nil, errors.New("go-jose/go-jose: invalid embedded jwk, must be public key")
 		}
 
 		// Copy value of sig
@@ -277,26 +277,26 @@ func (parsed *rawJSONWebSignature) sanitized() (*JSONWebSignature, error) {
 func parseSignedCompact(input string, payload []byte) (*JSONWebSignature, error) {
 	parts := strings.Split(input, ".")
 	if len(parts) != 3 {
-		return nil, fmt.Errorf("square/go-jose: compact JWS format must have three parts")
+		return nil, fmt.Errorf("go-jose/go-jose: compact JWS format must have three parts")
 	}
 
 	if parts[1] != "" && payload != nil {
-		return nil, fmt.Errorf("square/go-jose: payload is not detached")
+		return nil, fmt.Errorf("go-jose/go-jose: payload is not detached")
 	}
 
-	rawProtected, err := base64.RawURLEncoding.DecodeString(parts[0])
+	rawProtected, err := base64URLDecode(parts[0])
 	if err != nil {
 		return nil, err
 	}
 
 	if payload == nil {
-		payload, err = base64.RawURLEncoding.DecodeString(parts[1])
+		payload, err = base64URLDecode(parts[1])
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	signature, err := base64.RawURLEncoding.DecodeString(parts[2])
+	signature, err := base64URLDecode(parts[2])
 	if err != nil {
 		return nil, err
 	}

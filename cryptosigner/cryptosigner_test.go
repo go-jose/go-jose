@@ -20,15 +20,15 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
 	"testing"
 
-	"github.com/decred/dcrd/dcrec/secp256k1/v2"
-	"github.com/square/go-jose/v3"
-	"golang.org/x/crypto/ed25519"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/go-jose/go-jose/v3"
 )
 
 func TestRoundtripsJWSCryptoSigner(t *testing.T) {

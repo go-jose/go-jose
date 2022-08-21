@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package main
+package generator
 
 import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 
-	jose "github.com/square/go-jose/v3"
+	jose "github.com/go-jose/go-jose/v3"
 )
 
 func LoadJSONWebKey(json []byte, pub bool) (*jose.JSONWebKey, error) {

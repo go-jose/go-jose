@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -31,10 +32,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/ed25519"
+	"github.com/go-jose/go-jose/v3/json"
 
-	"github.com/square/go-jose/v3/json"
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test chain of two X.509 certificates
@@ -252,37 +254,146 @@ func TestRoundtripX509(t *testing.T) {
 	x5tSHA1 := sha1.Sum(testCertificates[0].Raw)
 	x5tSHA256 := sha256.Sum256(testCertificates[0].Raw)
 
-	jwk := JSONWebKey{
-		Key:                         testCertificates[0].PublicKey,
-		KeyID:                       "bar",
-		Algorithm:                   "foo",
-		Certificates:                testCertificates,
-		CertificateThumbprintSHA1:   x5tSHA1[:],
-		CertificateThumbprintSHA256: x5tSHA256[:],
+	cases := []struct {
+		name string
+		jwk  JSONWebKey
+	}{
+		{
+			name: "all fields",
+			jwk: JSONWebKey{
+				Key:                         testCertificates[0].PublicKey,
+				KeyID:                       "bar",
+				Algorithm:                   "foo",
+				Certificates:                testCertificates,
+				CertificateThumbprintSHA1:   x5tSHA1[:],
+				CertificateThumbprintSHA256: x5tSHA256[:],
+			},
+		},
+		{
+			name: "no optional x5ts",
+			jwk: JSONWebKey{
+				Key:          testCertificates[0].PublicKey,
+				KeyID:        "bar",
+				Algorithm:    "foo",
+				Certificates: testCertificates,
+			},
+		},
+		{
+			name: "no x5t",
+			jwk: JSONWebKey{
+				Key:                         testCertificates[0].PublicKey,
+				KeyID:                       "bar",
+				Algorithm:                   "foo",
+				Certificates:                testCertificates,
+				CertificateThumbprintSHA256: x5tSHA256[:],
+			},
+		},
+		{
+			name: "no x5t#S256",
+			jwk: JSONWebKey{
+				Key:                       testCertificates[0].PublicKey,
+				KeyID:                     "bar",
+				Algorithm:                 "foo",
+				Certificates:              testCertificates,
+				CertificateThumbprintSHA1: x5tSHA1[:],
+			},
+		},
 	}
 
-	jsonbar, err := jwk.MarshalJSON()
-	if err != nil {
-		t.Error("problem marshaling", err)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			jsonbar, err := c.jwk.MarshalJSON()
+			require.NoError(t, err)
+
+			var jwk2 JSONWebKey
+			err = jwk2.UnmarshalJSON(jsonbar)
+			require.NoError(t, err)
+
+			if !reflect.DeepEqual(testCertificates, jwk2.Certificates) {
+				t.Error("Certificates not equal", c.jwk.Certificates, jwk2.Certificates)
+			}
+
+			jsonbar2, err := jwk2.MarshalJSON()
+			require.NoError(t, err)
+
+			require.Empty(t, cmp.Diff(jsonbar, jsonbar2))
+			if !bytes.Equal(jsonbar, jsonbar2) {
+				t.Error("roundtrip should not lose information")
+			}
+		})
 	}
+}
+
+func TestRoundtripX509Hex(t *testing.T) {
+	var hexJWK = `{
+   "kty":"RSA",
+   "kid":"bar",
+   "alg":"foo",
+   "n":"u7LUr30Mhrh8N79-H4rKiHQ123q6xaBZPYbf1nV4GM19rizSnbEfyebG1kpfCv-XY6c499XiM6lOvcPL-0goTOcfW6Lg7AAR895GbnMeXEmnxICaI8rAZHK6t1WPmiWp82y_qhK2F_pYUaT3GSuiTFiMGq_GNwdpWuMlsInnnMNv1nxFbxtDPwzmCp0fEBxbH5d1EtXZwTPOHMyj8rfa-NIA5Nl4h_5RrbOWveKwBr26_CDAratJgOWh9xcd5g0ot_uDGcMoAgB6xeTuYklfaxCPptvu49kvoxw1J71fp6nKW_ZuhDRAp2F_BQ9inKpTo05sPLJg8tPTdjaeouOuJQ",
+   "e":"AQAB",
+   "x5c":[
+      "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"
+	],
+	"x5t": "MDYxMjU0ZmRmNzIwZjJjMGU0YmQzZjMzMzlhMmZlNTM1MGExNWRlMQ",
+	"x5t#S256": "MjAzMjRhNGI5MmYxMjI2OGVmOWFlMDI1ZmQ1Yzc5ZDE1OGZmNzQ1NzQwMDkyMTk2ZTgzNTNjMDAzMTUxNzUxMQ"
+}`
+
+	// json output
+	var output = `{
+	"kty":"RSA",
+	"kid":"bar",
+	"alg":"foo",
+	"n":"u7LUr30Mhrh8N79-H4rKiHQ123q6xaBZPYbf1nV4GM19rizSnbEfyebG1kpfCv-XY6c499XiM6lOvcPL-0goTOcfW6Lg7AAR895GbnMeXEmnxICaI8rAZHK6t1WPmiWp82y_qhK2F_pYUaT3GSuiTFiMGq_GNwdpWuMlsInnnMNv1nxFbxtDPwzmCp0fEBxbH5d1EtXZwTPOHMyj8rfa-NIA5Nl4h_5RrbOWveKwBr26_CDAratJgOWh9xcd5g0ot_uDGcMoAgB6xeTuYklfaxCPptvu49kvoxw1J71fp6nKW_ZuhDRAp2F_BQ9inKpTo05sPLJg8tPTdjaeouOuJQ",
+	"e":"AQAB",
+	"x5c":[
+		"MIIDfDCCAmSgAwIBAgIJANWAkzF7PA8/MA0GCSqGSIb3DQEBCwUAMFUxCzAJBgNVBAYTAlVTMQswCQYDVQQIEwJDQTEQMA4GA1UEChMHY2VydGlnbzEQMA4GA1UECxMHZXhhbXBsZTEVMBMGA1UEAxMMZXhhbXBsZS1sZWFmMB4XDTE2MDYxMDIyMTQxMVoXDTIzMDQxNTIyMTQxMVowVTELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAkNBMRAwDgYDVQQKEwdjZXJ0aWdvMRAwDgYDVQQLEwdleGFtcGxlMRUwEwYDVQQDEwxleGFtcGxlLWxlYWYwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC7stSvfQyGuHw3v34fisqIdDXberrFoFk9ht/WdXgYzX2uLNKdsR/J5sbWSl8K/5djpzj31eIzqU69w8v7SChM5x9bouDsABHz3kZucx5cSafEgJojysBkcrq3VY+aJanzbL+qErYX+lhRpPcZK6JMWIwar8Y3B2la4yWwieecw2/WfEVvG0M/DOYKnR8QHFsfl3US1dnBM84czKPyt9r40gDk2XiH/lGts5a94rAGvbr8IMCtq0mA5aH3Fx3mDSi3+4MZwygCAHrF5O5iSV9rEI+m2+7j2S+jHDUnvV+nqcpb9m6ENECnYX8FD2KcqlOjTmw8smDy09N2Np6i464lAgMBAAGjTzBNMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcDATAsBgNVHREEJTAjhwR/AAABhxAAAAAAAAAAAAAAAAAAAAABgglsb2NhbGhvc3QwDQYJKoZIhvcNAQELBQADggEBAGM4aa/qrURUweZBIwZYv8O9b2+r4l0HjGAh982/B9sMlM05kojyDCUGvj86z18Lm8mKr4/y+i0nJ+vDIksEvfDuzw5ALAXGcBzPJKtICUf7LstA/n9NNpshWz0kld9ylnB5mbUzSFDncVyeXkEf5sGQXdIIZT9ChRBoiloSaa7dvBVCcsX1LGP2LWqKtD+7nUnw5qCwtyAVT8pthEUxFTpywoiJS5ZdzeEx8MNGvUeLFj2kleqPF78EioEQlSOxViCuctEtnQuPcDLHNFr10byTZY9roObiqdsJLMVvb2XliJjAqaPa9AkYwGE6xHw2ispwg64Rse0+AtKups19WIU=",
+		"MIIDUzCCAjugAwIBAgIJAKg+LQlirffwMA0GCSqGSIb3DQEBCwUAMFUxCzAJBgNVBAYTAlVTMQswCQYDVQQIEwJDQTEQMA4GA1UEChMHY2VydGlnbzEQMA4GA1UECxMHZXhhbXBsZTEVMBMGA1UEAxMMZXhhbXBsZS1yb290MB4XDTE2MDYxMDIyMTQxMVoXDTIzMDQxNTIyMTQxMVowVTELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAkNBMRAwDgYDVQQKEwdjZXJ0aWdvMRAwDgYDVQQLEwdleGFtcGxlMRUwEwYDVQQDEwxleGFtcGxlLXJvb3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDKOEoSiNjMQ8/zUFcQW89LWw+UeTXKGwNDSpGjyi8jBKZ1lWPbnMmrjI6DZ9ReevHHzqBdKZt+9NFPFEz7djDMRByIuJhRvzhfFBflaIdSeNk2+NpUaFuUUUd6IIePu0AdRveJ8ZGHXRwCeEDIVCZS4oBYPHOhX/zMWDg8vSO4pSxTjGc7I8fHxaUSkVzUBbeO9T/1eFk0m2uxs3UziUck2X/8YqRd+p/EaBED78nXvKRALAguKAzqxIgk3ccPK0SVQFNFq+eV1/qo8coueQuqMpCAvwVkfpVKhneyC2NlMrfzlcZZbfG/irlSjQn5+ExZX4Isy1pCUbOiVfSrsCdtAgMBAAGjJjAkMA4GA1UdDwEB/wQEAwICBDASBgNVHRMBAf8ECDAGAQH/AgEAMA0GCSqGSIb3DQEBCwUAA4IBAQCLEJU65vTU+oLbNHLOCR6fALrbjK7xsi6SFDpSXBMm74MWsy3myDBmXpOcN8hCYgsgivUXTQz9ynXP/pzOj4b83zzlaOfPtLTAmMhKWVV4Q85mrDQz+HzG4lKXM78eTsD8PyrocA/tSE7mVEJ0Jal4E2KI/Z9/fqpYFLB6LFlx5n83ehXM/egA0l4OeCC9nBKCeNUN3sIQO85lljyzAJdtWnsdoWogJs6qjcV8n2U5xjZxN5ZFdclYLjq6g2cjEXXMQxb8b7ZhHjLWFdjHP85UvXHK3DpK3JmUg8bYS7t1DJffDQNjawhlsMycKZN+r0ND0Um4m7AjGqxbKT/M2yKF"
+	],
+	"x5t":"BhJU_fcg8sDkvT8zOaL-U1ChXeE",
+	"x5t#S256":"IDJKS5LxImjvmuAl_Vx50Vj_dFdACSGW6DU8ADFRdRE"
+	}`
 
 	var jwk2 JSONWebKey
-	err = jwk2.UnmarshalJSON(jsonbar)
-	if err != nil {
-		t.Fatal("problem unmarshalling", err)
-	}
+	err := jwk2.UnmarshalJSON([]byte(hexJWK))
+	require.NoError(t, err)
 
-	if !reflect.DeepEqual(testCertificates, jwk2.Certificates) {
-		t.Error("Certificates not equal", jwk.Certificates, jwk2.Certificates)
-	}
+	js, err := jwk2.MarshalJSON()
+	require.NoError(t, err)
 
-	jsonbar2, err := jwk2.MarshalJSON()
-	if err != nil {
-		t.Error("problem marshaling", err)
-	}
-	if !bytes.Equal(jsonbar, jsonbar2) {
-		t.Error("roundtrip should not lose information")
-	}
+	var j1, j2 map[string]interface{}
+	require.NoError(t, json.Unmarshal(js, &j1))
+	require.NoError(t, json.Unmarshal([]byte(output), &j2))
+	require.Empty(t, cmp.Diff(j1, j2))
+}
+
+func TestCertificatesURL(t *testing.T) {
+	var urlJWK = `{
+   "kty":"RSA",
+   "n":"u7LUr30Mhrh8N79-H4rKiHQ123q6xaBZPYbf1nV4GM19rizSnbEfyebG1kpfCv-XY6c499XiM6lOvcPL-0goTOcfW6Lg7AAR895GbnMeXEmnxICaI8rAZHK6t1WPmiWp82y_qhK2F_pYUaT3GSuiTFiMGq_GNwdpWuMlsInnnMNv1nxFbxtDPwzmCp0fEBxbH5d1EtXZwTPOHMyj8rfa-NIA5Nl4h_5RrbOWveKwBr26_CDAratJgOWh9xcd5g0ot_uDGcMoAgB6xeTuYklfaxCPptvu49kvoxw1J71fp6nKW_ZuhDRAp2F_BQ9inKpTo05sPLJg8tPTdjaeouOuJQ",
+   "e":"AQAB",
+   "x5u": "https://example.com/keys.json"
+}`
+	var jwk2 JSONWebKey
+	err := jwk2.UnmarshalJSON([]byte(urlJWK))
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/keys.json", jwk2.CertificatesURL.String())
+
+	js, err := jwk2.MarshalJSON()
+	require.NoError(t, err)
+	var j1, j2 map[string]interface{}
+	require.NoError(t, json.Unmarshal(js, &j1))
+	require.NoError(t, json.Unmarshal([]byte(urlJWK), &j2))
+	require.Empty(t, cmp.Diff(j1, j2))
+
+	var invalidURLJWK = `{
+   "kty":"RSA",
+   "n":"u7LUr30Mhrh8N79-H4rKiHQ123q6xaBZPYbf1nV4GM19rizSnbEfyebG1kpfCv-XY6c499XiM6lOvcPL-0goTOcfW6Lg7AAR895GbnMeXEmnxICaI8rAZHK6t1WPmiWp82y_qhK2F_pYUaT3GSuiTFiMGq_GNwdpWuMlsInnnMNv1nxFbxtDPwzmCp0fEBxbH5d1EtXZwTPOHMyj8rfa-NIA5Nl4h_5RrbOWveKwBr26_CDAratJgOWh9xcd5g0ot_uDGcMoAgB6xeTuYklfaxCPptvu49kvoxw1J71fp6nKW_ZuhDRAp2F_BQ9inKpTo05sPLJg8tPTdjaeouOuJQ",
+   "e":"AQAB",
+   "x5u": "://example.com/keys.json"
+}`
+	err = jwk2.UnmarshalJSON([]byte(invalidURLJWK))
+	require.EqualError(t, err, "go-jose/go-jose: invalid JWK, x5u header is invalid URL: parse \"://example.com/keys.json\": missing protocol scheme")
 }
 
 func TestInvalidThumbprintsX509(t *testing.T) {
@@ -362,6 +473,46 @@ func TestInvalidThumbprintsX509(t *testing.T) {
 	if err == nil {
 		t.Error("should not unmarshal JWK with too short thumbprints")
 	}
+}
+
+func TestPaddedThumbprintIsStripped(t *testing.T) {
+	var hexJWK = `{
+	"e": "AQAB",
+	"kid": "dpuEmX8znJJqBq4gurHOy8TfMRc",
+	"kty": "RSA",
+	"n": "9TjhCGd6luJZF71eiz5xGDh2ax6R44r7t1CfNV0E-_oGd5OggY2-rJlVu9DeNzP-oSsoMZ0S0rKVpDt4paCrOmCAmfXfNTIzQC-oqkKH7p8l7KJ2GuDotaLb9qJKGBhty6c-hInWaMAoI1TnKkYUBQsCv07dKdm7hse2GtJZFkIlAFYeltnu9KKAgs23YMXnKsfQvyS4FCzWZdxQuPfLveOP2dd79khzzGO9g3Wp2Y4DzQOoF7ZDtUhnfVcqDq5q17Gj3cCabN0dvuUI7HIRFPlQsvRJy4i3FbVG4_lx7HthXLsAj30GexPK_v2oY1WjvxF55hrMjkUcv8Y9LKm2fQ",
+	"use": "sig",
+	"x5c": [
+		"MIIFLTCCBBWgAwIBAgIEWcXexjANBgkqhkiG9w0BAQsFADBTMQswCQYDVQQGEwJHQjEUMBIGA1UEChMLT3BlbkJhbmtpbmcxLjAsBgNVBAMTJU9wZW5CYW5raW5nIFByZS1Qcm9kdWN0aW9uIElzc3VpbmcgQ0EwHhcNMjAwNjEyMTExMzU1WhcNMjEwNzEyMTE0MzU1WjBhMQswCQYDVQQGEwJHQjEUMBIGA1UEChMLT3BlbkJhbmtpbmcxGzAZBgNVBAsTEjAwMTU4MDAwMDEwM1VBdkFBTTEfMB0GA1UEAxMWNG1Zc1Rnd1hBRVhjbldROXpoRHBhVzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAPU44QhnepbiWRe9Xos+cRg4dmsekeOK+7dQnzVdBPv6BneToIGNvqyZVbvQ3jcz/qErKDGdEtKylaQ7eKWgqzpggJn13zUyM0AvqKpCh+6fJeyidhrg6LWi2/aiShgYbcunPoSJ1mjAKCNU5ypGFAULAr9O3SnZu4bHthrSWRZCJQBWHpbZ7vSigILNt2DF5yrH0L8kuBQs1mXcULj3y73jj9nXe/ZIc8xjvYN1qdmOA80DqBe2Q7VIZ31XKg6uatexo93AmmzdHb7lCOxyERT5ULL0ScuItxW1RuP5cex7YVy7AI99BnsTyv79qGNVo78ReeYazI5FHL/GPSyptn0CAwEAAaOCAfkwggH1MA4GA1UdDwEB/wQEAwIGwDAVBgNVHSUEDjAMBgorBgEEAYI3CgMMMIHgBgNVHSAEgdgwgdUwgdIGCysGAQQBqHWBBgFkMIHCMCoGCCsGAQUFBwIBFh5odHRwOi8vb2IudHJ1c3Rpcy5jb20vcG9saWNpZXMwgZMGCCsGAQUFBwICMIGGDIGDVXNlIG9mIHRoaXMgQ2VydGlmaWNhdGUgY29uc3RpdHV0ZXMgYWNjZXB0YW5jZSBvZiB0aGUgT3BlbkJhbmtpbmcgUm9vdCBDQSBDZXJ0aWZpY2F0aW9uIFBvbGljaWVzIGFuZCBDZXJ0aWZpY2F0ZSBQcmFjdGljZSBTdGF0ZW1lbnQwbQYIKwYBBQUHAQEEYTBfMCYGCCsGAQUFBzABhhpodHRwOi8vb2IudHJ1c3Rpcy5jb20vb2NzcDA1BggrBgEFBQcwAoYpaHR0cDovL29iLnRydXN0aXMuY29tL29iX3BwX2lzc3VpbmdjYS5jcnQwOgYDVR0fBDMwMTAvoC2gK4YpaHR0cDovL29iLnRydXN0aXMuY29tL29iX3BwX2lzc3VpbmdjYS5jcmwwHwYDVR0jBBgwFoAUUHORxiFy03f0/gASBoFceXluP1AwHQYDVR0OBBYEFEDCcD9DKG/GDmRqKInVaycbBXqBMA0GCSqGSIb3DQEBCwUAA4IBAQBiQCbu2aSj28pAIO+Cf36ELT9ATWwR6kTCxgUoYHxh3G2uCn4ocOE1Nzl/sSnSVTcp8O2CdeYcRWXfj5jP4jpIL/zkpC1CD1VWKWNJJF2C3RMPlY/sheHhUFB3dCPTZDDChA09gEWSHVFxdIA64/wWTWutOwNZbF5iD+QXYkarMBE4Ake/2Yoeno5HWtJTc/Sgm9EKj7SDvYuLouNWIrw1/W+F52eFeyRSKLPCmPUV8iz3vRRb8jfRTEFeBzDMy4GGIEKmV9HYkDDEiB1y0RO2GU2PquFMaNlN5I1a9YgkCQBNeWJMCXYuuBSZ545dwXgfeNwZ3a89IWaKYtwM6g2N"
+	],
+	"x5t": "bnKJSxqsULiTOPSwNIqMX0xzgcU=",
+	"x5t#S256": "SCfnsU0X0cxg_11iOLMqWuy2d5wMnIYIM9bDOsfCRRU="
+}`
+
+	var output = `{
+	"e": "AQAB",
+	"kid": "dpuEmX8znJJqBq4gurHOy8TfMRc",
+	"kty": "RSA",
+	"n": "9TjhCGd6luJZF71eiz5xGDh2ax6R44r7t1CfNV0E-_oGd5OggY2-rJlVu9DeNzP-oSsoMZ0S0rKVpDt4paCrOmCAmfXfNTIzQC-oqkKH7p8l7KJ2GuDotaLb9qJKGBhty6c-hInWaMAoI1TnKkYUBQsCv07dKdm7hse2GtJZFkIlAFYeltnu9KKAgs23YMXnKsfQvyS4FCzWZdxQuPfLveOP2dd79khzzGO9g3Wp2Y4DzQOoF7ZDtUhnfVcqDq5q17Gj3cCabN0dvuUI7HIRFPlQsvRJy4i3FbVG4_lx7HthXLsAj30GexPK_v2oY1WjvxF55hrMjkUcv8Y9LKm2fQ",
+	"use": "sig",
+	"x5c": [
+		"MIIFLTCCBBWgAwIBAgIEWcXexjANBgkqhkiG9w0BAQsFADBTMQswCQYDVQQGEwJHQjEUMBIGA1UEChMLT3BlbkJhbmtpbmcxLjAsBgNVBAMTJU9wZW5CYW5raW5nIFByZS1Qcm9kdWN0aW9uIElzc3VpbmcgQ0EwHhcNMjAwNjEyMTExMzU1WhcNMjEwNzEyMTE0MzU1WjBhMQswCQYDVQQGEwJHQjEUMBIGA1UEChMLT3BlbkJhbmtpbmcxGzAZBgNVBAsTEjAwMTU4MDAwMDEwM1VBdkFBTTEfMB0GA1UEAxMWNG1Zc1Rnd1hBRVhjbldROXpoRHBhVzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAPU44QhnepbiWRe9Xos+cRg4dmsekeOK+7dQnzVdBPv6BneToIGNvqyZVbvQ3jcz/qErKDGdEtKylaQ7eKWgqzpggJn13zUyM0AvqKpCh+6fJeyidhrg6LWi2/aiShgYbcunPoSJ1mjAKCNU5ypGFAULAr9O3SnZu4bHthrSWRZCJQBWHpbZ7vSigILNt2DF5yrH0L8kuBQs1mXcULj3y73jj9nXe/ZIc8xjvYN1qdmOA80DqBe2Q7VIZ31XKg6uatexo93AmmzdHb7lCOxyERT5ULL0ScuItxW1RuP5cex7YVy7AI99BnsTyv79qGNVo78ReeYazI5FHL/GPSyptn0CAwEAAaOCAfkwggH1MA4GA1UdDwEB/wQEAwIGwDAVBgNVHSUEDjAMBgorBgEEAYI3CgMMMIHgBgNVHSAEgdgwgdUwgdIGCysGAQQBqHWBBgFkMIHCMCoGCCsGAQUFBwIBFh5odHRwOi8vb2IudHJ1c3Rpcy5jb20vcG9saWNpZXMwgZMGCCsGAQUFBwICMIGGDIGDVXNlIG9mIHRoaXMgQ2VydGlmaWNhdGUgY29uc3RpdHV0ZXMgYWNjZXB0YW5jZSBvZiB0aGUgT3BlbkJhbmtpbmcgUm9vdCBDQSBDZXJ0aWZpY2F0aW9uIFBvbGljaWVzIGFuZCBDZXJ0aWZpY2F0ZSBQcmFjdGljZSBTdGF0ZW1lbnQwbQYIKwYBBQUHAQEEYTBfMCYGCCsGAQUFBzABhhpodHRwOi8vb2IudHJ1c3Rpcy5jb20vb2NzcDA1BggrBgEFBQcwAoYpaHR0cDovL29iLnRydXN0aXMuY29tL29iX3BwX2lzc3VpbmdjYS5jcnQwOgYDVR0fBDMwMTAvoC2gK4YpaHR0cDovL29iLnRydXN0aXMuY29tL29iX3BwX2lzc3VpbmdjYS5jcmwwHwYDVR0jBBgwFoAUUHORxiFy03f0/gASBoFceXluP1AwHQYDVR0OBBYEFEDCcD9DKG/GDmRqKInVaycbBXqBMA0GCSqGSIb3DQEBCwUAA4IBAQBiQCbu2aSj28pAIO+Cf36ELT9ATWwR6kTCxgUoYHxh3G2uCn4ocOE1Nzl/sSnSVTcp8O2CdeYcRWXfj5jP4jpIL/zkpC1CD1VWKWNJJF2C3RMPlY/sheHhUFB3dCPTZDDChA09gEWSHVFxdIA64/wWTWutOwNZbF5iD+QXYkarMBE4Ake/2Yoeno5HWtJTc/Sgm9EKj7SDvYuLouNWIrw1/W+F52eFeyRSKLPCmPUV8iz3vRRb8jfRTEFeBzDMy4GGIEKmV9HYkDDEiB1y0RO2GU2PquFMaNlN5I1a9YgkCQBNeWJMCXYuuBSZ545dwXgfeNwZ3a89IWaKYtwM6g2N"
+	],
+	"x5t": "bnKJSxqsULiTOPSwNIqMX0xzgcU",
+	"x5t#S256": "SCfnsU0X0cxg_11iOLMqWuy2d5wMnIYIM9bDOsfCRRU"
+}`
+
+	var jwk2 JSONWebKey
+	err := jwk2.UnmarshalJSON([]byte(hexJWK))
+	require.NoError(t, err)
+
+	js, err := jwk2.MarshalJSON()
+	require.NoError(t, err)
+
+	var j1, j2 map[string]interface{}
+	require.NoError(t, json.Unmarshal(js, &j1))
+	require.NoError(t, json.Unmarshal([]byte(output), &j2))
+	require.Empty(t, cmp.Diff(j1, j2))
 }
 
 func TestKeyMismatchX509(t *testing.T) {
@@ -683,7 +834,7 @@ var cookbookJWKs = []string{
 // SHA-256 thumbprints of the above keys, hex-encoded
 var cookbookJWKThumbprints = []string{
 	"747ae2dd2003664aeeb21e4753fe7402846170a16bc8df8f23a8cf06d3cbe793",
-	"f6934029a341ddf81dceb753e91d17efe16664f40d9f4ed84bc5ea87e111f29d",
+	"90facafea9b1556698540f70c0117a22ea37bd5cf3ed3c47093c1707282b4b89",
 	"747ae2dd2003664aeeb21e4753fe7402846170a16bc8df8f23a8cf06d3cbe793",
 	"f63838e96077ad1fc01c3f8405774dedc0641f558ebb4b40dccf5f9b6d66a932",
 	"0fc478f8579325fcee0d4cbc6d9d1ce21730a6e97e435d6008fb379b0ebe47d4",
@@ -922,8 +1073,8 @@ func TestJWKBufferSizeCheck(t *testing.T) {
 		t.Fatal("key should be invalid")
 	}
 	jwk.Valid() // true
-	// panic: square/go-jose: invalid call to newFixedSizeBuffer (len(data) > length)
-	// github.com/square/go-jose.newFixedSizeBuffer(0xc420014557, 0x41, 0x41, 0x20, 0x0)
+	// panic: go-jose/go-jose: invalid call to newFixedSizeBuffer (len(data) > length)
+	// github.com/go-jose/go-jose.newFixedSizeBuffer(0xc420014557, 0x41, 0x41, 0x20, 0x0)
 	jwk.Thumbprint(crypto.SHA256)
 }
 

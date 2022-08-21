@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"strings"
 
-	jose "github.com/square/go-jose/v3"
-	"github.com/square/go-jose/v3/json"
+	jose "github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v3/json"
 )
 
 // JSONWebToken represents a JSON Web Token (as specified in RFC7519).
@@ -39,9 +39,7 @@ type NestedJSONWebToken struct {
 
 // Claims deserializes a JSONWebToken into dest using the provided key.
 func (t *JSONWebToken) Claims(key interface{}, dest ...interface{}) error {
-	payloadKey := tryJWKS(t.Headers, key)
-
-	b, err := t.payload(payloadKey)
+	b, err := t.payload(key)
 	if err != nil {
 		return err
 	}
@@ -60,7 +58,7 @@ func (t *JSONWebToken) Claims(key interface{}, dest ...interface{}) error {
 // verified. This function won't work for encrypted JWTs.
 func (t *JSONWebToken) UnsafeClaimsWithoutVerification(dest ...interface{}) error {
 	if t.unverifiedPayload == nil {
-		return fmt.Errorf("square/go-jose: Cannot get unverified claims")
+		return fmt.Errorf("go-jose/go-jose: Cannot get unverified claims")
 	}
 	claims := t.unverifiedPayload()
 	for _, d := range dest {
@@ -72,9 +70,7 @@ func (t *JSONWebToken) UnsafeClaimsWithoutVerification(dest ...interface{}) erro
 }
 
 func (t *NestedJSONWebToken) Decrypt(decryptionKey interface{}) (*JSONWebToken, error) {
-	key := tryJWKS(t.Headers, decryptionKey)
-
-	b, err := t.enc.Decrypt(key)
+	b, err := t.enc.Decrypt(decryptionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -134,30 +130,4 @@ func ParseSignedAndEncrypted(s string) (*NestedJSONWebToken, error) {
 		enc:     enc,
 		Headers: []jose.Header{enc.Header},
 	}, nil
-}
-
-func tryJWKS(headers []jose.Header, key interface{}) interface{} {
-	jwks, ok := key.(*jose.JSONWebKeySet)
-	if !ok {
-		return key
-	}
-
-	var kid string
-	for _, header := range headers {
-		if header.KeyID != "" {
-			kid = header.KeyID
-			break
-		}
-	}
-
-	if kid == "" {
-		return key
-	}
-
-	keys := jwks.Key(kid)
-	if len(keys) == 0 {
-		return key
-	}
-
-	return keys[0].Key
 }

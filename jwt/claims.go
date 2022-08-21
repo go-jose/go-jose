@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/square/go-jose/v3/json"
+	"github.com/go-jose/go-jose/v3/json"
 )
 
 // Claims represents public claim values (as specified in RFC 7519).
@@ -36,8 +36,9 @@ type Claims struct {
 }
 
 // NumericDate represents date and time as the number of seconds since the
-// epoch, including leap seconds. Non-integer values can be represented
+// epoch, ignoring leap seconds. Non-integer values can be represented
 // in the serialized format, but we round to the nearest second.
+// See RFC7519 Section 2: https://tools.ietf.org/html/rfc7519#section-2
 type NumericDate int64
 
 // NewNumericDate constructs NumericDate from time.Time value.
@@ -80,7 +81,7 @@ func (n *NumericDate) Time() time.Time {
 	return time.Unix(int64(*n), 0)
 }
 
-// Audience represents the recipents that the token is intended for.
+// Audience represents the recipients that the token is intended for.
 type Audience []string
 
 // UnmarshalJSON reads an audience from its JSON representation.
