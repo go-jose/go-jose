@@ -170,7 +170,7 @@ func NewEncrypter(enc ContentEncryption, rcpt Recipient, opts *EncrypterOptions)
 	switch rcpt.Algorithm {
 	case DIRECT:
 		// Direct encryption mode must be treated differently
-		if reflect.TypeOf(rawKey) != reflect.TypeOf([]byte{}) {
+		if reflect.TypeOf(rawKey) != reflect.TypeOf([]byte(nil)) {
 			return nil, ErrUnsupportedKeyType
 		}
 		if encrypter.cipher.keySize() != len(rawKey.([]byte)) {
@@ -189,7 +189,7 @@ func NewEncrypter(enc ContentEncryption, rcpt Recipient, opts *EncrypterOptions)
 	case ECDH_ES:
 		// ECDH-ES (w/o key wrapping) is similar to DIRECT mode
 		typeOf := reflect.TypeOf(rawKey)
-		if typeOf != reflect.TypeOf(&ecdsa.PublicKey{}) {
+		if typeOf != reflect.TypeOf((*ecdsa.PublicKey)(nil)) {
 			return nil, ErrUnsupportedKeyType
 		}
 		encrypter.keyGenerator = ecKeyGenerator{
