@@ -39,7 +39,7 @@ libraries in other languages.
 
 [Version 3](https://github.com/go-jose/go-jose)
 ([branch](https://github.com/go-jose/go-jose/tree/master),
-[doc](https://godoc.org/github.com/go-jose/go-jose)) is the current stable version:
+[doc](https://godoc.org/github.com/go-jose/go-jose), [releases](https://github.com/go-jose/go-jose/releases)) is the current stable version:
 
     import "github.com/go-jose/go-jose/v3"
 
