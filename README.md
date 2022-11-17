@@ -37,24 +37,14 @@ libraries in other languages.
 
 ### Versions
 
-[Version 2](https://gopkg.in/go-jose/go-jose.v2)
-([branch](https://github.com/go-jose/go-jose/tree/v2),
-[doc](https://godoc.org/gopkg.in/go-jose/go-jose.v2)) is the current stable version:
-
-    import "gopkg.in/go-jose/go-jose.v2"
-
 [Version 3](https://github.com/go-jose/go-jose)
 ([branch](https://github.com/go-jose/go-jose/tree/master),
-[doc](https://godoc.org/github.com/go-jose/go-jose)) is the under development/unstable version (not released yet):
+[doc](https://godoc.org/github.com/go-jose/go-jose)) is the current stable version:
 
     import "github.com/go-jose/go-jose/v3"
 
-All new feature development takes place on the `master` branch, which we are
-preparing to release as version 3 soon. Version 2 will continue to receive
-critical bug and security fixes. Note that starting with version 3 we are
-using Go modules for versioning instead of `gopkg.in` as before. Version 3 also will require Go version 1.13 or higher.
-
-Version 1 (on the `v1` branch) is frozen and not supported anymore.
+The old square/go-jose repo contains the prior v1 and v2 versions, which
+are still useable but not actively developed anymore. 
 
 ### Supported algorithms
 
