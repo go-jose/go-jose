@@ -1180,3 +1180,44 @@ func TestJWKPaddingY(t *testing.T) {
 		t.Errorf("Expected key to be invalid, but it was valid.")
 	}
 }
+
+func TestJWKMicrosoftKeyVault(t *testing.T) {
+	var keys = []string{
+		stripWhitespace(`{
+		 "kty": "EC-HSM",
+		 "kid": "bilbo.baggins@hobbiton.example",
+		 "use": "sig",
+		 "crv": "P-521",
+		 "x": "AHKZLLOsCOzz5cY97ewNUajB957y-C-U88c3v13nmGZx6sYl_oJXu9
+		       A5RkTKqjqvjyekWF-7ytDyRXYgCF5cj0Kt",
+		 "y": "AdymlHvOiLxXkEhayXQnNCvDX4h9htZaCJN34kfmC6pV5OhQHiraVy
+		       SsUdaQkAgDPrwQrJmbnX9cwlGfP-HqHZR1"
+		}`),
+		stripWhitespace(`{
+		 "kty": "RSA-HSM",
+		 "kid": "bilbo.baggins@hobbiton.example",
+		 "use": "sig",
+		 "n": "n4EPtAOCc9AlkeQHPzHStgAbgs7bTZLwUBZdR8_KuKPEHLd4rHVTeT
+		       -O-XV2jRojdNhxJWTDvNd7nqQ0VEiZQHz_AJmSCpMaJMRBSFKrKb2wqV
+		       wGU_NsYOYL-QtiWN2lbzcEe6XC0dApr5ydQLrHqkHHig3RBordaZ6Aj-
+		       oBHqFEHYpPe7Tpe-OfVfHd1E6cS6M1FZcD1NNLYD5lFHpPI9bTwJlsde
+		       3uhGqC0ZCuEHg8lhzwOHrtIQbS0FVbb9k3-tVTU4fg_3L_vniUFAKwuC
+		       LqKnS2BYwdq_mzSnbLY7h_qixoR7jig3__kRhuaxwUkRz5iaiQkqgc5g
+		       HdrNP5zw",
+		 "e": "AQAB"
+		}`),
+		stripWhitespace(`{
+		 "kty":"oct-HSM",
+		 "alg":"A128KW",
+		 "k":"GawgguFyGrWKav7AX4VKUg"
+		}`),
+	}
+
+	for _, key := range keys {
+		var jwk JSONWebKey
+		err := jwk.UnmarshalJSON([]byte(key))
+		if err != nil {
+			t.Error("unable to parse valid key:", key, err)
+		}
+	}
+}
