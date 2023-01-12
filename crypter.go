@@ -496,9 +496,12 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 	// The "zip" header parameter may only be present in the protected header.
 	if comp := obj.protected.getCompression(); comp != "" {
 		plaintext, err = decompress(comp, plaintext)
+		if err != nil {
+			return nil, fmt.Errorf("go-jose/go-jose: failed to decompress plaintext: %v", err)
+		}
 	}
 
-	return plaintext, err
+	return plaintext, nil
 }
 
 // DecryptMulti decrypts and validates the object and returns the plaintexts,
@@ -569,7 +572,10 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 
 	// The "zip" header parameter may only be present in the protected header.
 	if comp := obj.protected.getCompression(); comp != "" {
-		plaintext, _ = decompress(comp, plaintext)
+		plaintext, err = decompress(comp, plaintext)
+		if err != nil {
+			return -1, Header{}, nil, fmt.Errorf("go-jose/go-jose: failed to decompress plaintext: %v", err)
+		}
 	}
 
 	sanitized, err := headers.sanitized()
