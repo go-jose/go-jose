@@ -76,14 +76,24 @@ type recipientKeyInfo struct {
 type EncrypterOptions struct {
 	Compression CompressionAlgorithm
 
-	// Optional map of additional keys to be inserted into the protected header
-	// of a JWS object. Some specifications which make use of JWS like to insert
-	// additional values here. All values must be JSON-serializable.
+	// Optional map of name/value pairs to be inserted into the protected
+	// header of a JWS object. Some specifications which make use of
+	// JWS require additional values here.
+	//
+	// Values will be serialized by [json.Marshal] and must be valid inputs to
+	// that function.
+	//
+	// [json.Marshal]: https://pkg.go.dev/encoding/json#Marshal
 	ExtraHeaders map[HeaderKey]interface{}
 }
 
 // WithHeader adds an arbitrary value to the ExtraHeaders map, initializing it
-// if necessary. It returns itself and so can be used in a fluent style.
+// if necessary, and returns the updated EncrypterOptions.
+//
+// The v parameter will be serialized by [json.Marshal] and must be a valid
+// input to that function.
+//
+// [json.Marshal]: https://pkg.go.dev/encoding/json#Marshal
 func (eo *EncrypterOptions) WithHeader(k HeaderKey, v interface{}) *EncrypterOptions {
 	if eo.ExtraHeaders == nil {
 		eo.ExtraHeaders = map[HeaderKey]interface{}{}
@@ -111,7 +121,17 @@ func (eo *EncrypterOptions) WithType(typ ContentType) *EncrypterOptions {
 // default of 100000 will be used for the count and a 128-bit random salt will
 // be generated.
 type Recipient struct {
-	Algorithm  KeyAlgorithm
+	Algorithm KeyAlgorithm
+	// Key must have one of these types:
+	//  - JSONWebKey
+	//  - *JSONWebKey
+	//  - ed25519.PublicKey
+	//  - *ecdsa.PublicKey
+	//  - *rsa.PublicKey
+	//  - Any type that satisfies the OpaqueKeyEncrypter interface
+	//  - []byte (will be interpreted as a symmetric key)
+	//
+	// The type of Key must match the value of Algorithm.
 	Key        interface{}
 	KeyID      string
 	PBES2Count int
@@ -403,9 +423,20 @@ func (ctx *genericEncrypter) Options() EncrypterOptions {
 	}
 }
 
-// Decrypt and validate the object and return the plaintext. Note that this
-// function does not support multi-recipient, if you desire multi-recipient
+// Decrypt and validate the object and return the plaintext. This
+// function does not support multi-recipient. If you desire multi-recipient
 // decryption use DecryptMulti instead.
+//
+// The decryptionKey argument most have one of these types:
+//   - *rsa.PrivateKey
+//   - *ecdsa.PrivateKey
+//   - []byte (will be interpreted as the bytes of a symmetric key)
+//   - string (will be interpreted as the bytes of a symmetric key)
+//   - *JSONWebKey
+//   - JSONWebKey
+//   - *JSONWebKeySet
+//   - JSONWebKeySet
+//   - Any type that satisfies the OpaqueKeyDecrypter interface.
 func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) {
 	headers := obj.mergedHeaders(nil)
 
@@ -471,6 +502,9 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 // with support for multiple recipients. It returns the index of the recipient
 // for which the decryption was successful, the merged headers for that recipient,
 // and the plaintext.
+//
+// The decryptionKey argument must have one of the types allowed for the
+// decryptionKey argument of Decrypt().
 func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Header, []byte, error) {
 	globalHeaders := obj.mergedHeaders(nil)
 
