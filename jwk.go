@@ -78,7 +78,7 @@ type JSONWebKey struct {
 	//  - *ecdsa.PrivateKey
 	//  - *rsa.PublicKey
 	//  - *rsa.PrivateKey
-	//  - []byte (will be interpreted as a symmetric key)
+	//  - []byte (a symmetric key)
 	//
 	// When marshaling this JSONWebKey into JSON, the "kty" header parameter
 	// will be automatically set based on the type of this field.

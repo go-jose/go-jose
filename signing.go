@@ -43,11 +43,11 @@ type Signer interface {
 //
 // Key must have one of these types:
 //   - ed25519.PrivateKey
-//   - *rsa.PrivateKey
 //   - *ecdsa.PrivateKey
-//   - []byte (will be interpreted as the bytes of an HMAC key)
+//   - *rsa.PrivateKey
 //   - *JSONWebKey
 //   - JSONWebKey
+//   - []byte (an HMAC key)
 //   - Any type that satisfies the OpaqueSigner interface
 type SigningKey struct {
 	Algorithm SignatureAlgorithm
@@ -61,8 +61,10 @@ type SignerOptions struct {
 
 	// Optional map of additional keys to be inserted into the protected header
 	// of a JWS object. Some specifications which make use of JWS like to insert
-	// additional values here. Values will be serialized by [json.Marshal] and
-	// must be valid inputs to that function.
+	// additional values here.
+	//
+	// Values will be serialized by [json.Marshal] and must be valid inputs to
+	// that function.
 	//
 	// [json.Marshal]: https://pkg.go.dev/encoding/json#Marshal
 	ExtraHeaders map[HeaderKey]interface{}
@@ -347,11 +349,11 @@ func (ctx *genericSigner) Options() SignerOptions {
 //
 // The verificationKey argument must have one of these types:
 //   - ed25519.PublicKey
-//   - *rsa.PublicKey
 //   - *ecdsa.PublicKey
-//   - []byte (will be interpreted as the bytes of a MAC key)
+//   - *rsa.PublicKey
 //   - *JSONWebKey
 //   - JSONWebKey
+//   - []byte (the bytes of an HMAC key; must have correct length)
 //   - Any type that implements the OpaqueVerifier interface.
 func (obj JSONWebSignature) Verify(verificationKey interface{}) ([]byte, error) {
 	err := obj.DetachedVerify(obj.payload, verificationKey)

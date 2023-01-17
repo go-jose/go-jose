@@ -123,13 +123,13 @@ func (eo *EncrypterOptions) WithType(typ ContentType) *EncrypterOptions {
 type Recipient struct {
 	Algorithm KeyAlgorithm
 	// Key must have one of these types:
-	//  - JSONWebKey
-	//  - *JSONWebKey
 	//  - ed25519.PublicKey
 	//  - *ecdsa.PublicKey
 	//  - *rsa.PublicKey
-	//  - Any type that satisfies the OpaqueKeyEncrypter interface
+	//  - *JSONWebKey
+	//  - JSONWebKey
 	//  - []byte (will be interpreted as a symmetric key)
+	//  - Any type that satisfies the OpaqueKeyEncrypter interface
 	//
 	// The type of Key must match the value of Algorithm.
 	Key        interface{}
@@ -427,16 +427,20 @@ func (ctx *genericEncrypter) Options() EncrypterOptions {
 // function does not support multi-recipient. If you desire multi-recipient
 // decryption use DecryptMulti instead.
 //
-// The decryptionKey argument most have one of these types:
-//   - *rsa.PrivateKey
+// The decryptionKey argument must contain a private or symmetric key
+// and must have one of these types:
 //   - *ecdsa.PrivateKey
-//   - []byte (will be interpreted as the bytes of a symmetric key)
-//   - string (will be interpreted as the bytes of a symmetric key)
+//   - *rsa.PrivateKey
 //   - *JSONWebKey
 //   - JSONWebKey
 //   - *JSONWebKeySet
 //   - JSONWebKeySet
+//   - []byte (a symmetric key)
+//   - string (a symmetric key)
 //   - Any type that satisfies the OpaqueKeyDecrypter interface.
+//
+// Note that ed25519 is only available for signatures, not encryption, so is
+// not an option here.
 func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) {
 	headers := obj.mergedHeaders(nil)
 
