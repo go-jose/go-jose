@@ -353,7 +353,7 @@ func (ctx *genericSigner) Options() SignerOptions {
 //   - *rsa.PublicKey
 //   - *JSONWebKey
 //   - JSONWebKey
-//   - []byte (the bytes of an HMAC key; must have correct length)
+//   - []byte (an HMAC key)
 //   - Any type that implements the OpaqueVerifier interface.
 func (obj JSONWebSignature) Verify(verificationKey interface{}) ([]byte, error) {
 	err := obj.DetachedVerify(obj.payload, verificationKey)

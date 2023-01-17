@@ -128,7 +128,7 @@ type Recipient struct {
 	//  - *rsa.PublicKey
 	//  - *JSONWebKey
 	//  - JSONWebKey
-	//  - []byte (will be interpreted as a symmetric key)
+	//  - []byte (a symmetric key)
 	//  - Any type that satisfies the OpaqueKeyEncrypter interface
 	//
 	// The type of Key must match the value of Algorithm.
