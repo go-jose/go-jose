@@ -270,9 +270,8 @@ func makeJWERecipient(alg KeyAlgorithm, encryptionKey interface{}) (recipientKey
 		recipient, err := makeJWERecipient(alg, encryptionKey.Key)
 		recipient.keyID = encryptionKey.KeyID
 		return recipient, err
-	}
-	if encrypter, ok := encryptionKey.(OpaqueKeyEncrypter); ok {
-		return newOpaqueKeyEncrypter(alg, encrypter)
+	case OpaqueKeyEncrypter:
+		return newOpaqueKeyEncrypter(alg, encryptionKey)
 	}
 	return recipientKeyInfo{}, ErrUnsupportedKeyType
 }
@@ -300,11 +299,11 @@ func newDecrypter(decryptionKey interface{}) (keyDecrypter, error) {
 		return newDecrypter(decryptionKey.Key)
 	case *JSONWebKey:
 		return newDecrypter(decryptionKey.Key)
+	case OpaqueKeyDecrypter:
+		return &opaqueKeyDecrypter{decrypter: decryptionKey}, nil
+	default:
+		return nil, ErrUnsupportedKeyType
 	}
-	if okd, ok := decryptionKey.(OpaqueKeyDecrypter); ok {
-		return &opaqueKeyDecrypter{decrypter: okd}, nil
-	}
-	return nil, ErrUnsupportedKeyType
 }
 
 // Implementation of encrypt method producing a JWE object.
