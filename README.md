@@ -1,9 +1,7 @@
-# Go JOSE 
+# Go JOSE
 
-[![godoc](http://img.shields.io/badge/godoc-version_1-blue.svg?style=flat)](https://godoc.org/gopkg.in/go-jose/go-jose.v1)
-[![godoc](http://img.shields.io/badge/godoc-version_2-blue.svg?style=flat)](https://godoc.org/gopkg.in/go-jose/go-jose.v2)
+[![godoc](http://img.shields.io/badge/godoc-version_2-blue.svg?style=flat)](https://godoc.org/github.com/go-jose/go-jose)
 [![license](http://img.shields.io/badge/license-apache_2.0-blue.svg?style=flat)](https://raw.githubusercontent.com/go-jose/go-jose/master/LICENSE)
-[![build](https://travis-ci.org/go-jose/go-jose.svg?branch=v2)](https://travis-ci.org/go-jose/go-jose)
 [![coverage](https://coveralls.io/repos/github/go-jose/go-jose/badge.svg?branch=v2)](https://coveralls.io/r/go-jose/go-jose)
 
 Package jose aims to provide an implementation of the Javascript Object Signing
@@ -38,19 +36,11 @@ libraries in other languages.
 
 ### Versions
 
-We use [gopkg.in](https://gopkg.in) for versioning.
+    import "github.com/go-jose/go-jose"
 
-[Version 2](https://gopkg.in/go-jose/go-jose.v2)
-([branch](https://github.com/go-jose/go-jose/tree/v2),
-[doc](https://godoc.org/gopkg.in/go-jose/go-jose.v2)) is the current version:
-
-    import "gopkg.in/go-jose/go-jose.v2"
-
-The old `v1` branch ([go-jose.v1](https://gopkg.in/go-jose/go-jose.v1)) will
-still receive backported bug fixes and security fixes, but otherwise
-development is frozen. All new feature development takes place on the `v2`
+All new feature development takes place on the `v3`
 branch. Version 2 also contains additional sub-packages such as the
-[jwt](https://godoc.org/gopkg.in/go-jose/go-jose.v2/jwt) implementation
+[jwt](https://godoc.org/github.com/go-jose/go-jose/jwt) implementation
 contributed by [@shaxbee](https://github.com/shaxbee).
 
 ### Supported algorithms
@@ -84,7 +74,7 @@ standard where possible. The Godoc reference has a list of constants.
  Content encryption         | Algorithm identifier(s)
  :------------------------- | :------------------------------
  AES-CBC+HMAC               | A128CBC-HS256, A192CBC-HS384, A256CBC-HS512
- AES-GCM                    | A128GCM, A192GCM, A256GCM 
+ AES-GCM                    | A128GCM, A192GCM, A256GCM
 
  Compression                | Algorithm identifiers(s)
  :------------------------- | -------------------------------
@@ -108,8 +98,7 @@ allows attaching a key id.
 
 ## Examples
 
-[![godoc](http://img.shields.io/badge/godoc-version_1-blue.svg?style=flat)](https://godoc.org/gopkg.in/go-jose/go-jose.v1)
-[![godoc](http://img.shields.io/badge/godoc-version_2-blue.svg?style=flat)](https://godoc.org/gopkg.in/go-jose/go-jose.v2)
+[![godoc](http://img.shields.io/badge/godoc-version_2-blue.svg?style=flat)](https://godoc.org/github.com/go-jose/go-jose)
 
 Examples can be found in the Godoc
 reference for this package. The
