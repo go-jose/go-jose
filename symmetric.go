@@ -31,7 +31,7 @@ import (
 	"io"
 
 	"golang.org/x/crypto/pbkdf2"
-	"gopkg.in/go-jose/go-jose.v2/cipher"
+	"github.com/go-jose/go-jose/cipher"
 )
 
 // Random reader (stubbed out in tests)

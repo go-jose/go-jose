@@ -27,7 +27,7 @@ import (
 	"testing"
 
 	"golang.org/x/crypto/ed25519"
-	"gopkg.in/go-jose/go-jose.v2"
+	"github.com/go-jose/go-jose"
 )
 
 func TestRoundtripsJWSCryptoSigner(t *testing.T) {

@@ -22,7 +22,7 @@ import (
 	"os"
 
 	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/go-jose/go-jose.v2"
+	"github.com/go-jose/go-jose"
 )
 
 var (

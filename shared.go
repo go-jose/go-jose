@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 
-	"gopkg.in/go-jose/go-jose.v2/json"
+	"github.com/go-jose/go-jose/json"
 )
 
 // KeyAlgorithm represents a key management algorithm.
