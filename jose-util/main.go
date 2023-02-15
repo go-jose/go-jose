@@ -23,7 +23,7 @@ import (
 	"io"
 	"os"
 
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	kingpin "github.com/alecthomas/kingpin/v2"
 
 	jose "github.com/go-jose/go-jose/v3"
 	generator "github.com/go-jose/go-jose/jose-util/generator"
