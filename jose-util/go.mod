@@ -1,4 +1,4 @@
-module github.com/go-jose/go-jose/jose-util
+module github.com/codelav/go-jose/jose-util
 
 go 1.12
 
