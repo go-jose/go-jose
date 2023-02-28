@@ -13,7 +13,7 @@ package json
 import (
 	"bytes"
 	"compress/gzip"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -47,7 +47,7 @@ func codeInit() {
 	if err != nil {
 		panic(err)
 	}
-	data, err := ioutil.ReadAll(gz)
+	data, err := io.ReadAll(gz)
 	if err != nil {
 		panic(err)
 	}
@@ -82,7 +82,7 @@ func BenchmarkCodeEncoder(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	enc := NewEncoder(ioutil.Discard)
+	enc := NewEncoder(io.Discard)
 	for i := 0; i < b.N; i++ {
 		if err := enc.Encode(&codeStruct); err != nil {
 			b.Fatal("Encode:", err)
