@@ -401,6 +401,8 @@ func (k *JSONWebKey) Thumbprint(hash crypto.Hash) ([]byte, error) {
 		input, err = rsaThumbprintInput(key.N, key.E)
 	case ed25519.PrivateKey:
 		input, err = edThumbprintInput(ed25519.PublicKey(key[32:]))
+	case OpaqueSigner:
+		return key.Public().Thumbprint(hash)
 	default:
 		return nil, fmt.Errorf("go-jose/go-jose: unknown key type '%s'", reflect.TypeOf(key))
 	}
