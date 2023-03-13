@@ -183,6 +183,7 @@ func TestSignerWithBrokenRand(t *testing.T) {
 		}
 	}
 
+	// TODO(@pgporada) Remove this version checking
 	goVer, err := goVersionCheck()
 	if err != nil {
 		t.Error(err)
