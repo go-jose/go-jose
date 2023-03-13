@@ -150,14 +150,17 @@ func TestRoundtripsJWSCorruptSignature(t *testing.T) {
 	}
 }
 
+// As of go1.20, the random parameter used in rsa.SignPKCS1v15 is legacy and
+// ignored, and it can be nil meaning that there's no broken random-ness test
+// applicable for signing RS256, RS384, or RS512. Instead, focus on the PSS
+// signature algorithms.
 func TestSignerWithBrokenRand(t *testing.T) {
-	sigAlgs := []SignatureAlgorithm{RS256, RS384, RS512, PS256, PS384, PS512}
+	pssSigAlgs := []SignatureAlgorithm{PS256, PS384, PS512}
 
 	serializer := func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() }
 	corrupter := func(obj *JSONWebSignature) {}
 
-	// Break rand reader
-	readers := []func() io.Reader{
+	brokenRandReaders := []func() io.Reader{
 		// Totally broken
 		func() io.Reader { return bytes.NewReader([]byte{}) },
 		// Not enough bytes
@@ -166,9 +169,9 @@ func TestSignerWithBrokenRand(t *testing.T) {
 
 	defer resetRandReader()
 
-	for _, alg := range sigAlgs {
+	for _, alg := range pssSigAlgs {
 		signingKey, verificationKey := GenerateSigningTestKey(alg)
-		for i, getReader := range readers {
+		for i, getReader := range brokenRandReaders {
 			RandReader = getReader()
 			err := RoundtripJWS(alg, serializer, corrupter, signingKey, verificationKey, "test_nonce")
 			if err == nil {
