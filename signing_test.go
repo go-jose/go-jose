@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"github.com/go-jose/go-jose/v3/json"
+	"github.com/hashicorp/go-version"
 )
 
 type staticNonceSource string
@@ -178,6 +179,28 @@ func TestSignerWithBrokenRand(t *testing.T) {
 			err := RoundtripJWS(alg, serializer, corrupter, signingKey, verificationKey, "test_nonce")
 			if err == nil {
 				t.Error("signer should fail if rand is broken", alg, i)
+			}
+		}
+	}
+
+	goVer, err := goVersionCheck()
+	if err != nil {
+		t.Error(err)
+	}
+	constraints, err := version.NewConstraint("< 1.20")
+	if err != nil {
+		t.Error("cannot setup version constraint")
+	}
+	if constraints.Check(goVer) {
+		pkcs1v15SigAlgs := []SignatureAlgorithm{RS256, RS384, RS512}
+		for _, alg := range pkcs1v15SigAlgs {
+			signingKey, verificationKey := GenerateSigningTestKey(alg)
+			for i, getReader := range brokenRandReaders {
+				RandReader = getReader()
+				err := RoundtripJWS(alg, serializer, corrupter, signingKey, verificationKey, "test_nonce")
+				if err == nil {
+					t.Error("signer should fail if rand is broken", alg, i)
+				}
 			}
 		}
 	}
