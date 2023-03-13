@@ -150,11 +150,13 @@ func TestRoundtripsJWSCorruptSignature(t *testing.T) {
 	}
 }
 
-// As of go1.20, the random parameter used in rsa.SignPKCS1v15 is legacy and
-// ignored, and it can be nil meaning that there's no broken random-ness test
-// applicable for signing RS256, RS384, or RS512. Instead, focus on the PSS
-// signature algorithms.
+// TestSignerWithBrokenRand tests that using a broken random reader with PSS
+// signature algorithms returns a valid error.
 func TestSignerWithBrokenRand(t *testing.T) {
+	// As of go1.20, the random parameter used in rsa.SignPKCS1v15 is legacy and
+	// ignored, and it can be nil meaning that there's no broken random-ness test
+	// applicable for signing RS256, RS384, or RS512. Instead, focus on the PSS
+	// signature algorithms.
 	pssSigAlgs := []SignatureAlgorithm{PS256, PS384, PS512}
 
 	serializer := func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() }
