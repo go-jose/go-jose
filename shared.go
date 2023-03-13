@@ -22,8 +22,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"runtime"
+	"strings"
 
 	"github.com/go-jose/go-jose/v3/json"
+	"github.com/hashicorp/go-version"
 )
 
 // KeyAlgorithm represents a key management algorithm.
@@ -522,4 +525,15 @@ func curveSize(crv elliptic.Curve) int {
 func makeRawMessage(b []byte) *json.RawMessage {
 	rm := json.RawMessage(b)
 	return &rm
+}
+
+func goVersionCheck() (*version.Version, error) {
+	rawVer := runtime.Version()
+	rawVer = strings.Trim(rawVer, "go")
+	goVer, err := version.NewVersion(rawVer)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get installed version of golang")
+	}
+
+	return goVer, nil
 }
