@@ -31,7 +31,6 @@ import (
 
 	josecipher "github.com/go-jose/go-jose/v3/cipher"
 	"github.com/go-jose/go-jose/v3/json"
-	"github.com/hashicorp/go-version"
 )
 
 // A generic RSA-based encrypter/verifier
@@ -283,31 +282,13 @@ func (ctx rsaDecrypterSigner) signPayload(payload []byte, alg SignatureAlgorithm
 
 	var out []byte
 	var err error
-	var goVer *version.Version
-	var constraints version.Constraints
 
 	switch alg {
 	case RS256, RS384, RS512:
-		// Allow relying parties to use PKCS1v15 signing algorithms on versions
-		// of golang < 1.20 while still satisfying the rsa.SignPKCS1v15 random reader
-		// parameter deprecation.
-		// TODO(@pgporada) Remove this version checking
-		goVer, err = goVersionCheck()
-		if err != nil {
-			return Signature{}, fmt.Errorf("%v", err)
-		}
-		constraints, err = version.NewConstraint("< 1.20")
-		if err != nil {
-			return Signature{}, fmt.Errorf("%v", err)
-		}
-		if constraints.Check(goVer) {
-			out, err = rsa.SignPKCS1v15(RandReader, ctx.privateKey, hash, hashed)
-		} else {
-			// As of go1.20, the random parameter is legacy and ignored, and it
-			// can be nil.
-			// https://cs.opensource.google/go/go/+/refs/tags/go1.20.2:src/crypto/rsa/pkcs1v15.go;l=263;bpv=0;bpt=1
-			out, err = rsa.SignPKCS1v15(nil, ctx.privateKey, hash, hashed)
-		}
+		// TODO: As of go1.20, the random parameter is legacy and ignored, and it
+		// can be nil.
+		// https://cs.opensource.google/go/go/+/refs/tags/go1.20.2:src/crypto/rsa/pkcs1v15.go;l=263;bpv=0;bpt=1
+		out, err = rsa.SignPKCS1v15(RandReader, ctx.privateKey, hash, hashed)
 	case PS256, PS384, PS512:
 		out, err = rsa.SignPSS(RandReader, ctx.privateKey, hash, hashed, &rsa.PSSOptions{
 			SaltLength: rsa.PSSSaltLengthEqualsHash,

@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/google/go-cmp v0.5.9
-	github.com/hashicorp/go-version v1.6.0
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.6.0
 )
