@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
