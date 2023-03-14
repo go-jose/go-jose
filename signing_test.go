@@ -163,13 +163,7 @@ func TestSignerWithBrokenRand(t *testing.T) {
 
 	// We still need to test that users building/testing go-jose on older
 	// versions of go will return an error if the random reader is broken.
-	goVer := runtime.Version()
-	goVer = strings.Trim(goVer, "go")
-	match, err := regexp.MatchString(`1.1\d+(\.\d+)?`, goVer)
-	if err != nil {
-		t.Errorf("error while parsing regex for go version")
-	}
-	if match {
+	if strings.HasPrefix(runtime.Version(), "go1.1") {
 		sigAlgs = append(sigAlgs, RS256, RS384, RS512)
 	}
 
