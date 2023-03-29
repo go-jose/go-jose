@@ -867,6 +867,24 @@ func TestEd25519Serialization(t *testing.T) {
 		[]byte(jwk2.Key.(ed25519.PrivateKey).Public().(ed25519.PublicKey))))
 }
 
+type fakeOpaqueSigner struct {
+	signer crypto.Signer
+}
+
+func (f *fakeOpaqueSigner) Public() *JSONWebKey {
+	return &JSONWebKey{
+		Key: f.signer.Public(),
+	}
+}
+
+func (f *fakeOpaqueSigner) Algs() []SignatureAlgorithm {
+	panic("unexpected call to Algs")
+}
+
+func (f *fakeOpaqueSigner) SignPayload(payload []byte, alg SignatureAlgorithm) ([]byte, error) {
+	panic("unexpected call to SignPayload")
+}
+
 func TestThumbprint(t *testing.T) {
 	for i, key := range cookbookJWKs {
 		var jwk2 JSONWebKey
@@ -883,6 +901,18 @@ func TestThumbprint(t *testing.T) {
 		tpHex := hex.EncodeToString(tp)
 		if cookbookJWKThumbprints[i] != tpHex {
 			t.Error("incorrect thumbprint:", i, cookbookJWKThumbprints[i], tpHex)
+		}
+
+		if signer, ok := jwk2.Key.(crypto.Signer); ok {
+			jwk2.Key = &fakeOpaqueSigner{signer}
+			otp, err := jwk2.Thumbprint(crypto.SHA256)
+			if err != nil {
+				t.Error("unable to compute thumbprint with an OpaqueSigner:", key, err)
+			}
+			otpHex := hex.EncodeToString(otp)
+			if cookbookJWKThumbprints[i] != otpHex {
+				t.Error("incorrect OpaqueSigner thumbprint:", i, cookbookJWKThumbprints[i], otpHex)
+			}
 		}
 	}
 }
