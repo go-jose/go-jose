@@ -27,7 +27,7 @@ func readInput(path string) []byte {
 	var err error
 
 	if path != "" {
-		bytes, err = io.ReadFile(path)
+		bytes, err = os.ReadFile(path)
 	} else {
 		bytes, err = io.ReadAll(os.Stdin)
 	}
