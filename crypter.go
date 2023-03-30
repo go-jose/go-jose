@@ -490,7 +490,9 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 	}
 
 	if plaintext == nil {
-		return nil, ErrCryptoFailure
+		if obj.ciphertext == nil || len(obj.ciphertext) > 0 {
+			return nil, ErrCryptoFailure
+		}
 	}
 
 	// The "zip" header parameter may only be present in the protected header.

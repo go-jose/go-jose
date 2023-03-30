@@ -610,6 +610,38 @@ func TestEncrypterWithPBES2(t *testing.T) {
 	}
 }
 
+func TestEncryptDecryptEmptyString(t *testing.T) {
+	key := make([]byte, 32)
+	_, err := rand.Read(key)
+	if err != nil {
+		t.Fatalf("Error generating symmetric key: %v", err)
+	}
+
+	jwe, err := NewEncrypter(
+		A256GCM,
+		Recipient{Algorithm: DIRECT, Key: key},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Error creating JWE encrypter: %v", err)
+	}
+
+	emptyString := []byte("")
+	encrypted, err := jwe.Encrypt(emptyString)
+	if err != nil {
+		t.Fatalf("Error encrypting empty string: %v", err)
+	}
+
+	decrypted, err := encrypted.Decrypt(key)
+	if err != nil {
+		t.Fatalf("Error decrypting encrypted data: %v", err)
+	}
+
+	if !bytes.Equal(decrypted, emptyString) {
+		t.Fatalf("Decrypted data does not match original")
+	}
+}
+
 type testKey struct {
 	enc, dec interface{}
 }
