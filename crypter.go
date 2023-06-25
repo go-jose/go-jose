@@ -21,7 +21,6 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
-	"reflect"
 
 	"github.com/go-jose/go-jose/v3/json"
 )
@@ -170,16 +169,17 @@ func NewEncrypter(enc ContentEncryption, rcpt Recipient, opts *EncrypterOptions)
 	switch rcpt.Algorithm {
 	case DIRECT:
 		// Direct encryption mode must be treated differently
-		if reflect.TypeOf(rawKey) != reflect.TypeOf([]byte{}) {
+		keyBytes, ok := rawKey.([]byte)
+		if !ok {
 			return nil, ErrUnsupportedKeyType
 		}
-		if encrypter.cipher.keySize() != len(rawKey.([]byte)) {
+		if encrypter.cipher.keySize() != len(keyBytes) {
 			return nil, ErrInvalidKeySize
 		}
 		encrypter.keyGenerator = staticKeyGenerator{
-			key: rawKey.([]byte),
+			key: keyBytes,
 		}
-		recipientInfo, _ := newSymmetricRecipient(rcpt.Algorithm, rawKey.([]byte))
+		recipientInfo, _ := newSymmetricRecipient(rcpt.Algorithm, keyBytes)
 		recipientInfo.keyID = keyID
 		if rcpt.KeyID != "" {
 			recipientInfo.keyID = rcpt.KeyID
@@ -188,16 +188,16 @@ func NewEncrypter(enc ContentEncryption, rcpt Recipient, opts *EncrypterOptions)
 		return encrypter, nil
 	case ECDH_ES:
 		// ECDH-ES (w/o key wrapping) is similar to DIRECT mode
-		typeOf := reflect.TypeOf(rawKey)
-		if typeOf != reflect.TypeOf(&ecdsa.PublicKey{}) {
+		keyDSA, ok := rawKey.(*ecdsa.PublicKey)
+		if !ok {
 			return nil, ErrUnsupportedKeyType
 		}
 		encrypter.keyGenerator = ecKeyGenerator{
 			size:      encrypter.cipher.keySize(),
 			algID:     string(enc),
-			publicKey: rawKey.(*ecdsa.PublicKey),
+			publicKey: keyDSA,
 		}
-		recipientInfo, _ := newECDHRecipient(rcpt.Algorithm, rawKey.(*ecdsa.PublicKey))
+		recipientInfo, _ := newECDHRecipient(rcpt.Algorithm, keyDSA)
 		recipientInfo.keyID = keyID
 		if rcpt.KeyID != "" {
 			recipientInfo.keyID = rcpt.KeyID
