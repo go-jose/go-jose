@@ -14,12 +14,15 @@ jobs:
         GO_VERSION:
           - "1.16.x"
           - "1.20.x"
+          - "1.21.0-rc.2"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+      with:
+        persist-credentials: false
 
     - name: Set up Go ${{ matrix.GO_VERSION }}
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v4
       with:
         go-version: "${{ matrix.GO_VERSION }}"
 
@@ -28,3 +31,24 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+
+  govulncheck:
+    strategy:
+      matrix:
+        GO_VERSION:
+          - "1.16.x"
+          - "1.20.x"
+          - "1.21.0-rc.2"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Set up Go ${{ matrix.GO_VERSION }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: "${{ matrix.GO_VERSION }}"
+
+      - name: Run govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
