@@ -36,7 +36,8 @@ jobs:
     strategy:
       matrix:
         GO_VERSION:
-          - "1.16.x"
+          # go1.16 does not meet the minimum requirements to run govulncheck so
+          # we will skip testing against it.
           - "1.20.x"
           - "1.21.0-rc.2"
     runs-on: ubuntu-latest
