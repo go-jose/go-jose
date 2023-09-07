@@ -13,8 +13,7 @@ jobs:
       matrix:
         GO_VERSION:
           - "1.16.x"
-          - "1.20.x"
-          - "1.21.0-rc.2"
+          - "1.21.x"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -38,8 +37,7 @@ jobs:
         GO_VERSION:
           # go1.16 does not meet the minimum requirements to run govulncheck so
           # we will skip testing against it.
-          - "1.20.x"
-          - "1.21.0-rc.2"
+          - "1.21.x"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
