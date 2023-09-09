@@ -18,7 +18,6 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -28,9 +27,9 @@ func readInput(path string) []byte {
 	var err error
 
 	if path != "" {
-		bytes, err = ioutil.ReadFile(path)
+		bytes, err = os.ReadFile(path)
 	} else {
-		bytes, err = ioutil.ReadAll(os.Stdin)
+		bytes, err = io.ReadAll(os.Stdin)
 	}
 
 	app.FatalIfError(err, "unable to read input")
@@ -57,7 +56,7 @@ func writeOutput(path string, data []byte) {
 	var err error
 
 	if path != "" {
-		err = ioutil.WriteFile(path, data, 0644)
+		err = os.WriteFile(path, data, 0644)
 	} else {
 		_, err = os.Stdout.Write(data)
 	}
@@ -82,7 +81,7 @@ func outputStream(path string) *os.File {
 
 // Byte contents of key file
 func keyBytes() []byte {
-	keyBytes, err := ioutil.ReadFile(*keyFile)
+	keyBytes, err := os.ReadFile(*keyFile)
 	app.FatalIfError(err, "unable to read key file")
 	return keyBytes
 }

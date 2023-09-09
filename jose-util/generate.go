@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+
 	"github.com/go-jose/go-jose/jose-util/generator"
 	"github.com/go-jose/go-jose/v3"
 )

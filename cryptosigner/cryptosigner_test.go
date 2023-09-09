@@ -24,7 +24,10 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"errors"
 	"fmt"
+	"io"
+	"reflect"
 	"testing"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -139,4 +142,75 @@ func generateSigningTestKey(sigAlg jose.SignatureAlgorithm) (sig, ver interface{
 		panic("Must update test case")
 	}
 	return
+}
+
+type fakeSigner struct{}
+
+func (fakeSigner) Public() crypto.PublicKey {
+	return []byte("fake-key")
+}
+
+func (fakeSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	return nil, errors.New("not a signer")
+}
+
+func Test_cryptoSigner_Algs(t *testing.T) {
+	_, edKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p224, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p256, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p384, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p521, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type fields struct {
+		signer crypto.Signer
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		want   []jose.SignatureAlgorithm
+	}{
+		{"EdDSA", fields{edKey}, []jose.SignatureAlgorithm{jose.EdDSA}},
+		{"ES256", fields{p256}, []jose.SignatureAlgorithm{jose.ES256}},
+		{"ES384", fields{p384}, []jose.SignatureAlgorithm{jose.ES384}},
+		{"ES512", fields{p521}, []jose.SignatureAlgorithm{jose.ES512}},
+		{"RSA", fields{rsaKey}, []jose.SignatureAlgorithm{jose.RS256, jose.RS384, jose.RS512, jose.PS256, jose.PS384, jose.PS512}},
+		{"fail P-224", fields{p224}, nil},
+		{"fail other", fields{fakeSigner{}}, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cs := &cryptoSigner{
+				signer: tt.fields.signer,
+			}
+			if got := cs.Algs(); !reflect.DeepEqual(tt.want, got) {
+				t.Errorf("cryptoSigner.Algs() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
