@@ -616,6 +616,11 @@ func TestJWSWithCertificateChain(t *testing.T) {
 		if !testCase.success && (len(chains) != 0 && err == nil) {
 			t.Fatalf("incorrectly verified certificate chain for test case %d (should fail)", i)
 		}
+
+		unverifiedCertificates := parsed.Signatures[0].Protected.UnsafeCertificatesWithoutVerification()
+		if testCase.success && len(unverifiedCertificates) == 0 {
+			t.Fatal("failed to get unverified certificates")
+		}
 	}
 }
 

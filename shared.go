@@ -213,6 +213,15 @@ func (h Header) Certificates(opts x509.VerifyOptions) ([][]*x509.Certificate, er
 	return leaf.Verify(opts)
 }
 
+// UnsafeCertificatesWithoutVerification returns the certificate chain present
+// in the x5c header field of a message, if one was present.
+// UnsafeCertificatesWithoutVerification does not verify certificates.
+func (h Header) UnsafeCertificatesWithoutVerification() []*x509.Certificate {
+	certificates := make([]*x509.Certificate, len(h.certificates))
+	copy(certificates, h.certificates)
+	return certificates
+}
+
 func (parsed rawHeader) set(k HeaderKey, v interface{}) error {
 	b, err := json.Marshal(v)
 	if err != nil {
