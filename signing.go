@@ -478,6 +478,12 @@ outer:
 	return -1, Signature{}, ErrCryptoFailure
 }
 
+func SetSupportedCritical(headers map[string]bool) {
+	for k, v := range headers {
+		supportedCritical[k] = v
+	}
+}
+
 func (obj JSONWebSignature) headers() []Header {
 	headers := make([]Header, len(obj.Signatures))
 	for i, sig := range obj.Signatures {

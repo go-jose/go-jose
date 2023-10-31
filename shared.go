@@ -523,10 +523,3 @@ func makeRawMessage(b []byte) *json.RawMessage {
 	rm := json.RawMessage(b)
 	return &rm
 }
-
-// SetSupportedCritical allows users to set their own critical headers
-func SetSupportedCritical(headers map[string]bool) {
-	for k, v := range headers {
-		supportedCritical[k] = v
-	}
-}
