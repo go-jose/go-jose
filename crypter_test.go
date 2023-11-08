@@ -610,6 +610,45 @@ func TestEncrypterWithPBES2(t *testing.T) {
 	}
 }
 
+func TestRejectTooHighP2C(t *testing.T) {
+	expected := []byte("Lorem ipsum dolor sit amet")
+	algs := []KeyAlgorithm{
+		PBES2_HS256_A128KW, PBES2_HS384_A192KW, PBES2_HS512_A256KW,
+	}
+
+	// Check with both strings and []byte
+	recipientKeys := []interface{}{"password", []byte("password")}
+	for _, key := range recipientKeys {
+		for _, alg := range algs {
+			enc, err := NewEncrypter(A128GCM, Recipient{Algorithm: alg, PBES2Count: 1000001, Key: &JSONWebKey{
+				KeyID: "test-id",
+				Key:   key,
+			}}, nil)
+			if err != nil {
+				t.Error(err)
+			}
+
+			ciphertext, _ := enc.Encrypt(expected)
+
+			serialized1, _ := ciphertext.CompactSerialize()
+			serialized2 := ciphertext.FullSerialize()
+
+			parsed1, _ := ParseEncrypted(serialized1)
+			parsed2, _ := ParseEncrypted(serialized2)
+
+			_, err = parsed1.Decrypt("password")
+			if err == nil {
+				t.Fatal("expected error decrypting expensive PBES2 key, got none")
+			}
+
+			_, err = parsed2.Decrypt([]byte("password"))
+			if err == nil {
+				t.Fatal("expected error decrypting expensive PBES2 key, got none")
+			}
+		}
+	}
+}
+
 type testKey struct {
 	enc, dec interface{}
 }
