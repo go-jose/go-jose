@@ -443,6 +443,13 @@ func (ctx *genericEncrypter) Options() EncrypterOptions {
 func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) {
 	headers := obj.mergedHeaders(nil)
 
+	// According to RFC 7516 Section 7.2.1: The "protected" member MUST be
+	// present and contain the value BASE64URL(UTF8(JWE Protected Header)) when
+	// the JWE Protected Header value is non-empty; otherwise, it MUST be absent.
+	if obj.protected == nil || len(*obj.protected) <= 0 {
+		return nil, fmt.Errorf("go-jose/go-jose: protected header is missing")
+	}
+
 	if len(obj.recipients) > 1 {
 		return nil, errors.New("go-jose/go-jose: too many recipients in payload; expecting only one")
 	}
@@ -465,6 +472,14 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 	cipher := getContentCipher(headers.getEncryption())
 	if cipher == nil {
 		return nil, fmt.Errorf("go-jose/go-jose: unsupported enc value '%s'", string(headers.getEncryption()))
+	}
+
+	// According to RFC 7516 Section 7.2.1: the "ciphertext" member MUST be
+	// present and contain the value BASE64URL(JWE Ciphertext).
+	if len(obj.ciphertext) <= 0 {
+		// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
+		// byte-string.
+		return nil, nil
 	}
 
 	generator := randomKeyGenerator{
@@ -490,9 +505,7 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 	}
 
 	if plaintext == nil {
-		if obj.ciphertext == nil || len(obj.ciphertext) > 0 {
-			return nil, ErrCryptoFailure
-		}
+		return nil, ErrCryptoFailure
 	}
 
 	// The "zip" header parameter may only be present in the protected header.
@@ -512,6 +525,13 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 // decryptionKey argument of Decrypt().
 func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Header, []byte, error) {
 	globalHeaders := obj.mergedHeaders(nil)
+
+	// According to RFC 7516 Section 7.2.1: The "protected" member MUST be
+	// present and contain the value BASE64URL(UTF8(JWE Protected Header)) when
+	// the JWE Protected Header value is non-empty; otherwise, it MUST be absent.
+	if obj.protected == nil || len(*obj.protected) <= 0 {
+		return -1, Header{}, nil, fmt.Errorf("go-jose/go-jose: protected header is missing")
+	}
 
 	critical, err := globalHeaders.getCritical()
 	if err != nil {
@@ -553,20 +573,30 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 	for i, recipient := range obj.recipients {
 		recipientHeaders := obj.mergedHeaders(&recipient)
 
+		// According to RFC 7516 Section 7.2.1: the "ciphertext" member MUST be
+		// present and contain the value BASE64URL(JWE Ciphertext).
+		if len(obj.ciphertext) <= 0 {
+			// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
+			// byte-string.
+			plaintext = nil
+			index = i
+			headers = recipientHeaders
+			break
+		}
+
 		cek, err := decrypter.decryptKey(recipientHeaders, &recipient, generator)
 		if err == nil {
 			// Found a valid CEK -- let's try to decrypt.
 			plaintext, err = cipher.decrypt(cek, authData, parts)
 			if err == nil {
+				if plaintext == nil {
+					return -1, Header{}, nil, ErrCryptoFailure
+				}
 				index = i
 				headers = recipientHeaders
 				break
 			}
 		}
-	}
-
-	if plaintext == nil {
-		return -1, Header{}, nil, ErrCryptoFailure
 	}
 
 	// The "zip" header parameter may only be present in the protected header.
