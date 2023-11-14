@@ -582,6 +582,8 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 		}
 	}
 
+	// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
+	// byte-string. If obj.ciphertext is empty, plaintext can be nil.
 	if plaintext == nil && len(obj.ciphertext) > 0 {
 		return -1, Header{}, nil, ErrCryptoFailure
 	}
