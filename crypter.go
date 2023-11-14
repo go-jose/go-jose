@@ -496,12 +496,9 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 		plaintext, err = cipher.decrypt(cek, authData, parts)
 	}
 
-	if plaintext == nil {
-		if len(obj.ciphertext) <= 0 {
-			// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
-			// byte-string.
-			return nil, nil
-		}
+	// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
+	// byte-string. If obj.ciphertext is empty, plaintext can be nil.
+	if plaintext == nil && len(obj.ciphertext) > 0 {
 		return nil, ErrCryptoFailure
 	}
 
