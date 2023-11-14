@@ -185,7 +185,7 @@ func TestEncryptedFullSerializeAndToken(t *testing.T) {
 
 	jwt, err := b.FullSerialize()
 	require.NoError(t, err, "Error creating JWT.")
-	parsed, err := ParseEncrypted(jwt)
+	parsed, err := ParseEncrypted(jwt, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
 	require.NoError(t, err, "Error parsing JWT.")
 	out := &testClaims{}
 	if assert.NoError(t, parsed.Claims(testPrivRSAKey1, &out)) {
@@ -230,7 +230,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 	b := SignedAndEncrypted(rsaSigner, encrypter).Claims(&testClaims{"foo"})
 	tok1, err := b.CompactSerialize()
 	if assert.NoError(t, err) {
-		jwt, err := ParseSignedAndEncrypted(tok1)
+		jwt, err := ParseSignedAndEncrypted(tok1, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
 		if assert.NoError(t, err, "Error parsing signed-then-encrypted compact token.") {
 			if nested, err := jwt.Decrypt(testPrivRSAKey1); assert.NoError(t, err) {
 				out := &testClaims{}
@@ -242,7 +242,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 
 	tok2, err := b.FullSerialize()
 	if assert.NoError(t, err) {
-		jwe, err := ParseSignedAndEncrypted(tok2)
+		jwe, err := ParseSignedAndEncrypted(tok2, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
 		if assert.NoError(t, err, "Error parsing signed-then-encrypted full token.") {
 			assert.Equal(t, []jose.Header{{
 				Algorithm: string(jose.RSA1_5),
@@ -372,7 +372,7 @@ func TestBuilderHeadersEncrypter(t *testing.T) {
 	token, err := Encrypted(encrypter).Claims(claims).CompactSerialize()
 	require.NoError(t, err, "failed to create token")
 
-	jwe, err := jose.ParseEncrypted(token)
+	jwe, err := jose.ParseEncrypted(token, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
 	if assert.NoError(t, err, "error parsing encrypted token") {
 		assert.Equal(t, jose.Header{
 			ExtraHeaders: map[jose.HeaderKey]interface{}{
