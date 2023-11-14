@@ -474,14 +474,6 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 		return nil, fmt.Errorf("go-jose/go-jose: unsupported enc value '%s'", string(headers.getEncryption()))
 	}
 
-	// According to RFC 7516 Section 7.2.1: the "ciphertext" member MUST be
-	// present and contain the value BASE64URL(JWE Ciphertext).
-	if len(obj.ciphertext) <= 0 {
-		// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
-		// byte-string.
-		return nil, nil
-	}
-
 	generator := randomKeyGenerator{
 		size: cipher.keySize(),
 	}
@@ -505,6 +497,11 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 	}
 
 	if plaintext == nil {
+		if len(obj.ciphertext) <= 0 {
+			// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
+			// byte-string.
+			return nil, nil
+		}
 		return nil, ErrCryptoFailure
 	}
 
@@ -573,30 +570,20 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 	for i, recipient := range obj.recipients {
 		recipientHeaders := obj.mergedHeaders(&recipient)
 
-		// According to RFC 7516 Section 7.2.1: the "ciphertext" member MUST be
-		// present and contain the value BASE64URL(JWE Ciphertext).
-		if len(obj.ciphertext) <= 0 {
-			// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
-			// byte-string.
-			plaintext = nil
-			index = i
-			headers = recipientHeaders
-			break
-		}
-
 		cek, err := decrypter.decryptKey(recipientHeaders, &recipient, generator)
 		if err == nil {
 			// Found a valid CEK -- let's try to decrypt.
 			plaintext, err = cipher.decrypt(cek, authData, parts)
 			if err == nil {
-				if plaintext == nil {
-					return -1, Header{}, nil, ErrCryptoFailure
-				}
 				index = i
 				headers = recipientHeaders
 				break
 			}
 		}
+	}
+
+	if plaintext == nil && len(obj.ciphertext) > 0 {
+		return -1, Header{}, nil, ErrCryptoFailure
 	}
 
 	// The "zip" header parameter may only be present in the protected header.

@@ -642,6 +642,60 @@ func TestEncryptDecryptEmptyString(t *testing.T) {
 	}
 }
 
+func TestMultiRecipientJWEWithEmptyString(t *testing.T) {
+	sharedKey := []byte{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+	}
+
+	enc, err := NewMultiEncrypter(A128GCM, []Recipient{
+		{Algorithm: RSA_OAEP, Key: &rsaTestKey.PublicKey},
+		{Algorithm: A256GCMKW, Key: sharedKey},
+	}, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	input := []byte("")
+	obj, err := enc.Encrypt(input)
+	if err != nil {
+		t.Fatal("error in encrypt: ", err)
+	}
+
+	msg := obj.FullSerialize()
+
+	parsed, err := ParseEncrypted(msg)
+	if err != nil {
+		t.Fatal("error in parse: ", err)
+	}
+
+	i, _, output, err := parsed.DecryptMulti(rsaTestKey)
+	if err != nil {
+		t.Fatal("error on decrypt with RSA: ", err)
+	}
+
+	if i != 0 {
+		t.Fatal("recipient index should be 0 for RSA key")
+	}
+
+	if !bytes.Equal(input, output) {
+		t.Fatal("Decrypted output does not match input: ", output, input)
+	}
+
+	i, _, output, err = parsed.DecryptMulti(sharedKey)
+	if err != nil {
+		t.Fatal("error on decrypt with AES: ", err)
+	}
+
+	if i != 1 {
+		t.Fatal("recipient index should be 1 for shared key")
+	}
+
+	if !bytes.Equal(input, output) {
+		t.Fatal("Decrypted output does not match input", output, input)
+	}
+}
+
 func TestRejectTooHighP2C(t *testing.T) {
 	expected := []byte("Lorem ipsum dolor sit amet")
 	algs := []KeyAlgorithm{
