@@ -89,15 +89,10 @@ func (c Claims) ValidateWithLeeway(e Expected, leeway time.Duration) error {
 	}
 
 	if len(e.Audience) != 0 {
-		flag := false
 		for _, v := range e.Audience {
-			if c.Audience.Contains(v) {
-				flag = true
-				break
+			if !c.Audience.Contains(v) {
+				return ErrInvalidAudience
 			}
-		}
-		if !flag {
-			return ErrInvalidAudience
 		}
 	}
 
