@@ -23,11 +23,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -39,6 +41,52 @@ var ecTestKey384, _ = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 var ecTestKey521, _ = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 
 var ed25519PublicKey, ed25519PrivateKey, _ = ed25519.GenerateKey(rand.Reader)
+
+func TestCompressionError(t *testing.T) {
+	testKey, _ := hex.DecodeString("0c5433f844097b2e910db9b3638ff824")
+
+	// // This code was used to provide the test vector `jweBytes` below,
+	// // by running with a local modification of crypter.go to set "zip" to "DEF"
+	// // in the protected header, but not actually compress the payload.
+	// keyAlg := A128KW
+	// encAlg := A128GCM
+	// rcpt := Recipient{Algorithm: keyAlg, Key: testKey}
+	// enc, err := NewEncrypter(encAlg, rcpt, &EncrypterOptions{Compression: DEFLATE})
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// jwe, err := enc.Encrypt([]byte("Lorem ipsum dolor sit amet"))
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// t.Logf(jwe.FullSerialize())
+
+	jweBytes := `{
+		"protected":"eyJhbGciOiJBMTI4S1ciLCJlbmMiOiJBMTI4R0NNIiwiemlwIjoiREVGIn0",
+		"encrypted_key":"0ZJRSSVctBhIpWvT9Ke2Z-KvSby-kjmi",
+		"iv":"4nuUbYF0BR0KPz1v",
+		"ciphertext":"luLq8QTsJEXbZdRvEzIiHWEitTZTORZqXIk",
+		"tag":"S1j6wvSGtTUCXhED91lUGQ"
+	}`
+	jwe, err := ParseEncrypted(jweBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = jwe.Decrypt(testKey)
+	if err == nil {
+		t.Fatal("expected error on decompression failure")
+	}
+	if !strings.Contains(err.Error(), "failed to decompress plaintext: flate: corrupt input") {
+		t.Errorf("expected flate error, got %s", err)
+	}
+	_, _, _, err = jwe.DecryptMulti(testKey)
+	if err == nil {
+		t.Fatal("expected error on decompression failure")
+	}
+	if !strings.Contains(err.Error(), "failed to decompress plaintext: flate: corrupt input") {
+		t.Errorf("expected flate error, got %s", err)
+	}
+}
 
 func RoundtripJWE(keyAlg KeyAlgorithm, encAlg ContentEncryption, compressionAlg CompressionAlgorithm, serializer func(*JSONWebEncryption) (string, error), corrupter func(*JSONWebEncryption) bool, aad []byte, encryptionKey interface{}, decryptionKey interface{}) error {
 	var rcpt Recipient
