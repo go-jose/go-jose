@@ -162,6 +162,8 @@ func (k JSONWebKey) MarshalJSON() ([]byte, error) {
 	return json.Marshal(raw)
 }
 
+var errUnsupportedJWK = errors.New("go-jose/go-jose: unsupported json web key")
+
 // UnmarshalJSON reads a key from its JSON representation.
 func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 	var raw rawJSONWebKey
@@ -245,9 +247,8 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 		//     required members, or for which values are out of the supported
 		//     ranges.
 
-		// Return an empty JSONWebKey instead of failing unmarshal
-		*k = JSONWebKey{Key: nil, KeyID: raw.Kid, Algorithm: raw.Alg, Use: raw.Use, Certificates: certs}
-		return nil
+		// Fail unmarshal with errUnsupportedJWK
+		return errUnsupportedJWK
 	}
 
 	if certPub != nil && keyPub != nil {
@@ -364,9 +365,12 @@ func (s *JSONWebKeySet) UnmarshalJSON(data []byte) (err error) {
 		var k JSONWebKey
 		err = json.Unmarshal(rk, &k)
 		if err != nil {
-			return err
-		}
-		if k.Valid() {
+			// Skip key and continue unmarshalling the key set if key unmarshal
+			// failed because of unsupported key type or parameters.
+			if !errors.Is(err, errUnsupportedJWK) {
+				return err
+			}
+		} else {
 			s.Keys = append(s.Keys, k)
 		}
 	}
