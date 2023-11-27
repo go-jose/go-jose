@@ -131,7 +131,7 @@ func containsContentEncryption(needle ContentEncryption, haystack []ContentEncry
 // includes the protected and unprotected headers as well as all recipients. To accept
 // multiple algorithms, pass a slice of all the algorithms you want to accept.
 func ParseEncrypted(input string,
-	keyAlgorithms []KeyAlgorithm,
+	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
 ) (*JSONWebEncryption, error) {
 	if len(keyAlgorithms) == 0 {
