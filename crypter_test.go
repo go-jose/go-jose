@@ -68,7 +68,7 @@ func TestCompressionError(t *testing.T) {
 		"ciphertext":"luLq8QTsJEXbZdRvEzIiHWEitTZTORZqXIk",
 		"tag":"S1j6wvSGtTUCXhED91lUGQ"
 	}`
-	jwe, err := ParseEncrypted(jweBytes)
+	jwe, err := ParseEncrypted(jweBytes, []KeyAlgorithm{A128KW}, []ContentEncryption{A128GCM})
 	if err != nil {
 		t.Fatal(err)
 	}

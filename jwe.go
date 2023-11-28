@@ -105,7 +105,7 @@ func (obj JSONWebEncryption) computeAuthData() []byte {
 	return output
 }
 
-func containsKeyAlgorithm(needle KeyAlgorithm, haystack []KeyAlgorithm) bool {
+func containsKeyAlgorithm(haystack []KeyAlgorithm, needle KeyAlgorithm) bool {
 	for _, algorithm := range haystack {
 		if algorithm == needle {
 			return true
@@ -114,7 +114,7 @@ func containsKeyAlgorithm(needle KeyAlgorithm, haystack []KeyAlgorithm) bool {
 	return false
 }
 
-func containsContentEncryption(needle ContentEncryption, haystack []ContentEncryption) bool {
+func containsContentEncryption(haystack []ContentEncryption, needle ContentEncryption) bool {
 	for _, algorithm := range haystack {
 		if algorithm == needle {
 			return true
@@ -134,7 +134,7 @@ func ParseEncrypted(input string,
 	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
 ) (*JSONWebEncryption, error) {
-	if len(keyAlgorithms) == 0 {
+	if len(keyEncryptionAlgorithms) == 0 {
 		return nil, errors.New("go-jose/go-jose: no key algorithms provided")
 	}
 	if len(contentEncryption) == 0 {
@@ -143,10 +143,10 @@ func ParseEncrypted(input string,
 
 	input = stripWhitespace(input)
 	if strings.HasPrefix(input, "{") {
-		return parseEncryptedFull(input, keyAlgorithms, contentEncryption)
+		return parseEncryptedFull(input, keyEncryptionAlgorithms, contentEncryption)
 	}
 
-	return parseEncryptedCompact(input, keyAlgorithms, contentEncryption)
+	return parseEncryptedCompact(input, keyEncryptionAlgorithms, contentEncryption)
 }
 
 // parseEncryptedFull parses a message in compact format.
@@ -227,28 +227,31 @@ func (parsed *rawJSONWebEncryption) sanitized(
 		}
 	}
 
-	for _, recipient := range obj.recipients {
+	for i, recipient := range obj.recipients {
 		headers := obj.mergedHeaders(&recipient)
-		alg := headers.getAlgorithm()
-		enc := headers.getEncryption()
-		if !containsKeyAlgorithm(alg, keyAlgorithms) {
-			return nil, fmt.Errorf("go-jose/go-jose: unexpected key algorithm %q; expected %q", alg, keyAlgorithms)
+		if headers.getAlgorithm() == "" {
+			return nil, fmt.Errorf(`go-jose/go-jose: recipient %d: missing header "alg"`, i)
 		}
-		if !containsContentEncryption(enc, contentEncryption) {
-			return nil, fmt.Errorf("go-jose/go-jose: unexpected content encryption algorithm %q; expected %q", enc, contentEncryption)
+		if headers.getEncryption() == "" {
+			return nil, fmt.Errorf(`go-jose/go-jose: recipient %d: missing header "enc"`, i)
 		}
+		err := validateAlgEnc(headers, keyAlgorithms, contentEncryption)
+		if err != nil {
+			return nil, fmt.Errorf("go-jose/go-jose: recipient %d: %s", i, err)
+		}
+
 	}
 
 	if obj.protected != nil {
-		alg := obj.protected.getAlgorithm()
-		if alg != "" && !containsKeyAlgorithm(alg, keyAlgorithms) {
-			return nil, fmt.Errorf("go-jose/go-jose: unexpected key algorithm %q; expected %q", alg, keyAlgorithms)
+		err := validateAlgEnc(*obj.protected, keyAlgorithms, contentEncryption)
+		if err != nil {
+			return nil, fmt.Errorf("go-jose/go-jose: protected header: %s", err)
 		}
 	}
 	if obj.unprotected != nil {
-		enc := obj.unprotected.getEncryption()
-		if enc != "" && !containsContentEncryption(enc, contentEncryption) {
-			return nil, fmt.Errorf("go-jose/go-jose: unexpected content encryption algorithm %q; expected %q", enc, contentEncryption)
+		err := validateAlgEnc(*obj.unprotected, keyAlgorithms, contentEncryption)
+		if err != nil {
+			return nil, fmt.Errorf("go-jose/go-jose: unprotected header: %s", err)
 		}
 	}
 
@@ -258,6 +261,18 @@ func (parsed *rawJSONWebEncryption) sanitized(
 	obj.aad = parsed.Aad.bytes()
 
 	return obj, nil
+}
+
+func validateAlgEnc(headers rawHeader, keyAlgorithms []KeyAlgorithm, contentEncryption []ContentEncryption) error {
+	alg := headers.getAlgorithm()
+	enc := headers.getEncryption()
+	if alg != "" && !containsKeyAlgorithm(keyAlgorithms, alg) {
+		return fmt.Errorf("unexpected key algorithm %q; expected %q", alg, keyAlgorithms)
+	}
+	if alg != "" && !containsContentEncryption(contentEncryption, enc) {
+		return fmt.Errorf("unexpected content encryption algorithm %q; expected %q", enc, contentEncryption)
+	}
+	return nil
 }
 
 // parseEncryptedCompact parses a message in compact format.
