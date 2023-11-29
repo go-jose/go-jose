@@ -280,6 +280,8 @@ func (b *nestedBuilder) Claims(i interface{}) NestedBuilder {
 	}
 }
 
+// Token produced a token suitable for serialization. It cannot be decrypted
+// without serializing and then deserializing.
 func (b *nestedBuilder) Token() (*NestedJSONWebToken, error) {
 	enc, err := b.signAndEncrypt()
 	if err != nil {
@@ -287,8 +289,9 @@ func (b *nestedBuilder) Token() (*NestedJSONWebToken, error) {
 	}
 
 	return &NestedJSONWebToken{
-		enc:     enc,
-		Headers: []jose.Header{enc.Header},
+		allowedSignatureAlgorithms: nil,
+		enc:                        enc,
+		Headers:                    []jose.Header{enc.Header},
 	}, nil
 }
 

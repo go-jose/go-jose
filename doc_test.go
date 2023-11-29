@@ -103,7 +103,7 @@ func Example_jWS() {
 
 	// Parse the serialized, protected JWS object. An error would indicate that
 	// the given input did not represent a valid message.
-	object, err = ParseSigned(serialized)
+	object, err = ParseSigned(serialized, []SignatureAlgorithm{PS512})
 	if err != nil {
 		panic(err)
 	}

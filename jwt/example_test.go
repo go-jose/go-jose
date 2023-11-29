@@ -36,7 +36,7 @@ var signer, _ = jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: share
 
 func ExampleParseSigned() {
 	raw := `eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.gpHyA1B1H6X4a4Edm9wo7D3X2v3aLSDBDG2_5BzXYe0`
-	tok, err := jwt.ParseSigned(raw)
+	tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
 		panic(err)
 	}
@@ -67,7 +67,10 @@ func ExampleParseEncrypted() {
 
 func ExampleParseSignedAndEncrypted() {
 	raw := `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIiwiY3R5IjoiSldUIn0..-keV-9YpsxotBEHw.yC9SHWgnkjykgJqXZGlzYC5Wg_EdWKO5TgfqeqsWWJYw7fX9zXQE3NtXmA3nAiUrYOr3H2s0AgTeAhTNbELLEHQu0blfRaPa_uKOAgFgmhJwbGe2iFLn9J0U72wk56318nI-pTLCV8FijoGpXvAxQlaKrPLKkl9yDQimPhb7UiDwLWYkJeoayciAXhR5f40E8ORGjCz8oawXRvjDaSjgRElUwy4kMGzvJy_difemEh4lfMSIwUNVEqJkEYaalRttSymMYuV6NvBVU0N0Jb6omdM4tW961OySB4KPWCWH9UJUX0XSEcqbW9WLxpg3ftx5R7xNiCnaVaCx_gJZfXJ9yFLqztIrKh2N05zHM0tddSOwCOnq7_1rJtaVz0nTXjSjf1RrVaxJya59p3K-e41QutiGFiJGzXG-L2OyLETIaVSU3ptvaCz4IxCF3GzeCvOgaICvXkpBY1-bv-fk1ilyjmcTDnLp2KivWIxcnoQmpN9xj06ZjagdG09AHUhS5WixADAg8mIdGcanNblALecnCWG-otjM9Kw.RZoaHtSgnzOin2od3D9tnA`
-	tok, err := jwt.ParseSignedAndEncrypted(raw, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
+	tok, err := jwt.ParseSignedAndEncrypted(raw,
+		[]jose.KeyAlgorithm{jose.DIRECT},
+		[]jose.ContentEncryption{jose.A128GCM},
+		[]jose.SignatureAlgorithm{jose.RS256})
 	if err != nil {
 		panic(err)
 	}
@@ -109,7 +112,7 @@ func ExampleClaims_Validate() {
 
 func ExampleClaims_Validate_withParse() {
 	raw := `eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.gpHyA1B1H6X4a4Edm9wo7D3X2v3aLSDBDG2_5BzXYe0`
-	tok, err := jwt.ParseSigned(raw)
+	tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
 		panic(err)
 	}
@@ -252,7 +255,7 @@ func ExampleSigned_multipleClaims() {
 
 func ExampleJSONWebToken_Claims_map() {
 	raw := `eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.gpHyA1B1H6X4a4Edm9wo7D3X2v3aLSDBDG2_5BzXYe0`
-	tok, err := jwt.ParseSigned(raw)
+	tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
 		panic(err)
 	}
@@ -268,7 +271,7 @@ func ExampleJSONWebToken_Claims_map() {
 
 func ExampleJSONWebToken_Claims_multiple() {
 	raw := `eyJhbGciOiJIUzI1NiJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sImlzcyI6Imlzc3VlciIsInN1YiI6InN1YmplY3QifQ.esKOIsmwkudr_gnfnB4SngxIr-7pspd5XzG3PImfQ6Y`
-	tok, err := jwt.ParseSigned(raw)
+	tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
 		panic(err)
 	}

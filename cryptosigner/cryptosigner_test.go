@@ -81,7 +81,7 @@ func roundtripJWS(sigAlg jose.SignatureAlgorithm, serializer func(*jose.JSONWebS
 		return fmt.Errorf("error on serialize: %s", err)
 	}
 
-	obj, err = jose.ParseSigned(msg)
+	obj, err = jose.ParseSigned(msg, []jose.SignatureAlgorithm{sigAlg})
 	if err != nil {
 		return fmt.Errorf("error on parse: %s", err)
 	}

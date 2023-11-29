@@ -92,7 +92,7 @@ func TestBuilderCustomClaimsNonPointer(t *testing.T) {
 	jwt, err := Signed(rsaSigner).Claims(testClaims{"foo"}).CompactSerialize()
 	require.NoError(t, err, "Error creating JWT.")
 
-	parsed, err := ParseSigned(jwt)
+	parsed, err := ParseSigned(jwt, []jose.SignatureAlgorithm{jose.RS256})
 	require.NoError(t, err, "Error parsing JWT.")
 
 	out := &testClaims{}
@@ -105,7 +105,7 @@ func TestBuilderCustomClaimsPointer(t *testing.T) {
 	jwt, err := Signed(rsaSigner).Claims(&testClaims{"foo"}).CompactSerialize()
 	require.NoError(t, err, "Error creating JWT.")
 
-	parsed, err := ParseSigned(jwt)
+	parsed, err := ParseSigned(jwt, []jose.SignatureAlgorithm{jose.RS256})
 	require.NoError(t, err, "Error parsing JWT.")
 
 	out := &testClaims{}
@@ -125,7 +125,7 @@ func TestBuilderMergeClaims(t *testing.T) {
 		CompactSerialize()
 	require.NoError(t, err, "Error creating JWT.")
 
-	parsed, err := ParseSigned(jwt)
+	parsed, err := ParseSigned(jwt, []jose.SignatureAlgorithm{jose.RS256})
 	require.NoError(t, err, "Error parsing JWT.")
 
 	out := make(map[string]interface{})
@@ -148,7 +148,7 @@ func TestSignedFullSerializeAndToken(t *testing.T) {
 
 	jwt, err := b.FullSerialize()
 	require.NoError(t, err, "Error creating JWT.")
-	parsed, err := ParseSigned(jwt)
+	parsed, err := ParseSigned(jwt, []jose.SignatureAlgorithm{jose.RS256})
 	require.NoError(t, err, "Error parsing JWT.")
 	out := &testClaims{}
 	if assert.NoError(t, parsed.Claims(&testPrivRSAKey1.PublicKey, &out), "Error unmarshaling claims.") {
@@ -221,7 +221,12 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 
 	jwt1, err := SignedAndEncrypted(rsaSigner, encrypter).Claims(&testClaims{"foo"}).Token()
 	require.NoError(t, err, "Error marshaling signed-then-encrypted token.")
-	if nested, err := jwt1.Decrypt(testPrivRSAKey1); assert.NoError(t, err, "Error decrypting signed-then-encrypted token.") {
+	jwt1Serialized := jwt1.enc.FullSerialize()
+	jwt1Deserialized, err := ParseSignedAndEncrypted(jwt1Serialized,
+		[]jose.KeyAlgorithm{jose.RSA1_5},
+		[]jose.ContentEncryption{jose.A128CBC_HS256},
+		[]jose.SignatureAlgorithm{jose.RS256})
+	if nested, err := jwt1Deserialized.Decrypt(testPrivRSAKey1); assert.NoError(t, err, "Error decrypting signed-then-encrypted token.") {
 		out := &testClaims{}
 		assert.NoError(t, nested.Claims(&testPrivRSAKey1.PublicKey, out))
 		assert.Equal(t, &testClaims{"foo"}, out)
@@ -230,7 +235,11 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 	b := SignedAndEncrypted(rsaSigner, encrypter).Claims(&testClaims{"foo"})
 	tok1, err := b.CompactSerialize()
 	if assert.NoError(t, err) {
-		jwt, err := ParseSignedAndEncrypted(tok1, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
+		jwt, err := ParseSignedAndEncrypted(
+			tok1,
+			[]jose.KeyAlgorithm{jose.RSA1_5},
+			[]jose.ContentEncryption{jose.A128CBC_HS256},
+			[]jose.SignatureAlgorithm{jose.RS256})
 		if assert.NoError(t, err, "Error parsing signed-then-encrypted compact token.") {
 			if nested, err := jwt.Decrypt(testPrivRSAKey1); assert.NoError(t, err) {
 				out := &testClaims{}
@@ -242,7 +251,11 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 
 	tok2, err := b.FullSerialize()
 	if assert.NoError(t, err) {
-		jwe, err := ParseSignedAndEncrypted(tok2, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
+		jwe, err := ParseSignedAndEncrypted(
+			tok2,
+			[]jose.KeyAlgorithm{jose.RSA1_5},
+			[]jose.ContentEncryption{jose.A128CBC_HS256},
+			[]jose.SignatureAlgorithm{jose.RS256})
 		if assert.NoError(t, err, "Error parsing signed-then-encrypted full token.") {
 			assert.Equal(t, []jose.Header{{
 				Algorithm: string(jose.RSA1_5),
@@ -331,7 +344,7 @@ func TestBuilderHeadersSigner(t *testing.T) {
 			t.Errorf("case %d: failed to create token: %v", i, err)
 			continue
 		}
-		jws, err := jose.ParseSigned(token)
+		jws, err := jose.ParseSigned(token, []jose.SignatureAlgorithm{jose.RS256})
 		if err != nil {
 			t.Errorf("case %d: parse signed: %v", i, err)
 			continue
