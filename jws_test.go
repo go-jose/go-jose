@@ -86,7 +86,7 @@ func TestEmbeddedHMAC(t *testing.T) {
 	// protected: {"alg":"HS256", "jwk":{"kty":"oct", "k":"MTEx"}}, aka HMAC key.
 	msg := `{"payload":"TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ","protected":"eyJhbGciOiJIUzI1NiIsICJqd2siOnsia3R5Ijoib2N0IiwgImsiOiJNVEV4In19","signature":"lvo41ZZsuHwQvSh0uJtEXRR3vmuBJ7in6qMoD7p9jyo"}`
 
-	_, err := ParseSigned(msg)
+	_, err := ParseSigned(msg, []SignatureAlgorithm{HS256})
 	if err == nil {
 		t.Error("should not allow parsing JWS with embedded JWK with HMAC key")
 	}
@@ -95,14 +95,14 @@ func TestEmbeddedHMAC(t *testing.T) {
 func TestCompactParseJWS(t *testing.T) {
 	// Should parse
 	msg := "eyJhbGciOiJYWVoifQ.cGF5bG9hZA.c2lnbmF0dXJl"
-	_, err := ParseSigned(msg)
+	_, err := ParseSigned(msg, []SignatureAlgorithm{SignatureAlgorithm("XYZ")})
 	if err != nil {
 		t.Error("Unable to parse valid message:", err)
 	}
 
 	// Should parse (detached signature missing payload)
 	msg = "eyJhbGciOiJYWVoifQ..c2lnbmF0dXJl"
-	_, err = ParseSigned(msg)
+	_, err = ParseSigned(msg, []SignatureAlgorithm{SignatureAlgorithm("XYZ")})
 	if err != nil {
 		t.Error("Unable to parse valid message:", err)
 	}
@@ -122,7 +122,7 @@ func TestCompactParseJWS(t *testing.T) {
 	}
 
 	for i := range failures {
-		_, err = ParseSigned(failures[i])
+		_, err = ParseSigned(failures[i], []SignatureAlgorithm{SignatureAlgorithm("XYZ")})
 		if err == nil {
 			t.Error("Able to parse invalid message")
 		}
@@ -132,13 +132,19 @@ func TestCompactParseJWS(t *testing.T) {
 func TestFullParseJWS(t *testing.T) {
 	// Messages that should succeed to parse
 	successes := []string{
-		"{\"payload\":\"CUJD\",\"signatures\":[{\"protected\":\"e30\",\"header\":{\"kid\":\"XYZ\"},\"signature\":\"CUJD\"},{\"protected\":\"e30\",\"signature\":\"CUJD\"}]}",
+		`{
+		  "header":{"alg":"XYZ"},
+		  "payload":"CUJD",
+		  "signatures":[
+			{"protected":"eyJhbGciOiJBQkMifQo","header":{"kid":"XYZ"},"signature":"CUJD"},
+			{"protected":"eyJhbGciOiJBQkMifQo","signature":"CUJD"}
+		  ]}`,
 	}
 
 	for i := range successes {
-		_, err := ParseSigned(successes[i])
+		_, err := ParseSigned(successes[i], []SignatureAlgorithm{SignatureAlgorithm("ABC")})
 		if err != nil {
-			t.Error("Unble to parse valid message", err, successes[i])
+			t.Error("Unable to parse valid message", err, successes[i])
 		}
 	}
 
@@ -161,7 +167,7 @@ func TestFullParseJWS(t *testing.T) {
 	}
 
 	for i := range failures {
-		_, err := ParseSigned(failures[i])
+		_, err := ParseSigned(failures[i], []SignatureAlgorithm{SignatureAlgorithm("XYZ")})
 		if err == nil {
 			t.Error("Able to parse invalid message", err, failures[i])
 		}
@@ -177,7 +183,7 @@ func TestRejectUnprotectedJWSNonce(t *testing.T) {
 		"payload": "does-not-matter",
 		"signature": "does-not-matter"
 	}`
-	_, err := ParseSigned(input)
+	_, err := ParseSigned(input, []SignatureAlgorithm{SignatureAlgorithm("XYZ")})
 	if err == nil {
 		t.Error("JWS with an unprotected nonce parsed as valid.")
 	} else if err != ErrUnprotectedNonce {
@@ -192,7 +198,7 @@ func TestRejectUnprotectedJWSNonce(t *testing.T) {
 			"signature": "does-not-matter"
 		}]
 	}`
-	_, err = ParseSigned(input)
+	_, err = ParseSigned(input, []SignatureAlgorithm{SignatureAlgorithm("XYZ")})
 	if err == nil {
 		t.Error("JWS with an unprotected nonce parsed as valid.")
 	} else if err != ErrUnprotectedNonce {
@@ -214,7 +220,7 @@ func TestVerifyFlattenedWithIncludedUnprotectedKey(t *testing.T) {
 			"signature": "hRt2eYqBd_MyMRNIh8PEIACoFtmBi7BHTLBaAhpSU6zyDAFdEBaX7us4VB9Vo1afOL03Q8iuoRA0AT4akdV_mQTAQ_jhTcVOAeXPr0tB8b8Q11UPQ0tXJYmU4spAW2SapJIvO50ntUaqU05kZd0qw8-noH1Lja-aNnU-tQII4iYVvlTiRJ5g8_CADsvJqOk6FcHuo2mG643TRnhkAxUtazvHyIHeXMxydMMSrpwUwzMtln4ZJYBNx4QGEq6OhpAD_VSp-w8Lq5HOwGQoNs0bPxH1SGrArt67LFQBfjlVr94E1sn26p4vigXm83nJdNhWAMHHE9iV67xN-r29LT-FjA"
 	}`
 
-	jws, err := ParseSigned(input)
+	jws, err := ParseSigned(input, []SignatureAlgorithm{RS256})
 	if err != nil {
 		t.Fatal("Unable to parse valid message", err)
 	}
@@ -253,7 +259,7 @@ func TestDetachedVerifyJWS(t *testing.T) {
 	}
 
 	for _, msg := range sampleMessages {
-		obj, err := ParseSigned(msg)
+		obj, err := ParseSigned(msg, []SignatureAlgorithm{RS256, RS384})
 		if err != nil {
 			t.Error("unable to parse message", msg, err)
 			continue
@@ -279,7 +285,7 @@ func TestVerifyFlattenedWithPrivateProtected(t *testing.T) {
 	// Base64-decoded, it's '{"nonce":"8HIepUNFZUa-exKTrXVf4g"}'
 	input := `{"header":{"alg":"RS256","jwk":{"kty":"RSA","n":"7ixeydcbxxppzxrBphrW1atUiEZqTpiHDpI-79olav5XxAgWolHmVsJyxzoZXRxmtED8PF9-EICZWBGdSAL9ZTD0hLUCIsPcpdgT_LqNW3Sh2b2caPL2hbMF7vsXvnCGg9varpnHWuYTyRrCLUF9vM7ES-V3VCYTa7LcCSRm56Gg9r19qar43Z9kIKBBxpgt723v2cC4bmLmoAX2s217ou3uCpCXGLOeV_BesG4--Nl3pso1VhCfO85wEWjmW6lbv7Kg4d7Jdkv5DjDZfJ086fkEAYZVYGRpIgAvJBH3d3yKDCrSByUEud1bWuFjQBmMaeYOrVDXO_mbYg5PwUDMhw","e":"AQAB"}},"protected":"eyJub25jZSI6IjhISWVwVU5GWlVhLWV4S1RyWFZmNGcifQ","payload":"eyJjb250YWN0IjpbIm1haWx0bzpmb29AYmFyLmNvbSJdfQ","signature":"AyvVGMgXsQ1zTdXrZxE_gyO63pQgotL1KbI7gv6Wi8I7NRy0iAOkDAkWcTQT9pcCYApJ04lXfEDZfP5i0XgcFUm_6spxi5mFBZU-NemKcvK9dUiAbXvb4hB3GnaZtZiuVnMQUb_ku4DOaFFKbteA6gOYCnED_x7v0kAPHIYrQnvIa-KZ6pTajbV9348zgh9TL7NgGIIsTcMHd-Jatr4z1LQ0ubGa8tS300hoDhVzfoDQaEetYjCo1drR1RmdEN1SIzXdHOHfubjA3ZZRbrF_AJnNKpRRoIwzu1VayOhRmdy1qVSQZq_tENF4VrQFycEL7DhG7JLoXC4T2p1urwMlsw"}`
 
-	jws, err := ParseSigned(input)
+	jws, err := ParseSigned(input, []SignatureAlgorithm{RS256})
 	if err != nil {
 		t.Error("Unable to parse valid message.")
 	}
@@ -323,7 +329,7 @@ func TestSampleNimbusJWSMessagesRSA(t *testing.T) {
 	}
 
 	for _, msg := range rsaSampleMessages {
-		obj, err := ParseSigned(msg)
+		obj, err := ParseSigned(msg, []SignatureAlgorithm{RS256, RS384, RS512, PS256})
 		if err != nil {
 			t.Error("unable to parse message", msg, err)
 			continue
@@ -363,7 +369,7 @@ func TestSampleNimbusJWSMessagesEC(t *testing.T) {
 	}
 
 	for i, msg := range ecSampleMessages {
-		obj, err := ParseSigned(msg)
+		obj, err := ParseSigned(msg, []SignatureAlgorithm{ES256, ES384, ES512})
 		if err != nil {
 			t.Error("unable to parse message", msg, err)
 			continue
@@ -390,7 +396,7 @@ func TestSampleNimbusJWSMessagesHMAC(t *testing.T) {
 	}
 
 	for _, msg := range hmacSampleMessages {
-		obj, err := ParseSigned(msg)
+		obj, err := ParseSigned(msg, []SignatureAlgorithm{HS256, HS384, HS512})
 		if err != nil {
 			t.Error("unable to parse message", msg, err)
 			continue
@@ -409,7 +415,7 @@ func TestSampleNimbusJWSMessagesHMAC(t *testing.T) {
 func TestHeaderFieldsCompact(t *testing.T) {
 	msg := "eyJhbGciOiJFUzUxMiJ9.TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ.AeYNFC1rwIgQv-5fwd8iRyYzvTaSCYTEICepgu9gRId-IW99kbSVY7yH0MvrQnqI-a0L8zwKWDR35fW5dukPAYRkADp3Y1lzqdShFcEFziUVGo46vqbiSajmKFrjBktJcCsfjKSaLHwxErF-T10YYPCQFHWb2nXJOOI3CZfACYqgO84g"
 
-	obj, err := ParseSigned(msg)
+	obj, err := ParseSigned(msg, []SignatureAlgorithm{ES512})
 	if err != nil {
 		t.Fatal("unable to parse message", msg, err)
 	}
@@ -427,7 +433,7 @@ func TestHeaderFieldsCompact(t *testing.T) {
 func TestHeaderFieldsFull(t *testing.T) {
 	msg := `{"payload":"TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ","protected":"eyJhbGciOiJFUzUxMiJ9","header":{"custom":"test"},"signature":"AeYNFC1rwIgQv-5fwd8iRyYzvTaSCYTEICepgu9gRId-IW99kbSVY7yH0MvrQnqI-a0L8zwKWDR35fW5dukPAYRkADp3Y1lzqdShFcEFziUVGo46vqbiSajmKFrjBktJcCsfjKSaLHwxErF-T10YYPCQFHWb2nXJOOI3CZfACYqgO84g"}`
 
-	obj, err := ParseSigned(msg)
+	obj, err := ParseSigned(msg, []SignatureAlgorithm{ES512})
 	if err != nil {
 		t.Fatal("unable to parse message", msg, err)
 	}
@@ -445,9 +451,8 @@ func TestHeaderFieldsFull(t *testing.T) {
 	}
 }
 
-// Test vectors generated with nimbus-jose-jwt
 func TestErrorMissingPayloadJWS(t *testing.T) {
-	_, err := (&rawJSONWebSignature{}).sanitized()
+	_, err := (&rawJSONWebSignature{}).sanitized([]SignatureAlgorithm{RS256})
 	if err == nil {
 		t.Error("was able to parse message with missing payload")
 	}
@@ -475,7 +480,7 @@ func TestNullHeaderValue(t *testing.T) {
 			t.Errorf("ParseSigned panic'd when parsing a message with a null protected header value")
 		}
 	}()
-	if _, err := ParseSigned(msg); err != nil {
+	if _, err := ParseSigned(msg, []SignatureAlgorithm{ES256}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -518,12 +523,12 @@ func TestEmbedJWKBug(t *testing.T) {
 
 	// Expected output with embed set to true is a JWS with the public JWK embedded, with kid header empty.
 	// Expected output with embed set to false is that we set the kid header for key identification instead.
-	parsed, err := ParseSigned(output)
+	parsed, err := ParseSigned(output, []SignatureAlgorithm{RS256})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	parsedNoEmbed, err := ParseSigned(outputNoEmbed)
+	parsedNoEmbed, err := ParseSigned(outputNoEmbed, []SignatureAlgorithm{RS256})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -584,7 +589,7 @@ func TestJWSWithCertificateChain(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		parsed, err := ParseSigned(signed.FullSerialize())
+		parsed, err := ParseSigned(signed.FullSerialize(), []SignatureAlgorithm{RS256})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -623,7 +628,7 @@ func TestDetachedCompactSerialization(t *testing.T) {
 	msg := "eyJhbGciOiJSUzI1NiJ9.JC4wMg.W5tc_EUhxexcvLYEEOckyyvdb__M5DQIVpg6Nmk1XGM"
 	exp := "eyJhbGciOiJSUzI1NiJ9..W5tc_EUhxexcvLYEEOckyyvdb__M5DQIVpg6Nmk1XGM"
 
-	obj, err := ParseSigned(msg)
+	obj, err := ParseSigned(msg, []SignatureAlgorithm{RS256})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -637,7 +642,7 @@ func TestDetachedCompactSerialization(t *testing.T) {
 		t.Fatalf("got '%s', expected '%s'", ser, exp)
 	}
 
-	obj, err = ParseDetached(ser, []byte("$.02"))
+	obj, err = ParseDetached(ser, []byte("$.02"), []SignatureAlgorithm{RS256})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -249,7 +249,7 @@ func TestOpaqueSignerKeyRotation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err, alg, i)
 			}
-			jws1 = rtSerialize(t, serializer, jws1, vw)
+			jws1 = rtSerialize(t, serializer, jws1, vw, alg)
 			if kid := jws1.Signatures[0].Protected.KeyID; kid != "first" {
 				t.Errorf("expected kid %q but got %q", "first", kid)
 			}
@@ -263,7 +263,7 @@ func TestOpaqueSignerKeyRotation(t *testing.T) {
 			if err != nil {
 				t.Error(err, alg, i)
 			}
-			jws2 = rtSerialize(t, serializer, jws2, vw)
+			jws2 = rtSerialize(t, serializer, jws2, vw, alg)
 			if kid := jws2.Signatures[0].Protected.KeyID; kid != "next" {
 				t.Errorf("expected kid %q but got %q", "next", kid)
 			}
@@ -271,12 +271,12 @@ func TestOpaqueSignerKeyRotation(t *testing.T) {
 	}
 }
 
-func rtSerialize(t *testing.T, serializer func(*JSONWebSignature) (string, error), sig *JSONWebSignature, vk interface{}) *JSONWebSignature {
+func rtSerialize(t *testing.T, serializer func(*JSONWebSignature) (string, error), sig *JSONWebSignature, vk interface{}, alg SignatureAlgorithm) *JSONWebSignature {
 	b, err := serializer(sig)
 	if err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ParseSigned(b)
+	sig, err = ParseSigned(b, []SignatureAlgorithm{alg})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -35,6 +35,8 @@ type JSONWebToken struct {
 type NestedJSONWebToken struct {
 	enc     *jose.JSONWebEncryption
 	Headers []jose.Header
+	// Used when parsing and decrypting an input
+	allowedSignatureAlgorithms []jose.SignatureAlgorithm
 }
 
 // Claims deserializes a JSONWebToken into dest using the provided key.
@@ -75,7 +77,7 @@ func (t *NestedJSONWebToken) Decrypt(decryptionKey interface{}) (*JSONWebToken, 
 		return nil, err
 	}
 
-	sig, err := ParseSigned(string(b))
+	sig, err := ParseSigned(string(b), t.allowedSignatureAlgorithms)
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +86,8 @@ func (t *NestedJSONWebToken) Decrypt(decryptionKey interface{}) (*JSONWebToken, 
 }
 
 // ParseSigned parses token from JWS form.
-func ParseSigned(s string) (*JSONWebToken, error) {
-	sig, err := jose.ParseSigned(s)
+func ParseSigned(s string, signatureAlgorithms []jose.SignatureAlgorithm) (*JSONWebToken, error) {
+	sig, err := jose.ParseSigned(s, signatureAlgorithms)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +110,10 @@ func ParseSigned(s string) (*JSONWebToken, error) {
 // parsed data must contain a value that is present in the corresponding parameter. That
 // includes the protected and unprotected headers as well as all recipients. To accept
 // multiple algorithms, pass a slice of all the algorithms you want to accept.
-func ParseEncrypted(s string, keyAlgorithms []jose.KeyAlgorithm, contentEncryption []jose.ContentEncryption) (*JSONWebToken, error) {
+func ParseEncrypted(s string,
+	keyAlgorithms []jose.KeyAlgorithm,
+	contentEncryption []jose.ContentEncryption,
+) (*JSONWebToken, error) {
 	enc, err := jose.ParseEncrypted(s, keyAlgorithms, contentEncryption)
 	if err != nil {
 		return nil, err
@@ -127,7 +132,15 @@ func ParseEncrypted(s string, keyAlgorithms []jose.KeyAlgorithm, contentEncrypti
 // header in parsed data must contain a value that is present in the corresponding parameter. That
 // includes the protected and unprotected headers as well as all recipients. To accept
 // multiple algorithms, pass a slice of all the algorithms you want to accept.
-func ParseSignedAndEncrypted(s string, encryptionKeyAlgorithms []jose.KeyAlgorithm, contentEncryption []jose.ContentEncryption) (*NestedJSONWebToken, error) {
+//
+// The signatureAlgorithms parameter is used to validate the "alg" header parameter of the
+// inner JWS. It must be nonempty, and the "alg" header in the inner JWS must contain a value
+// that is present in the parameter.
+func ParseSignedAndEncrypted(s string,
+	encryptionKeyAlgorithms []jose.KeyAlgorithm,
+	contentEncryption []jose.ContentEncryption,
+	signatureAlgorithms []jose.SignatureAlgorithm,
+) (*NestedJSONWebToken, error) {
 	enc, err := jose.ParseEncrypted(s, encryptionKeyAlgorithms, contentEncryption)
 	if err != nil {
 		return nil, err
@@ -139,7 +152,8 @@ func ParseSignedAndEncrypted(s string, encryptionKeyAlgorithms []jose.KeyAlgorit
 	}
 
 	return &NestedJSONWebToken{
-		enc:     enc,
-		Headers: []jose.Header{enc.Header},
+		allowedSignatureAlgorithms: signatureAlgorithms,
+		enc:                        enc,
+		Headers:                    []jose.Header{enc.Header},
 	}, nil
 }

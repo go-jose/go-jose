@@ -59,7 +59,7 @@ func RoundtripJWS(sigAlg SignatureAlgorithm, serializer func(*JSONWebSignature) 
 		return fmt.Errorf("error on serialize: %s", err)
 	}
 
-	obj, err = ParseSigned(msg)
+	obj, err = ParseSigned(msg, []SignatureAlgorithm{sigAlg})
 	if err != nil {
 		return fmt.Errorf("error on parse: %s", err)
 	}
@@ -263,7 +263,7 @@ func TestMultiRecipientJWS(t *testing.T) {
 
 	msg := obj.FullSerialize()
 
-	obj, err = ParseSigned(msg)
+	obj, err = ParseSigned(msg, []SignatureAlgorithm{RS256, HS384, HS512})
 	if err != nil {
 		t.Fatal("error on parse: ", err)
 	}
@@ -412,7 +412,7 @@ func TestSignerKid(t *testing.T) {
 
 	serialized := signed.FullSerialize()
 
-	parsed, err := ParseSigned(serialized)
+	parsed, err := ParseSigned(serialized, []SignatureAlgorithm{ES256})
 	if err != nil {
 		t.Error("problem parsing signed object", err)
 	}
@@ -452,7 +452,7 @@ func TestEmbedJwk(t *testing.T) {
 		t.Error("Failed to sign payload")
 	}
 
-	object, err = ParseSigned(object.FullSerialize())
+	object, err = ParseSigned(object.FullSerialize(), []SignatureAlgorithm{ES256})
 	if err != nil {
 		t.Error("Failed to parse jws")
 	}
@@ -473,7 +473,7 @@ func TestEmbedJwk(t *testing.T) {
 		t.Error("Failed to sign payload")
 	}
 
-	object, err = ParseSigned(object.FullSerialize())
+	object, err = ParseSigned(object.FullSerialize(), []SignatureAlgorithm{ES256})
 	if err != nil {
 		t.Error("Failed to parse jws")
 	}
@@ -540,7 +540,7 @@ func TestSignerExtraHeaderInclusion(t *testing.T) {
 		t.Error("Failed to sign payload")
 	}
 
-	object, err = ParseSigned(object.FullSerialize())
+	object, err = ParseSigned(object.FullSerialize(), []SignatureAlgorithm{ES256})
 	if err != nil {
 		t.Error("Failed to parse jws")
 	}
@@ -589,7 +589,7 @@ func TestSignerB64(t *testing.T) {
 		t.Errorf("Invalid serialization, got '%s', expected '%s'", msg, exp)
 	}
 
-	parsed, err := ParseSigned(msg)
+	parsed, err := ParseSigned(msg, []SignatureAlgorithm{HS256})
 	if err != nil {
 		t.Errorf("Error on parse: %s", err)
 	}
@@ -607,7 +607,7 @@ func TestSignerB64(t *testing.T) {
 func BenchmarkParseSigned(b *testing.B) {
 	msg := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c`
 	for i := 0; i < b.N; i++ {
-		_, err := ParseSigned(msg)
+		_, err := ParseSigned(msg, []SignatureAlgorithm{HS256})
 		if err != nil {
 			b.Errorf("Error on parse: %s", err)
 		}
