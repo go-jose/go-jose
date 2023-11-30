@@ -52,7 +52,7 @@ func ExampleParseSigned() {
 func ExampleParseEncrypted() {
 	key := []byte("itsa16bytesecret")
 	raw := `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIn0..jg45D9nmr6-8awml.z-zglLlEw9MVkYHi-Znd9bSwc-oRGbqKzf9WjXqZxno.kqji2DiZHZmh-1bLF6ARPw`
-	tok, err := jwt.ParseEncrypted(raw)
+	tok, err := jwt.ParseEncrypted(raw, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 	if err != nil {
 		panic(err)
 	}
@@ -67,7 +67,7 @@ func ExampleParseEncrypted() {
 
 func ExampleParseSignedAndEncrypted() {
 	raw := `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIiwiY3R5IjoiSldUIn0..-keV-9YpsxotBEHw.yC9SHWgnkjykgJqXZGlzYC5Wg_EdWKO5TgfqeqsWWJYw7fX9zXQE3NtXmA3nAiUrYOr3H2s0AgTeAhTNbELLEHQu0blfRaPa_uKOAgFgmhJwbGe2iFLn9J0U72wk56318nI-pTLCV8FijoGpXvAxQlaKrPLKkl9yDQimPhb7UiDwLWYkJeoayciAXhR5f40E8ORGjCz8oawXRvjDaSjgRElUwy4kMGzvJy_difemEh4lfMSIwUNVEqJkEYaalRttSymMYuV6NvBVU0N0Jb6omdM4tW961OySB4KPWCWH9UJUX0XSEcqbW9WLxpg3ftx5R7xNiCnaVaCx_gJZfXJ9yFLqztIrKh2N05zHM0tddSOwCOnq7_1rJtaVz0nTXjSjf1RrVaxJya59p3K-e41QutiGFiJGzXG-L2OyLETIaVSU3ptvaCz4IxCF3GzeCvOgaICvXkpBY1-bv-fk1ilyjmcTDnLp2KivWIxcnoQmpN9xj06ZjagdG09AHUhS5WixADAg8mIdGcanNblALecnCWG-otjM9Kw.RZoaHtSgnzOin2od3D9tnA`
-	tok, err := jwt.ParseSignedAndEncrypted(raw)
+	tok, err := jwt.ParseSignedAndEncrypted(raw, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 	if err != nil {
 		panic(err)
 	}

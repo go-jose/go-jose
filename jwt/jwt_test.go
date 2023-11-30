@@ -58,7 +58,7 @@ func TestGetClaimsWithoutVerification(t *testing.T) {
 		assert.Equal(t, []string{"s1", "s2"}, c2.Scopes)
 
 	}
-	tok, err = ParseEncrypted(hmacEncryptedToken)
+	tok, err = ParseEncrypted(hmacEncryptedToken, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 	if assert.NoError(t, err, "Error parsing encrypted token.") {
 		c := Claims{}
 		err := tok.UnsafeClaimsWithoutVerification(c)
@@ -132,7 +132,7 @@ func TestDecodeToken(t *testing.T) {
 	_, err = ParseSigned(invalidPartsSignedToken)
 	assert.EqualError(t, err, "go-jose/go-jose: compact JWS format must have three parts")
 
-	tok4, err := ParseEncrypted(hmacEncryptedToken)
+	tok4, err := ParseEncrypted(hmacEncryptedToken, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 	if assert.NoError(t, err, "Error parsing encrypted token.") {
 		c := Claims{}
 		if assert.NoError(t, tok4.Claims(sharedEncryptionKey, &c)) {
@@ -141,7 +141,7 @@ func TestDecodeToken(t *testing.T) {
 	}
 	assert.EqualError(t, tok4.Claims([]byte("invalid-secret-key")), "go-jose/go-jose: error in cryptographic primitive")
 
-	tok5, err := ParseEncrypted(rsaEncryptedToken)
+	tok5, err := ParseEncrypted(rsaEncryptedToken, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
 	if assert.NoError(t, err, "Error parsing encrypted token.") {
 		c := make(map[string]interface{})
 		if assert.NoError(t, tok5.Claims(testPrivRSAKey1, &c)) {
@@ -154,15 +154,15 @@ func TestDecodeToken(t *testing.T) {
 	}
 	assert.EqualError(t, tok5.Claims(testPrivRSAKey2), "go-jose/go-jose: error in cryptographic primitive")
 
-	tok6, err := ParseEncrypted(invalidPayloadEncryptedToken)
+	tok6, err := ParseEncrypted(invalidPayloadEncryptedToken, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 	if assert.NoError(t, err, "Error parsing encrypted token.") {
 		assert.Error(t, tok6.Claims(sharedEncryptionKey, &Claims{}))
 	}
 
-	_, err = ParseEncrypted(invalidPartsEncryptedToken)
+	_, err = ParseEncrypted(invalidPartsEncryptedToken, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 	assert.EqualError(t, err, "go-jose/go-jose: compact JWE format must have five parts")
 
-	tok7, err := ParseSignedAndEncrypted(signedAndEncryptedToken)
+	tok7, err := ParseSignedAndEncrypted(signedAndEncryptedToken, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
 	if assert.NoError(t, err, "Error parsing signed-then-encrypted token.") {
 		c := make(map[string]interface{})
 		if nested, err := tok7.Decrypt(testPrivRSAKey1); assert.NoError(t, err) {
@@ -178,7 +178,7 @@ func TestDecodeToken(t *testing.T) {
 	_, err = tok7.Decrypt(testPrivRSAKey2)
 	assert.EqualError(t, err, "go-jose/go-jose: error in cryptographic primitive")
 
-	_, err = ParseSignedAndEncrypted(invalidSignedAndEncryptedToken)
+	_, err = ParseSignedAndEncrypted(invalidSignedAndEncryptedToken, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
 	assert.EqualError(t, err, "go-jose/go-jose/jwt: expected content type to be JWT (cty header)")
 }
 
@@ -202,7 +202,7 @@ func TestTamperedJWT(t *testing.T) {
 	r[2] = "b3RoZXJ0aGluZw"
 	raw = strings.Join(r, ".")
 
-	tok, _ := ParseEncrypted(raw)
+	tok, _ := ParseEncrypted(raw, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 
 	cl = Claims{}
 	err := tok.Claims(key, &cl)
@@ -221,7 +221,7 @@ func BenchmarkDecodeSignedToken(b *testing.B) {
 
 func BenchmarkDecodeEncryptedHMACToken(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := ParseEncrypted(hmacEncryptedToken); err != nil {
+		if _, err := ParseEncrypted(hmacEncryptedToken, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM}); err != nil {
 			b.Fatal(err)
 		}
 	}

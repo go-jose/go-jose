@@ -57,7 +57,7 @@ func Example_jWE() {
 
 	// Parse the serialized, encrypted JWE object. An error would indicate that
 	// the given input did not represent a valid message.
-	object, err = ParseEncrypted(serialized)
+	object, err = ParseEncrypted(serialized, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	if err != nil {
 		panic(err)
 	}

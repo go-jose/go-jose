@@ -30,7 +30,7 @@ import (
 func TestCompactParseJWE(t *testing.T) {
 	// Should parse
 	msg := "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkExMjhHQ00ifQ.dGVzdA.dGVzdA.dGVzdA.dGVzdA"
-	_, err := ParseEncrypted(msg)
+	_, err := ParseEncrypted(msg, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	if err != nil {
 		t.Error("Unable to parse valid message:", err)
 	}
@@ -58,7 +58,7 @@ func TestCompactParseJWE(t *testing.T) {
 	}
 
 	for _, msg := range failures {
-		_, err = ParseEncrypted(msg)
+		_, err = ParseEncrypted(msg, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 		if err == nil {
 			t.Error("Able to parse invalid message", msg)
 		}
@@ -75,7 +75,7 @@ func TestFullParseJWE(t *testing.T) {
 	}
 
 	for i := range successes {
-		_, err := ParseEncrypted(successes[i])
+		_, err := ParseEncrypted(successes[i], []KeyAlgorithm{KeyAlgorithm("XYZ")}, []ContentEncryption{ContentEncryption("XYZ")})
 		if err != nil {
 			t.Error("Unble to parse valid message", err, successes[i])
 		}
@@ -114,9 +114,9 @@ func TestFullParseJWE(t *testing.T) {
 	}
 
 	for i := range failures {
-		_, err := ParseEncrypted(failures[i])
+		_, err := ParseEncrypted(failures[i], []KeyAlgorithm{KeyAlgorithm("XYZ")}, []ContentEncryption{ContentEncryption("XYZ")})
 		if err == nil {
-			t.Error("Able to parse invalid message", err, failures[i])
+			t.Error("Able to parse invalid message", failures[i])
 		}
 	}
 }
@@ -185,7 +185,7 @@ func TestRejectUnprotectedJWENonce(t *testing.T) {
 	"ciphertext": "does-not-matter",
 	"tag": "does-not-matter"
 	}`
-	_, err := ParseEncrypted(input)
+	_, err := ParseEncrypted(input, []KeyAlgorithm{KeyAlgorithm("XYZ")}, []ContentEncryption{ContentEncryption("XYZ")})
 	if err == nil {
 		t.Error("JWE with an unprotected nonce parsed as valid.")
 	} else if err.Error() != "go-jose/go-jose: Nonce parameter included in unprotected header" {
@@ -203,7 +203,7 @@ func TestRejectUnprotectedJWENonce(t *testing.T) {
 		"ciphertext": "does-not-matter",
 		"tag": "does-not-matter"
 	}`
-	_, err = ParseEncrypted(input)
+	_, err = ParseEncrypted(input, []KeyAlgorithm{KeyAlgorithm("XYZ")}, []ContentEncryption{ContentEncryption("XYZ")})
 	if err == nil {
 		t.Error("JWE with an unprotected nonce parsed as valid.")
 	} else if err.Error() != "go-jose/go-jose: Nonce parameter included in unprotected header" {
@@ -222,7 +222,7 @@ func TestRejectUnprotectedJWENonce(t *testing.T) {
 			"encrypted_key": "does-not-matter"
 		}]
 	}`
-	_, err = ParseEncrypted(input)
+	_, err = ParseEncrypted(input, []KeyAlgorithm{KeyAlgorithm("XYZ")}, []ContentEncryption{ContentEncryption("XYZ")})
 	if err == nil {
 		t.Error("JWS with an unprotected nonce parsed as valid.")
 	} else if err.Error() != "go-jose/go-jose: Nonce parameter included in unprotected header" {
@@ -328,7 +328,7 @@ func TestVectorsJWE(t *testing.T) {
 func TestJWENilProtected(t *testing.T) {
 	key := []byte("1234567890123456")
 	serialized := `{"unprotected":{"alg":"dir","enc":"A128GCM"}}`
-	jwe, _ := ParseEncrypted(serialized)
+	jwe, _ := ParseEncrypted(serialized, []KeyAlgorithm{DIRECT}, []ContentEncryption{A128GCM})
 	if _, err := jwe.Decrypt(key); err == nil {
 		t.Error(err)
 	}
@@ -377,13 +377,13 @@ func TestVectorsJWECorrupt(t *testing.T) {
 		PhDO6ufSC7kV4bNqgHR-4ziS7KNwzN83_5kogXqxUpymUoJDNc.tk-GT
 		W_VVhiTIKFF.D_BE6ImZUl9F.52a-zFnRb3YQwiC7UrhVyQ`)
 
-	msg, _ := ParseEncrypted(corruptCiphertext)
+	msg, _ := ParseEncrypted(corruptCiphertext, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	_, err := msg.Decrypt(priv)
 	if err != ErrCryptoFailure {
 		t.Error("should detect corrupt ciphertext")
 	}
 
-	msg, _ = ParseEncrypted(corruptAuthtag)
+	msg, _ = ParseEncrypted(corruptAuthtag, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	_, err = msg.Decrypt(priv)
 	if err != ErrCryptoFailure {
 		t.Error("should detect corrupt auth tag")
@@ -443,7 +443,20 @@ func TestSampleNimbusJWEMessagesRSA(t *testing.T) {
 	}
 
 	for _, msg := range rsaSampleMessages {
-		obj, err := ParseEncrypted(msg)
+		obj, err := ParseEncrypted(msg,
+			[]KeyAlgorithm{
+				RSA1_5,
+				RSA_OAEP,
+				RSA_OAEP_256,
+			},
+			[]ContentEncryption{
+				A256CBC_HS512,
+				A256GCM,
+				A128CBC_HS256,
+				A128GCM,
+				A192CBC_HS384,
+				A192GCM,
+			})
 		if err != nil {
 			t.Error("unable to parse message", msg, err)
 			continue
@@ -514,7 +527,23 @@ func TestSampleNimbusJWEMessagesAESKW(t *testing.T) {
 
 	for i, msgs := range aesSampleMessages {
 		for _, msg := range msgs {
-			obj, err := ParseEncrypted(msg)
+			obj, err := ParseEncrypted(msg,
+				[]KeyAlgorithm{
+					A128GCMKW,
+					A128KW,
+					A192GCMKW,
+					A192KW,
+					A256GCMKW,
+					A256GCMKW,
+					A256KW,
+				}, []ContentEncryption{
+					A128CBC_HS256,
+					A128GCM,
+					A192CBC_HS384,
+					A192GCM,
+					A256CBC_HS512,
+					A256GCM,
+				})
 			if err != nil {
 				t.Error("unable to parse message", msg, err)
 				continue
@@ -558,7 +587,17 @@ func TestSampleJose4jJWEMessagesECDH(t *testing.T) {
 	}
 
 	for _, msg := range ecSampleMessages {
-		obj, err := ParseEncrypted(msg)
+		obj, err := ParseEncrypted(msg,
+			[]KeyAlgorithm{
+				ECDH_ES,
+				ECDH_ES_A128KW,
+				ECDH_ES_A192KW,
+				ECDH_ES_A256KW,
+			}, []ContentEncryption{
+				A128CBC_HS256,
+				A192CBC_HS384,
+				A256CBC_HS512,
+			})
 		if err != nil {
 			t.Error("unable to parse message", msg, err)
 			continue
@@ -597,7 +636,7 @@ func TestPrecomputedECDHMessagesFromJose4j(t *testing.T) {
 			t.Fatal(i, err)
 		}
 
-		parsed, err := ParseEncrypted(vector.message)
+		parsed, err := ParseEncrypted(vector.message, []KeyAlgorithm{ECDH_ES}, []ContentEncryption{A192CBC_HS384, A256CBC_HS512})
 		if err != nil {
 			t.Fatal(i, err)
 		}
@@ -632,7 +671,7 @@ func TestSampleAESCBCHMACMessagesFromNodeJose(t *testing.T) {
 	}
 
 	for _, sample := range samples {
-		obj, err := ParseEncrypted(sample.ciphertext)
+		obj, err := ParseEncrypted(sample.ciphertext, []KeyAlgorithm{DIRECT}, []ContentEncryption{A128CBC_HS256, A192CBC_HS384, A256CBC_HS512})
 		if err != nil {
 			t.Error("unable to parse message", sample.ciphertext, err)
 			continue
@@ -663,7 +702,7 @@ func TestTamperedJWE(t *testing.T) {
 	serialized = regexp.MustCompile(`"iv":"[^"]+"`).
 		ReplaceAllString(serialized, `"iv":"UotNnfiavtNOOSZAcfI03i"`)
 
-	object, _ = ParseEncrypted(serialized)
+	object, _ = ParseEncrypted(serialized, []KeyAlgorithm{DIRECT}, []ContentEncryption{A128GCM})
 
 	_, err := object.Decrypt(key)
 	if err == nil {
@@ -674,7 +713,7 @@ func TestTamperedJWE(t *testing.T) {
 func TestJWEWithNullAlg(t *testing.T) {
 	// {"alg":null,"enc":"A128GCM"}
 	serialized := `{"protected":"eyJhbGciOm51bGwsImVuYyI6IkExMjhHQ00ifQ"}`
-	if _, err := ParseEncrypted(serialized); err == nil {
+	if _, err := ParseEncrypted(serialized, []KeyAlgorithm{KeyAlgorithm("null")}, []ContentEncryption{A128GCM}); err == nil {
 		t.Error(err)
 	}
 }

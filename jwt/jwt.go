@@ -102,8 +102,14 @@ func ParseSigned(s string) (*JSONWebToken, error) {
 }
 
 // ParseEncrypted parses token from JWE form.
-func ParseEncrypted(s string) (*JSONWebToken, error) {
-	enc, err := jose.ParseEncrypted(s)
+//
+// The keyAlgorithms and contentEncryption parameters are used to validate the "alg" and "enc"
+// header parameters respectively. They must be nonempty, and each "alg" or "enc" header in
+// parsed data must contain a value that is present in the corresponding parameter. That
+// includes the protected and unprotected headers as well as all recipients. To accept
+// multiple algorithms, pass a slice of all the algorithms you want to accept.
+func ParseEncrypted(s string, keyAlgorithms []jose.KeyAlgorithm, contentEncryption []jose.ContentEncryption) (*JSONWebToken, error) {
+	enc, err := jose.ParseEncrypted(s, keyAlgorithms, contentEncryption)
 	if err != nil {
 		return nil, err
 	}
@@ -115,8 +121,14 @@ func ParseEncrypted(s string) (*JSONWebToken, error) {
 }
 
 // ParseSignedAndEncrypted parses signed-then-encrypted token from JWE form.
-func ParseSignedAndEncrypted(s string) (*NestedJSONWebToken, error) {
-	enc, err := jose.ParseEncrypted(s)
+//
+// The encryptionKeyAlgorithms and contentEncryption parameters are used to validate the "alg" and "enc"
+// header parameters, respectively, of the outer JWE. They must be nonempty, and each "alg" or "enc"
+// header in parsed data must contain a value that is present in the corresponding parameter. That
+// includes the protected and unprotected headers as well as all recipients. To accept
+// multiple algorithms, pass a slice of all the algorithms you want to accept.
+func ParseSignedAndEncrypted(s string, encryptionKeyAlgorithms []jose.KeyAlgorithm, contentEncryption []jose.ContentEncryption) (*NestedJSONWebToken, error) {
+	enc, err := jose.ParseEncrypted(s, encryptionKeyAlgorithms, contentEncryption)
 	if err != nil {
 		return nil, err
 	}

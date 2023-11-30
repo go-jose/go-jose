@@ -323,7 +323,7 @@ func TestOpaqueKeyRoundtripJWE(t *testing.T) {
 					}
 
 					dw := makeOpaqueKeyDecrypter(t, testKey.dec, alg)
-					jwe = jweSerialize(t, serializer, jwe, dw)
+					jwe = jweSerialize(t, serializer, jwe, dw, alg, enc)
 					if jwe.Header.KeyID != kid {
 						t.Errorf("expected jwe kid to equal %s but got %s", kid, jwe.Header.KeyID)
 					}
@@ -341,12 +341,18 @@ func TestOpaqueKeyRoundtripJWE(t *testing.T) {
 	}
 }
 
-func jweSerialize(t *testing.T, serializer func(*JSONWebEncryption) (string, error), jwe *JSONWebEncryption, d OpaqueKeyDecrypter) *JSONWebEncryption {
+func jweSerialize(t *testing.T,
+	serializer func(*JSONWebEncryption) (string, error),
+	jwe *JSONWebEncryption,
+	d OpaqueKeyDecrypter,
+	alg KeyAlgorithm,
+	enc ContentEncryption,
+) *JSONWebEncryption {
 	b, err := serializer(jwe)
 	if err != nil {
 		t.Fatal(err)
 	}
-	jwe, err = ParseEncrypted(b)
+	jwe, err = ParseEncrypted(b, []KeyAlgorithm{alg}, []ContentEncryption{enc})
 	if err != nil {
 		t.Fatal(err)
 	}
