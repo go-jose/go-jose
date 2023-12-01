@@ -144,9 +144,10 @@ func TestBuilderMergeClaims(t *testing.T) {
 }
 
 func TestBuilderSignedAndEncrypted(t *testing.T) {
+	encryptionKey := []byte("itsa16bytesecret" + "itsa16bytesecret")
 	recipient := jose.Recipient{
-		Algorithm: jose.RSA1_5,
-		Key:       testPrivRSAKey1.Public(),
+		Algorithm: jose.DIRECT,
+		Key:       encryptionKey,
 	}
 	encrypter, err := jose.NewEncrypter(jose.A128CBC_HS256, recipient, (&jose.EncrypterOptions{}).WithContentType("JWT").WithType("JWT"))
 	require.NoError(t, err, "Error creating encrypter.")
@@ -156,11 +157,11 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 	jwt1Serialized, err := jwt1.enc.CompactSerialize()
 	require.NoError(t, err, "Error serializing signed-then-encrypted token.")
 	jwt1Deserialized, err := ParseSignedAndEncrypted(jwt1Serialized,
-		[]jose.KeyAlgorithm{jose.RSA1_5},
+		[]jose.KeyAlgorithm{jose.DIRECT},
 		[]jose.ContentEncryption{jose.A128CBC_HS256},
 		[]jose.SignatureAlgorithm{jose.RS256})
 	require.NoError(t, err, "Error parsing signed-then-encrypted token.")
-	if nested, err := jwt1Deserialized.Decrypt(testPrivRSAKey1); assert.NoError(t, err, "Error decrypting signed-then-encrypted token.") {
+	if nested, err := jwt1Deserialized.Decrypt(encryptionKey); assert.NoError(t, err, "Error decrypting signed-then-encrypted token.") {
 		out := &testClaims{}
 		assert.NoError(t, nested.Claims(&testPrivRSAKey1.PublicKey, out))
 		assert.Equal(t, &testClaims{"foo"}, out)
@@ -171,11 +172,11 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 	if assert.NoError(t, err) {
 		jwt, err := ParseSignedAndEncrypted(
 			tok1,
-			[]jose.KeyAlgorithm{jose.RSA1_5},
+			[]jose.KeyAlgorithm{jose.DIRECT},
 			[]jose.ContentEncryption{jose.A128CBC_HS256},
 			[]jose.SignatureAlgorithm{jose.RS256})
 		if assert.NoError(t, err, "Error parsing signed-then-encrypted compact token.") {
-			if nested, err := jwt.Decrypt(testPrivRSAKey1); assert.NoError(t, err) {
+			if nested, err := jwt.Decrypt(encryptionKey); assert.NoError(t, err) {
 				out := &testClaims{}
 				assert.NoError(t, nested.Claims(&testPrivRSAKey1.PublicKey, out))
 				assert.Equal(t, &testClaims{"foo"}, out)
@@ -187,19 +188,19 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 	if assert.NoError(t, err) {
 		jwe, err := ParseSignedAndEncrypted(
 			tok2,
-			[]jose.KeyAlgorithm{jose.RSA1_5},
+			[]jose.KeyAlgorithm{jose.DIRECT},
 			[]jose.ContentEncryption{jose.A128CBC_HS256},
 			[]jose.SignatureAlgorithm{jose.RS256})
 		if assert.NoError(t, err, "Error parsing signed-then-encrypted full token.") {
 			assert.Equal(t, []jose.Header{{
-				Algorithm: string(jose.RSA1_5),
+				Algorithm: string(jose.DIRECT),
 				ExtraHeaders: map[jose.HeaderKey]interface{}{
 					jose.HeaderType:        "JWT",
 					jose.HeaderContentType: "JWT",
 					"enc":                  "A128CBC-HS256",
 				},
 			}}, jwe.Headers)
-			if jws, err := jwe.Decrypt(testPrivRSAKey1); assert.NoError(t, err) {
+			if jws, err := jwe.Decrypt(encryptionKey); assert.NoError(t, err) {
 				assert.Equal(t, []jose.Header{{
 					Algorithm: string(jose.RS256),
 					ExtraHeaders: map[jose.HeaderKey]interface{}{
