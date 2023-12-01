@@ -87,7 +87,7 @@ func (t *NestedJSONWebToken) Decrypt(decryptionKey interface{}) (*JSONWebToken, 
 
 // ParseSigned parses token from JWS form.
 func ParseSigned(s string, signatureAlgorithms []jose.SignatureAlgorithm) (*JSONWebToken, error) {
-	sig, err := jose.ParseSigned(s, signatureAlgorithms)
+	sig, err := jose.ParseSignedCompact(s, signatureAlgorithms)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func ParseEncrypted(s string,
 	keyAlgorithms []jose.KeyAlgorithm,
 	contentEncryption []jose.ContentEncryption,
 ) (*JSONWebToken, error) {
-	enc, err := jose.ParseEncrypted(s, keyAlgorithms, contentEncryption)
+	enc, err := jose.ParseEncryptedCompact(s, keyAlgorithms, contentEncryption)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func ParseSignedAndEncrypted(s string,
 	contentEncryption []jose.ContentEncryption,
 	signatureAlgorithms []jose.SignatureAlgorithm,
 ) (*NestedJSONWebToken, error) {
-	enc, err := jose.ParseEncrypted(s, encryptionKeyAlgorithms, contentEncryption)
+	enc, err := jose.ParseEncryptedCompact(s, encryptionKeyAlgorithms, contentEncryption)
 	if err != nil {
 		return nil, err
 	}

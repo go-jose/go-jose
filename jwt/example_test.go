@@ -147,7 +147,7 @@ func ExampleSigned() {
 		NotBefore: jwt.NewNumericDate(time.Date(2016, 1, 1, 0, 0, 0, 0, time.UTC)),
 		Audience:  jwt.Audience{"leela", "fry"},
 	}
-	raw, err := jwt.Signed(sig).Claims(cl).CompactSerialize()
+	raw, err := jwt.Signed(sig).Claims(cl).Serialize()
 	if err != nil {
 		panic(err)
 	}
@@ -179,7 +179,7 @@ func ExampleSigned_privateClaims() {
 		"custom claim value",
 	}
 
-	raw, err := jwt.Signed(sig).Claims(cl).Claims(privateCl).CompactSerialize()
+	raw, err := jwt.Signed(sig).Claims(cl).Claims(privateCl).Serialize()
 	if err != nil {
 		panic(err)
 	}
@@ -202,7 +202,7 @@ func ExampleEncrypted() {
 		Subject: "subject",
 		Issuer:  "issuer",
 	}
-	raw, err := jwt.Encrypted(enc).Claims(cl).CompactSerialize()
+	raw, err := jwt.Encrypted(enc).Claims(cl).Serialize()
 	if err != nil {
 		panic(err)
 	}
@@ -226,7 +226,7 @@ func ExampleSignedAndEncrypted() {
 		Subject: "subject",
 		Issuer:  "issuer",
 	}
-	raw, err := jwt.SignedAndEncrypted(rsaSigner, enc).Claims(cl).CompactSerialize()
+	raw, err := jwt.SignedAndEncrypted(rsaSigner, enc).Claims(cl).Serialize()
 	if err != nil {
 		panic(err)
 	}
@@ -244,7 +244,7 @@ func ExampleSigned_multipleClaims() {
 	}{
 		[]string{"foo", "bar"},
 	}
-	raw, err := jwt.Signed(signer).Claims(c).Claims(c2).CompactSerialize()
+	raw, err := jwt.Signed(signer).Claims(c).Claims(c2).Serialize()
 	if err != nil {
 		panic(err)
 	}

@@ -123,7 +123,10 @@ func containsContentEncryption(haystack []ContentEncryption, needle ContentEncry
 	return false
 }
 
-// ParseEncrypted parses an encrypted message in compact or JWE JSON Serialization format.
+// ParseEncrypted parses an encrypted message in JWE Compact or JWE JSON Serialization.
+//
+// https://datatracker.ietf.org/doc/html/rfc7516#section-3.1
+// https://datatracker.ietf.org/doc/html/rfc7516#section-3.2
 //
 // The keyAlgorithms and contentEncryption parameters are used to validate the "alg" and "enc"
 // header parameters respectively. They must be nonempty, and each "alg" or "enc" header in
@@ -134,25 +137,20 @@ func ParseEncrypted(input string,
 	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
 ) (*JSONWebEncryption, error) {
-	if len(keyEncryptionAlgorithms) == 0 {
-		return nil, errors.New("go-jose/go-jose: no key algorithms provided")
-	}
-	if len(contentEncryption) == 0 {
-		return nil, errors.New("go-jose/go-jose: no content encryption algorithms provided")
-	}
-
 	input = stripWhitespace(input)
 	if strings.HasPrefix(input, "{") {
-		return parseEncryptedFull(input, keyEncryptionAlgorithms, contentEncryption)
+		return ParseEncryptedJSON(input, keyEncryptionAlgorithms, contentEncryption)
 	}
 
-	return parseEncryptedCompact(input, keyEncryptionAlgorithms, contentEncryption)
+	return ParseEncryptedCompact(input, keyEncryptionAlgorithms, contentEncryption)
 }
 
-// parseEncryptedFull parses a message in compact format.
-func parseEncryptedFull(
+// ParseEncryptedJSON parses a message in JWE JSON Serialization.
+//
+// https://datatracker.ietf.org/doc/html/rfc7516#section-3.2
+func ParseEncryptedJSON(
 	input string,
-	keyAlgorithms []KeyAlgorithm,
+	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
 ) (*JSONWebEncryption, error) {
 	var parsed rawJSONWebEncryption
@@ -161,14 +159,21 @@ func parseEncryptedFull(
 		return nil, err
 	}
 
-	return parsed.sanitized(keyAlgorithms, contentEncryption)
+	return parsed.sanitized(keyEncryptionAlgorithms, contentEncryption)
 }
 
 // sanitized produces a cleaned-up JWE object from the raw JSON.
 func (parsed *rawJSONWebEncryption) sanitized(
-	keyAlgorithms []KeyAlgorithm,
+	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
 ) (*JSONWebEncryption, error) {
+	if len(keyEncryptionAlgorithms) == 0 {
+		return nil, errors.New("go-jose/go-jose: no key algorithms provided")
+	}
+	if len(contentEncryption) == 0 {
+		return nil, errors.New("go-jose/go-jose: no content encryption algorithms provided")
+	}
+
 	obj := &JSONWebEncryption{
 		original:    parsed,
 		unprotected: parsed.Unprotected,
@@ -235,7 +240,7 @@ func (parsed *rawJSONWebEncryption) sanitized(
 		if headers.getEncryption() == "" {
 			return nil, fmt.Errorf(`go-jose/go-jose: recipient %d: missing header "enc"`, i)
 		}
-		err := validateAlgEnc(headers, keyAlgorithms, contentEncryption)
+		err := validateAlgEnc(headers, keyEncryptionAlgorithms, contentEncryption)
 		if err != nil {
 			return nil, fmt.Errorf("go-jose/go-jose: recipient %d: %s", i, err)
 		}
@@ -243,13 +248,13 @@ func (parsed *rawJSONWebEncryption) sanitized(
 	}
 
 	if obj.protected != nil {
-		err := validateAlgEnc(*obj.protected, keyAlgorithms, contentEncryption)
+		err := validateAlgEnc(*obj.protected, keyEncryptionAlgorithms, contentEncryption)
 		if err != nil {
 			return nil, fmt.Errorf("go-jose/go-jose: protected header: %s", err)
 		}
 	}
 	if obj.unprotected != nil {
-		err := validateAlgEnc(*obj.unprotected, keyAlgorithms, contentEncryption)
+		err := validateAlgEnc(*obj.unprotected, keyEncryptionAlgorithms, contentEncryption)
 		if err != nil {
 			return nil, fmt.Errorf("go-jose/go-jose: unprotected header: %s", err)
 		}
@@ -275,8 +280,10 @@ func validateAlgEnc(headers rawHeader, keyAlgorithms []KeyAlgorithm, contentEncr
 	return nil
 }
 
-// parseEncryptedCompact parses a message in compact format.
-func parseEncryptedCompact(
+// ParseEncryptedCompact parses a message in JWE Compact Serialization.
+//
+// https://datatracker.ietf.org/doc/html/rfc7516#section-3.1
+func ParseEncryptedCompact(
 	input string,
 	keyAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,

@@ -27,7 +27,7 @@ import (
 )
 
 // Builder is a utility for making JSON Web Tokens. Calls can be chained, and
-// errors are accumulated until the final call to CompactSerialize/FullSerialize.
+// errors are accumulated until the final call to Serialize.
 type Builder interface {
 	// Claims encodes claims into JWE/JWS form. Multiple calls will merge claims
 	// into single JSON object. If you are passing private claims, make sure to set
@@ -36,15 +36,13 @@ type Builder interface {
 	Claims(i interface{}) Builder
 	// Token builds a JSONWebToken from provided data.
 	Token() (*JSONWebToken, error)
-	// FullSerialize serializes a token using the JWS/JWE JSON Serialization format.
-	FullSerialize() (string, error)
-	// CompactSerialize serializes a token using the compact serialization format.
-	CompactSerialize() (string, error)
+	// Serialize serializes a token.
+	Serialize() (string, error)
 }
 
 // NestedBuilder is a utility for making Signed-Then-Encrypted JSON Web Tokens.
 // Calls can be chained, and errors are accumulated until final call to
-// CompactSerialize/FullSerialize.
+// Serialize.
 type NestedBuilder interface {
 	// Claims encodes claims into JWE/JWS form. Multiple calls will merge claims
 	// into single JSON object. If you are passing private claims, make sure to set
@@ -53,10 +51,8 @@ type NestedBuilder interface {
 	Claims(i interface{}) NestedBuilder
 	// Token builds a NestedJSONWebToken from provided data.
 	Token() (*NestedJSONWebToken, error)
-	// FullSerialize serializes a token using the JSON Serialization format.
-	FullSerialize() (string, error)
-	// CompactSerialize serializes a token using the compact serialization format.
-	CompactSerialize() (string, error)
+	// Serialize serializes a token.
+	Serialize() (string, error)
 }
 
 type builder struct {
@@ -194,22 +190,13 @@ func (b *signedBuilder) Token() (*JSONWebToken, error) {
 	return b.builder.token(sig.Verify, h)
 }
 
-func (b *signedBuilder) CompactSerialize() (string, error) {
+func (b *signedBuilder) Serialize() (string, error) {
 	sig, err := b.sign()
 	if err != nil {
 		return "", err
 	}
 
 	return sig.CompactSerialize()
-}
-
-func (b *signedBuilder) FullSerialize() (string, error) {
-	sig, err := b.sign()
-	if err != nil {
-		return "", err
-	}
-
-	return sig.FullSerialize(), nil
 }
 
 func (b *signedBuilder) sign() (*jose.JSONWebSignature, error) {
@@ -232,22 +219,13 @@ func (b *encryptedBuilder) Claims(i interface{}) Builder {
 	}
 }
 
-func (b *encryptedBuilder) CompactSerialize() (string, error) {
+func (b *encryptedBuilder) Serialize() (string, error) {
 	enc, err := b.encrypt()
 	if err != nil {
 		return "", err
 	}
 
 	return enc.CompactSerialize()
-}
-
-func (b *encryptedBuilder) FullSerialize() (string, error) {
-	enc, err := b.encrypt()
-	if err != nil {
-		return "", err
-	}
-
-	return enc.FullSerialize(), nil
 }
 
 func (b *encryptedBuilder) Token() (*JSONWebToken, error) {
@@ -295,7 +273,7 @@ func (b *nestedBuilder) Token() (*NestedJSONWebToken, error) {
 	}, nil
 }
 
-func (b *nestedBuilder) CompactSerialize() (string, error) {
+func (b *nestedBuilder) Serialize() (string, error) {
 	enc, err := b.signAndEncrypt()
 	if err != nil {
 		return "", err
