@@ -75,16 +75,28 @@ type Signature struct {
 	original  *rawSignatureInfo
 }
 
-// ParseSigned parses a signed message in compact or JWS JSON Serialization format.
+// ParseSigned parses a signed message in JWS Compact or JWS JSON Serialization.
+//
+// https://datatracker.ietf.org/doc/html/rfc7515#section-7
 func ParseSigned(
 	signature string,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
 	signature = stripWhitespace(signature)
 	if strings.HasPrefix(signature, "{") {
-		return parseSignedFull(signature, signatureAlgorithms)
+		return ParseSignedJSON(signature, signatureAlgorithms)
 	}
 
+	return parseSignedCompact(signature, nil, signatureAlgorithms)
+}
+
+// ParseSignedCompact parses a message in JWS Compact Serialization.
+//
+// https://datatracker.ietf.org/doc/html/rfc7515#section-7.1
+func ParseSignedCompact(
+	signature string,
+	signatureAlgorithms []SignatureAlgorithm,
+) (*JSONWebSignature, error) {
 	return parseSignedCompact(signature, nil, signatureAlgorithms)
 }
 
@@ -144,8 +156,10 @@ func (obj JSONWebSignature) computeAuthData(payload []byte, signature *Signature
 	return authData.Bytes(), nil
 }
 
-// parseSignedFull parses a message in full format.
-func parseSignedFull(
+// ParseSignedJSON parses a message in JWS JSON Serialization.
+//
+// https://datatracker.ietf.org/doc/html/rfc7515#section-7.2
+func ParseSignedJSON(
 	input string,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {

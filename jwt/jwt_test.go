@@ -203,7 +203,7 @@ func TestTamperedJWT(t *testing.T) {
 		Issuer:  "bar",
 	}
 
-	raw, _ := Encrypted(sig).Claims(cl).CompactSerialize()
+	raw, _ := Encrypted(sig).Claims(cl).Serialize()
 
 	// Modify with valid base64 junk
 	r := strings.Split(raw, ".")

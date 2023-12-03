@@ -89,7 +89,7 @@ func TestIntegerAndFloatsNormalize(t *testing.T) {
 }
 
 func TestBuilderCustomClaimsNonPointer(t *testing.T) {
-	jwt, err := Signed(rsaSigner).Claims(testClaims{"foo"}).CompactSerialize()
+	jwt, err := Signed(rsaSigner).Claims(testClaims{"foo"}).Serialize()
 	require.NoError(t, err, "Error creating JWT.")
 
 	parsed, err := ParseSigned(jwt, []jose.SignatureAlgorithm{jose.RS256})
@@ -102,7 +102,7 @@ func TestBuilderCustomClaimsNonPointer(t *testing.T) {
 }
 
 func TestBuilderCustomClaimsPointer(t *testing.T) {
-	jwt, err := Signed(rsaSigner).Claims(&testClaims{"foo"}).CompactSerialize()
+	jwt, err := Signed(rsaSigner).Claims(&testClaims{"foo"}).Serialize()
 	require.NoError(t, err, "Error creating JWT.")
 
 	parsed, err := ParseSigned(jwt, []jose.SignatureAlgorithm{jose.RS256})
@@ -122,7 +122,7 @@ func TestBuilderMergeClaims(t *testing.T) {
 		Claims(map[string]interface{}{
 			"Scopes": []string{"read:users"},
 		}).
-		CompactSerialize()
+		Serialize()
 	require.NoError(t, err, "Error creating JWT.")
 
 	parsed, err := ParseSigned(jwt, []jose.SignatureAlgorithm{jose.RS256})
@@ -136,79 +136,11 @@ func TestBuilderMergeClaims(t *testing.T) {
 		}, out)
 	}
 
-	_, err = Signed(rsaSigner).Claims("invalid-claims").Claims(&testClaims{"foo"}).CompactSerialize()
+	_, err = Signed(rsaSigner).Claims("invalid-claims").Claims(&testClaims{"foo"}).Serialize()
 	assert.Equal(t, err, ErrInvalidClaims)
 
-	_, err = Signed(rsaSigner).Claims(&invalidMarshalClaims{}).CompactSerialize()
+	_, err = Signed(rsaSigner).Claims(&invalidMarshalClaims{}).Serialize()
 	assert.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
-}
-
-func TestSignedFullSerializeAndToken(t *testing.T) {
-	b := Signed(rsaSigner).Claims(&testClaims{"foo"})
-
-	jwt, err := b.FullSerialize()
-	require.NoError(t, err, "Error creating JWT.")
-	parsed, err := ParseSigned(jwt, []jose.SignatureAlgorithm{jose.RS256})
-	require.NoError(t, err, "Error parsing JWT.")
-	out := &testClaims{}
-	if assert.NoError(t, parsed.Claims(&testPrivRSAKey1.PublicKey, &out), "Error unmarshaling claims.") {
-		assert.Equal(t, &testClaims{
-			Subject: "foo",
-		}, out)
-	}
-
-	jwt2, err := b.Token()
-	require.NoError(t, err, "Error creating JWT.")
-	out2 := &testClaims{}
-	if assert.NoError(t, jwt2.Claims(&testPrivRSAKey1.PublicKey, &out2), "Error unmarshaling claims.") {
-		assert.Equal(t, &testClaims{
-			Subject: "foo",
-		}, out2)
-	}
-
-	b2 := Signed(rsaSigner).Claims(&invalidMarshalClaims{})
-	_, err = b2.FullSerialize()
-	require.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
-	_, err = b2.Token()
-	require.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
-}
-
-func TestEncryptedFullSerializeAndToken(t *testing.T) {
-	recipient := jose.Recipient{
-		Algorithm: jose.RSA1_5,
-		Key:       testPrivRSAKey1.Public(),
-	}
-	encrypter, err := jose.NewEncrypter(jose.A128CBC_HS256, recipient, nil)
-	require.NoError(t, err, "Error creating encrypter.")
-
-	b := Encrypted(encrypter).Claims(&testClaims{"foo"})
-
-	jwt, err := b.FullSerialize()
-	require.NoError(t, err, "Error creating JWT.")
-	parsed, err := ParseEncrypted(jwt, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
-	require.NoError(t, err, "Error parsing JWT.")
-	out := &testClaims{}
-	if assert.NoError(t, parsed.Claims(testPrivRSAKey1, &out)) {
-		assert.Equal(t, &testClaims{
-			Subject: "foo",
-		}, out)
-	}
-
-	jwt2, err := b.Token()
-	require.NoError(t, err, "Error creating JWT.")
-	out2 := &testClaims{}
-	if assert.NoError(t, jwt2.Claims(testPrivRSAKey1, &out2)) {
-		assert.Equal(t, &testClaims{
-			Subject: "foo",
-		}, out2)
-	}
-
-	b2 := Encrypted(encrypter).Claims(&invalidMarshalClaims{})
-
-	_, err = b2.FullSerialize()
-	require.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
-	_, err = b2.Token()
-	require.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
 }
 
 func TestBuilderSignedAndEncrypted(t *testing.T) {
@@ -221,11 +153,13 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 
 	jwt1, err := SignedAndEncrypted(rsaSigner, encrypter).Claims(&testClaims{"foo"}).Token()
 	require.NoError(t, err, "Error marshaling signed-then-encrypted token.")
-	jwt1Serialized := jwt1.enc.FullSerialize()
+	jwt1Serialized, err := jwt1.enc.CompactSerialize()
+	require.NoError(t, err, "Error serializing signed-then-encrypted token.")
 	jwt1Deserialized, err := ParseSignedAndEncrypted(jwt1Serialized,
 		[]jose.KeyAlgorithm{jose.RSA1_5},
 		[]jose.ContentEncryption{jose.A128CBC_HS256},
 		[]jose.SignatureAlgorithm{jose.RS256})
+	require.NoError(t, err, "Error parsing signed-then-encrypted token.")
 	if nested, err := jwt1Deserialized.Decrypt(testPrivRSAKey1); assert.NoError(t, err, "Error decrypting signed-then-encrypted token.") {
 		out := &testClaims{}
 		assert.NoError(t, nested.Claims(&testPrivRSAKey1.PublicKey, out))
@@ -233,7 +167,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 	}
 
 	b := SignedAndEncrypted(rsaSigner, encrypter).Claims(&testClaims{"foo"})
-	tok1, err := b.CompactSerialize()
+	tok1, err := b.Serialize()
 	if assert.NoError(t, err) {
 		jwt, err := ParseSignedAndEncrypted(
 			tok1,
@@ -249,7 +183,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 		}
 	}
 
-	tok2, err := b.FullSerialize()
+	tok2, err := b.Serialize()
 	if assert.NoError(t, err) {
 		jwe, err := ParseSignedAndEncrypted(
 			tok2,
@@ -280,14 +214,14 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 	}
 
 	b2 := SignedAndEncrypted(rsaSigner, encrypter).Claims(&invalidMarshalClaims{})
-	_, err = b2.CompactSerialize()
+	_, err = b2.Serialize()
 	assert.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
-	_, err = b2.FullSerialize()
+	_, err = b2.Serialize()
 	assert.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
 
 	encrypter2, err := jose.NewEncrypter(jose.A128CBC_HS256, recipient, nil)
 	require.NoError(t, err, "Error creating encrypter.")
-	_, err = SignedAndEncrypted(rsaSigner, encrypter2).CompactSerialize()
+	_, err = SignedAndEncrypted(rsaSigner, encrypter2).Serialize()
 	assert.EqualError(t, err, "go-jose/go-jose/jwt: expected content type to be JWT (cty header)")
 }
 
@@ -301,7 +235,7 @@ func TestBuilderHeadersSigner(t *testing.T) {
 			Claims: &Claims{Issuer: "foo"},
 		},
 		{
-			Keys:   []*rsa.PrivateKey{testPrivRSAKey1, testPrivRSAKey2},
+			Keys:   []*rsa.PrivateKey{testPrivRSAKey2},
 			Claims: &Claims{Issuer: "foo"},
 		},
 	}
@@ -335,16 +269,12 @@ func TestBuilderHeadersSigner(t *testing.T) {
 		}
 
 		var token string
-		if len(tc.Keys) == 1 {
-			token, err = Signed(signer).Claims(tc.Claims).CompactSerialize()
-		} else {
-			token, err = Signed(signer).Claims(tc.Claims).FullSerialize()
-		}
+		token, err = Signed(signer).Claims(tc.Claims).Serialize()
 		if err != nil {
 			t.Errorf("case %d: failed to create token: %v", i, err)
 			continue
 		}
-		jws, err := jose.ParseSigned(token, []jose.SignatureAlgorithm{jose.RS256})
+		jws, err := jose.ParseSignedCompact(token, []jose.SignatureAlgorithm{jose.RS256})
 		if err != nil {
 			t.Errorf("case %d: parse signed: %v", i, err)
 			continue
@@ -382,7 +312,7 @@ func TestBuilderHeadersEncrypter(t *testing.T) {
 	encrypter, err := jose.NewEncrypter(jose.A128CBC_HS256, recipient, (&jose.EncrypterOptions{}).WithType(wantType))
 	require.NoError(t, err, "failed to create encrypter")
 
-	token, err := Encrypted(encrypter).Claims(claims).CompactSerialize()
+	token, err := Encrypted(encrypter).Claims(claims).Serialize()
 	require.NoError(t, err, "failed to create token")
 
 	jwe, err := jose.ParseEncrypted(token, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
@@ -417,23 +347,23 @@ func BenchmarkStructClaims(b *testing.B) {
 	}
 }
 
-func BenchmarkSignedCompactSerializeRSA(b *testing.B) {
+func BenchmarkSignedSerializeRSA(b *testing.B) {
 	tb := Signed(rsaSigner).Claims(sampleClaims)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := tb.CompactSerialize(); err != nil {
+		if _, err := tb.Serialize(); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkSignedCompactSerializeSHA(b *testing.B) {
+func BenchmarkSignedSerializeSHA(b *testing.B) {
 	tb := Signed(hmacSigner).Claims(sampleClaims)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := tb.CompactSerialize(); err != nil {
+		if _, err := tb.Serialize(); err != nil {
 			b.Fatal(err)
 		}
 	}
