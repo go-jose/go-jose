@@ -9,10 +9,6 @@ Package jose aims to provide an implementation of the Javascript Object Signing
 and Encryption set of standards. This includes support for JSON Web Encryption,
 JSON Web Signature, and JSON Web Token standards.
 
-**Help Wanted!** If you'd like to help us develop this library please reach
-out to css (at) css.bio. While I'm still working on keeping this maintained,
-I have limited time for in-depth development and could use some additional help.
-
 **Disclaimer**: This library contains encryption software that is subject to
 the U.S. Export Administration Regulations. You may not export, re-export,
 transfer or download this code or any part of it in violation of any United
