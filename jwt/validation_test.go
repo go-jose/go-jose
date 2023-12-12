@@ -35,13 +35,15 @@ func TestFieldsMatch(t *testing.T) {
 	valid := []Expected{
 		{Issuer: "issuer"},
 		{Subject: "subject"},
-		{Audience: Audience{"a1", "a2"}},
-		{Audience: Audience{"a2", "a1"}},
+		{AnyAudience: Audience{"a1", "a2"}},
+		{AnyAudience: Audience{"a2", "a1"}},
+		{AnyAudience: Audience{"a1"}},
+		{AnyAudience: Audience{"a2"}},
 		{ID: "42"},
 	}
 
 	for _, v := range valid {
-		assert.NoError(t, c.Validate(v))
+		assert.NoError(t, c.Validate(v), "expected %#v to match %#v", c, v)
 	}
 
 	invalid := []struct {
@@ -50,7 +52,8 @@ func TestFieldsMatch(t *testing.T) {
 	}{
 		{Expected{Issuer: "invalid-issuer"}, ErrInvalidIssuer},
 		{Expected{Subject: "invalid-subject"}, ErrInvalidSubject},
-		{Expected{Audience: Audience{"invalid-audience"}}, ErrInvalidAudience},
+		{Expected{AnyAudience: Audience{"invalid-audience"}}, ErrInvalidAudience},
+		{Expected{AnyAudience: Audience{"invalid-audience", "invalid2"}}, ErrInvalidAudience},
 		{Expected{ID: "invalid-id"}, ErrInvalidID},
 	}
 
