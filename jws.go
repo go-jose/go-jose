@@ -163,9 +163,6 @@ func ParseSignedJSON(
 	input string,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
-	if len(signatureAlgorithms) == 0 {
-		return nil, errors.New("go-jose/go-jose: no signature algorithms specified")
-	}
 	var parsed rawJSONWebSignature
 	err := json.Unmarshal([]byte(input), &parsed)
 	if err != nil {
@@ -186,6 +183,9 @@ func containsSignatureAlgorithm(haystack []SignatureAlgorithm, needle SignatureA
 
 // sanitized produces a cleaned-up JWS object from the raw JSON.
 func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgorithm) (*JSONWebSignature, error) {
+	if len(signatureAlgorithms) == 0 {
+		return nil, errors.New("go-jose/go-jose: no signature algorithms specified")
+	}
 	if parsed.Payload == nil {
 		return nil, fmt.Errorf("go-jose/go-jose: missing payload in JWS message")
 	}

@@ -103,6 +103,45 @@ func ParseSigned(s string, signatureAlgorithms []jose.SignatureAlgorithm) (*JSON
 	}, nil
 }
 
+func validateKeyEncryptionAlgorithm(algs []jose.KeyAlgorithm) error {
+	for _, alg := range algs {
+		switch alg {
+		case jose.ED25519,
+			jose.RSA1_5,
+			jose.RSA_OAEP,
+			jose.RSA_OAEP_256,
+			jose.ECDH_ES,
+			jose.ECDH_ES_A128KW,
+			jose.ECDH_ES_A192KW,
+			jose.ECDH_ES_A256KW:
+			return fmt.Errorf("asymmetric encryption algorithms not supported for JWT: "+
+				"invalid key encryption algorithm: %s", alg)
+		case jose.PBES2_HS256_A128KW,
+			jose.PBES2_HS384_A192KW,
+			jose.PBES2_HS512_A256KW:
+			return fmt.Errorf("password-based encryption not supported for JWT: "+
+				"invalid key encryption algorithm: %s", alg)
+		}
+	}
+	return nil
+}
+
+func parseEncryptedCompact(
+	s string,
+	keyAlgorithms []jose.KeyAlgorithm,
+	contentEncryption []jose.ContentEncryption,
+) (*jose.JSONWebEncryption, error) {
+	err := validateKeyEncryptionAlgorithm(keyAlgorithms)
+	if err != nil {
+		return nil, err
+	}
+	enc, err := jose.ParseEncryptedCompact(s, keyAlgorithms, contentEncryption)
+	if err != nil {
+		return nil, err
+	}
+	return enc, nil
+}
+
 // ParseEncrypted parses token from JWE form.
 //
 // The keyAlgorithms and contentEncryption parameters are used to validate the "alg" and "enc"
@@ -114,7 +153,7 @@ func ParseEncrypted(s string,
 	keyAlgorithms []jose.KeyAlgorithm,
 	contentEncryption []jose.ContentEncryption,
 ) (*JSONWebToken, error) {
-	enc, err := jose.ParseEncryptedCompact(s, keyAlgorithms, contentEncryption)
+	enc, err := parseEncryptedCompact(s, keyAlgorithms, contentEncryption)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +180,7 @@ func ParseSignedAndEncrypted(s string,
 	contentEncryption []jose.ContentEncryption,
 	signatureAlgorithms []jose.SignatureAlgorithm,
 ) (*NestedJSONWebToken, error) {
-	enc, err := jose.ParseEncryptedCompact(s, encryptionKeyAlgorithms, contentEncryption)
+	enc, err := parseEncryptedCompact(s, encryptionKeyAlgorithms, contentEncryption)
 	if err != nil {
 		return nil, err
 	}

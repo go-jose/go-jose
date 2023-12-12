@@ -36,7 +36,7 @@ var (
 	invalidPayloadEncryptedToken   = `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIn0..T4jCS4Yyw1GCH0aW.y4gFaMITdBs_QZM8RKrL.6MPyk1cMVaOJFoNGlEuaRQ`
 	invalidPartsEncryptedToken     = `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIn0..NZrU98U4QNO0y-u6.HSq5CvlmkUT1BPqLGZ4`
 	signedAndEncryptedToken        = `eyJhbGciOiJSU0ExXzUiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiY3R5IjoiSldUIn0.icnR7M1HSgMDaUnJhfzT5nLmT0eRPeNsKPkioNcyq9TZsm-LgbE7wZkNFGfQqYwvbmrZ3UpOhNkrq4n2KN3N1dtjH9TVxzfMxz2OMh0dRWUNMi58EMadhmIpH3PLyyaeDyd0dyHpOIRPFTAoOdn2GoO_flV5CvPMhgdVKYB3h3vQW-ZZDu4cOZwXAjTuThdoUZCNWFhJhXyj-PrKLyVpX6rE1o4X05IS8008SLZyx-PZlsUPyLs6CJi7Z4PzZRzOJTV00a-7UOi-fBKBZV5V8eRpWuzJ673pMALlRCBzrRin-JeEA_QnAejtMAHG7RSGP60easQN4I-0jLTQNNNynw.oFrO-5ZgRrnWmbkPsbyMiQ.BVaWUzlrdfhe0otPJpb3DGoDCT6-BOmN_Pgq5NOqVFYIAwG5pM4pf7TaiPUJeQLf0phbLgpT4RfJ20Zhwfc2MH5unCqc8TZEP2dOrYRhb8o-X57x6IQppIDbjK2i_CAWf3yF5JUB7qRqOizpKZTh3HFTVEglY3WF8tAJ8KpnatTUmwcnqlyjdBFvYu4usiyvc_u9wNbXx5-lFt0slQYleHQMUirBprKyswIBjMoFJEe7kDvU_MCKI4NI9_fSfWJpaUdNxQEvRYR1PV4ZQdwBY0X9u2n2QH5iVQMrmgmQ5hPbWxwRv1-7jXBMPBpGeFQZHeEtSwif1_Umwyt8cDyRChb3OM7XQ3eY0UJRrbmvhcLWIcMp8FpblDaBinbjD6qIVXZVmaAdIbi2a_HblfoeL3-UABb82AAxOqQcAFjDEDTR2TFalDXSwgPZrAaQ_Mql3eFe9r2y0UVkgG7XYF4ik8sSK48CkZPUvkZFr-K9QMq-RZLzT3Zw0edxNaKgje27S26H9qClh6CCr9nk38AZZ76_Xz7f-Fil5xI0Dq95UzvwW__U3JJWE6OVUVx_RVJgdOJn8_B7hluckwBLUblscA.83pPXNnH0sKgHvFboiJVDA`
-	invalidSignedAndEncryptedToken = `eyJhbGciOiJSU0ExXzUiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.QKYu3DkFEXBUa2U0Sgtm-e44BMuaFVbMu2T-GB3qEGONrmOuaB5BtNCvBUnuj6HR0v6u-tvawToRSzExQQLFTvPcLiQR8iclWirqAFUqLrg8kRU3qIRLkmErYeGIfCML1jq9ofKg0DI5-YrU5RSyUg9cwfXKEx8KNwFcjeVeDZwWEACdU8xBnQp57rNfr0Tj-dPnGKID7LU5ZV0vhK90FpEG7UqOeSHFmvONQyz6Ca-ZkE8X2swqGad-q5xl8f9pApdFqHzADox5OlgtxPkr-Khkm6WGfvf1K_e-iW5LYtvWIAjNByft2TexsNcYpdAO2oNAgh2nkhoohl-zCWU-og.UAU65JWKqvHZ_Z0V-xLyjQ.M6sQ4lAzKFelSmL6C6uoK00rB8IFCAK-eJ0iByGhtg8eYtmSBFsP_oUySfKPtxcPRkQ7YxnEX5D-DOo20wCV7il2Be9No__0R6_5heISOMXcKmKP3D6pFusaPisNGOgLw8SKXBuVpe20PvOJ9RgOXRKucSR2UMINXtqIn9RdxbKOlBBmMJhnX4TeQ00fRILng2sMbUHsWExSthQODHGx6VcwLFp-Aqmsnv2q2KkLpA8sEm48AHHFQXSGtlVGVgWKi3dOQYUnDJW4P64Xxr1Uq3yT7w_dRwK4BA7l3Biecj5dwkKrFMJ_RaCt-ED_R15zpxg6PmnXeeJnif58Fai40ZWOsGvLZNYwL1jbi-TrsargpdUQedfzuTk8Na2NkCzFNg2BYXVDHJ_WAX1daVyhvunaURwAlBatAcmnOGxWebwV1xQoQ7iHg6ZGohCannn_pqGwJlMHMgnCcnCIhwfj9uL9Ejz_TVceZNMlT1KvLRafVfxGhkp48bdnd8OcXmjT9pQzZUB3OqrstWKhbItZ1xMpy6dZ54ldWvtTTyQ4tQJaVWgXERUM1erDT6Ypyl15-fumOB9MRcgMG3NDblKowA.P9WTBITvVUgrLjX6bS0opQ`
+	invalidSignedAndEncryptedToken = `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwidHlwIjoiSldUIn0K..PmqSKNuL84466r0zAFCy6A.sSN_7NJs4l7FAj6HcBzdYjV3FGu1MsqZCk_zNjpp6qsYynR3pJWU3jLUVYrRkeQKOaJAmDwOHHdrq9tBPh4-GD3zgtM1Fm5mJ2oVrbQUr2nllYWIsdb2LhVR9pxdhjDm6wlpJxcIuY1PkeMIVUupXEBEemk9atiJWAjoGqXVPO_pI6-egGseqYo1PjUXY7Cnz6SBq0W3yNk3Edf_xA-lLZuiALuatsweNJUbTwqTzhOHQ6aPAiPafc7jQGvp9YXYi6X5oQ85cXPTCnGQWS7LMHPME5gRzb4_Cz7M1QhZGdbOS8bLnxKMRZwbhvdc9-JhTqi8JbA0mp0OnWr77iPBCeFAUVEbqxTMeWOwLCQ6RjoTtx3vXnVfgqKSrkdMKGhC33tEfxy_Wg5WEm_3jeITSCvQJtwItNVhhlOrcqPD71JMLhneAnRtSqys5TbporUOpwi43DStCYBdrueE-M0dlo3C6tO0KDgAgg48JaiW_76AcO32vJTKKl9rZ0ybku58lqHJtMNR4bJ7PjTv3hPhfA.p4VEoJ3y7THiJwRpXBlsHQ`
 )
 
 type customClaims struct {
@@ -141,18 +141,8 @@ func TestDecodeToken(t *testing.T) {
 	}
 	assert.EqualError(t, tok4.Claims([]byte("invalid-secret-key")), "go-jose/go-jose: error in cryptographic primitive")
 
-	tok5, err := ParseEncrypted(rsaEncryptedToken, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
-	if assert.NoError(t, err, "Error parsing encrypted token.") {
-		c := make(map[string]interface{})
-		if assert.NoError(t, tok5.Claims(testPrivRSAKey1, &c)) {
-			assert.Equal(t, map[string]interface{}{
-				"sub":    "subject",
-				"iss":    "issuer",
-				"scopes": []interface{}{"s1", "s2"},
-			}, c)
-		}
-	}
-	assert.EqualError(t, tok5.Claims(testPrivRSAKey2), "go-jose/go-jose: error in cryptographic primitive")
+	_, err = ParseEncrypted(rsaEncryptedToken, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
+	assert.Error(t, err, "Expected error trying to parse token with symmetric encryption algorithm")
 
 	tok6, err := ParseEncrypted(invalidPayloadEncryptedToken, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 	if assert.NoError(t, err, "Error parsing encrypted token.") {
@@ -162,29 +152,15 @@ func TestDecodeToken(t *testing.T) {
 	_, err = ParseEncrypted(invalidPartsEncryptedToken, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 	assert.EqualError(t, err, "go-jose/go-jose: compact JWE format must have five parts")
 
-	tok7,
-		err := ParseSignedAndEncrypted(signedAndEncryptedToken,
+	_, err = ParseSignedAndEncrypted(signedAndEncryptedToken,
 		[]jose.KeyAlgorithm{jose.RSA1_5},
 		[]jose.ContentEncryption{jose.A128CBC_HS256},
 		[]jose.SignatureAlgorithm{jose.RS256},
 	)
-	if assert.NoError(t, err, "Error parsing signed-then-encrypted token.") {
-		c := make(map[string]interface{})
-		if nested, err := tok7.Decrypt(testPrivRSAKey1); assert.NoError(t, err) {
-			assert.NoError(t, nested.Claims(testPrivRSAKey1.Public(), &c))
-			assert.Equal(t, map[string]interface{}{
-				"sub":    "subject",
-				"iss":    "issuer",
-				"scopes": []interface{}{"s1", "s2"},
-			}, c)
-			assert.EqualError(t, nested.Claims(testPrivRSAKey2.Public()), "go-jose/go-jose: error in cryptographic primitive")
-		}
-	}
-	_, err = tok7.Decrypt(testPrivRSAKey2)
-	assert.EqualError(t, err, "go-jose/go-jose: error in cryptographic primitive")
+	assert.Error(t, err, "Expected error trying to parse signed-then-encrypted token with symmetric encryption algorithm")
 
 	_, err = ParseSignedAndEncrypted(invalidSignedAndEncryptedToken,
-		[]jose.KeyAlgorithm{jose.RSA1_5},
+		[]jose.KeyAlgorithm{jose.DIRECT},
 		[]jose.ContentEncryption{jose.A128CBC_HS256},
 		[]jose.SignatureAlgorithm{jose.RS256})
 	assert.EqualError(t, err, "go-jose/go-jose/jwt: expected content type to be JWT (cty header)")
@@ -231,6 +207,44 @@ func BenchmarkDecodeEncryptedHMACToken(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		if _, err := ParseEncrypted(hmacEncryptedToken, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM}); err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+func TestValidateKeyEncryptionAlgorithm(t *testing.T) {
+	for _, alg := range []jose.KeyAlgorithm{
+		jose.RSA1_5, jose.RSA_OAEP, jose.RSA_OAEP_256,
+		jose.ECDH_ES, jose.ECDH_ES_A128KW, jose.ECDH_ES_A192KW, jose.ECDH_ES_A256KW,
+	} {
+		err := validateKeyEncryptionAlgorithm([]jose.KeyAlgorithm{alg})
+		if err == nil {
+			t.Errorf("expected error for %s, got none", alg)
+		}
+		if !strings.Contains(err.Error(), "asymmetric encryption algorithms not supported") {
+			t.Errorf("got wrong error for %s: %s", alg, err)
+		}
+	}
+	for _, alg := range []jose.KeyAlgorithm{
+		jose.PBES2_HS256_A128KW, jose.PBES2_HS384_A192KW, jose.PBES2_HS512_A256KW,
+	} {
+		err := validateKeyEncryptionAlgorithm([]jose.KeyAlgorithm{alg})
+		if err == nil {
+			t.Errorf("expected error for %s, got none", alg)
+		}
+		if !strings.Contains(err.Error(), "password-based encryption not supported") {
+			t.Errorf("got wrong error for %s: %s", alg, err)
+		}
+	}
+
+	for _, alg := range []jose.KeyAlgorithm{
+		jose.A128KW, jose.A192KW, jose.A256KW,
+		jose.A128GCMKW, jose.A192GCMKW, jose.A256GCMKW,
+		jose.DIRECT,
+		jose.KeyAlgorithm("XYZ"),
+	} {
+		err := validateKeyEncryptionAlgorithm([]jose.KeyAlgorithm{alg})
+		if err != nil {
+			t.Errorf("expected success for %s, got %s", alg, err)
 		}
 	}
 }
