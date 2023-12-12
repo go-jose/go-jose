@@ -106,34 +106,19 @@ func ParseSigned(s string, signatureAlgorithms []jose.SignatureAlgorithm) (*JSON
 func validateKeyEncryptionAlgorithm(algs []jose.KeyAlgorithm) error {
 	for _, alg := range algs {
 		switch alg {
-		case jose.ED25519:
-			fallthrough
-		case jose.RSA1_5:
-			fallthrough
-		case jose.RSA_OAEP:
-			fallthrough
-		case jose.RSA_OAEP_256:
-			fallthrough
-		case jose.ECDH_ES:
-			fallthrough
-		case jose.ECDH_ES_A128KW:
-			fallthrough
-		case jose.ECDH_ES_A192KW:
-			fallthrough
-		case jose.ECDH_ES_A256KW:
-			fallthrough
-		case jose.A128KW:
-			fallthrough
-		case jose.A192KW:
-			fallthrough
-		case jose.A256KW:
+		case jose.ED25519,
+			jose.RSA1_5,
+			jose.RSA_OAEP,
+			jose.RSA_OAEP_256,
+			jose.ECDH_ES,
+			jose.ECDH_ES_A128KW,
+			jose.ECDH_ES_A192KW,
+			jose.ECDH_ES_A256KW:
 			return fmt.Errorf("asymmetric encryption algorithms not supported for JWT: "+
 				"invalid key encryption algorithm: %s", alg)
-		case jose.PBES2_HS256_A128KW:
-			fallthrough
-		case jose.PBES2_HS384_A192KW:
-			fallthrough
-		case jose.PBES2_HS512_A256KW:
+		case jose.PBES2_HS256_A128KW,
+			jose.PBES2_HS384_A192KW,
+			jose.PBES2_HS512_A256KW:
 			return fmt.Errorf("password-based encryption not supported for JWT: "+
 				"invalid key encryption algorithm: %s", alg)
 		}

@@ -210,3 +210,41 @@ func BenchmarkDecodeEncryptedHMACToken(b *testing.B) {
 		}
 	}
 }
+
+func TestValidateKeyEncryptionAlgorithm(t *testing.T) {
+	for _, alg := range []jose.KeyAlgorithm{
+		jose.RSA1_5, jose.RSA_OAEP, jose.RSA_OAEP_256,
+		jose.ECDH_ES, jose.ECDH_ES_A128KW, jose.ECDH_ES_A192KW, jose.ECDH_ES_A256KW,
+	} {
+		err := validateKeyEncryptionAlgorithm([]jose.KeyAlgorithm{alg})
+		if err == nil {
+			t.Errorf("expected error for %s, got none", alg)
+		}
+		if !strings.Contains(err.Error(), "asymmetric encryption algorithms not supported") {
+			t.Errorf("got wrong error for %s: %s", alg, err)
+		}
+	}
+	for _, alg := range []jose.KeyAlgorithm{
+		jose.PBES2_HS256_A128KW, jose.PBES2_HS384_A192KW, jose.PBES2_HS512_A256KW,
+	} {
+		err := validateKeyEncryptionAlgorithm([]jose.KeyAlgorithm{alg})
+		if err == nil {
+			t.Errorf("expected error for %s, got none", alg)
+		}
+		if !strings.Contains(err.Error(), "password-based encryption not supported") {
+			t.Errorf("got wrong error for %s: %s", alg, err)
+		}
+	}
+
+	for _, alg := range []jose.KeyAlgorithm{
+		jose.A128KW, jose.A192KW, jose.A256KW,
+		jose.A128GCMKW, jose.A192GCMKW, jose.A256GCMKW,
+		jose.DIRECT,
+		jose.KeyAlgorithm("XYZ"),
+	} {
+		err := validateKeyEncryptionAlgorithm([]jose.KeyAlgorithm{alg})
+		if err != nil {
+			t.Errorf("expected success for %s, got %s", alg, err)
+		}
+	}
+}
