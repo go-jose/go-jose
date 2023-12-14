@@ -395,7 +395,7 @@ func mustMakeSigner(alg jose.SignatureAlgorithm, k interface{}) jose.Signer {
 }
 
 var (
-	sharedKey           = []byte("secret")
+	sharedKey           = []byte("0102030405060708090A0B0C0D0E0F10")
 	sharedEncryptionKey = []byte("itsa16bytesecret")
 
 	testPrivRSAKey1 = mustUnmarshalRSA(`-----BEGIN PRIVATE KEY-----

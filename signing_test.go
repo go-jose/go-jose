@@ -109,10 +109,12 @@ func TestRoundtripsJWS(t *testing.T) {
 		signingKey, verificationKey := GenerateSigningTestKey(alg)
 
 		for i, serializer := range serializers {
-			err := RoundtripJWS(alg, serializer, corrupter, signingKey, verificationKey, "test_nonce")
-			if err != nil {
-				t.Error(err, alg, i)
-			}
+			t.Run(fmt.Sprintf("RoundTripsJWS%d-%s", i, alg), func(t *testing.T) {
+				err := RoundtripJWS(alg, serializer, corrupter, signingKey, verificationKey, "test_nonce")
+				if err != nil {
+					t.Error(err)
+				}
+			})
 		}
 	}
 }
@@ -235,6 +237,8 @@ func TestMultiRecipientJWS(t *testing.T) {
 	sharedKey := []byte{
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 	}
 	jwkSharedKey := JSONWebKey{
 		KeyID: "123",
@@ -304,7 +308,7 @@ func GenerateSigningTestKey(sigAlg SignatureAlgorithm) (sig, ver interface{}) {
 		sig = rsaTestKey
 		ver = &rsaTestKey.PublicKey
 	case HS256, HS384, HS512:
-		sig, _, _ = randomKeyGenerator{size: 16}.genKey()
+		sig, _, _ = randomKeyGenerator{size: 64}.genKey()
 		ver = sig
 	case ES256:
 		key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
