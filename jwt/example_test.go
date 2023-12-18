@@ -30,20 +30,23 @@ import (
 	"github.com/go-jose/go-jose/v4/jwt"
 )
 
-var sharedKey = []byte("secret")
+var sharedKey = []byte("0102030405060708090A0B0C0D0E0F10")
 var sharedEncryptionKey = []byte("itsa16bytesecret")
 var signer, _ = jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: sharedKey}, &jose.SignerOptions{})
 
 func ExampleParseSigned() {
-	raw := `eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.gpHyA1B1H6X4a4Edm9wo7D3X2v3aLSDBDG2_5BzXYe0`
+	raw := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.OFD0iVfPczqWBA_TRi1jGB5PF699eekcHt4D6qNoimc`
+
 	tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
-		panic(err)
+		fmt.Printf("parsing JWT: %s\n", err)
+		return
 	}
 
 	out := jwt.Claims{}
 	if err := tok.Claims(sharedKey, &out); err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 	fmt.Printf("iss: %s, sub: %s\n", out.Issuer, out.Subject)
 	// Output: iss: issuer, sub: subject
@@ -54,12 +57,14 @@ func ExampleParseEncrypted() {
 	raw := `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIn0..jg45D9nmr6-8awml.z-zglLlEw9MVkYHi-Znd9bSwc-oRGbqKzf9WjXqZxno.kqji2DiZHZmh-1bLF6ARPw`
 	tok, err := jwt.ParseEncrypted(raw, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM})
 	if err != nil {
-		panic(err)
+		fmt.Printf("parsing JWT: %s\n", err)
+		return
 	}
 
 	out := jwt.Claims{}
 	if err := tok.Claims(key, &out); err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 	fmt.Printf("iss: %s, sub: %s\n", out.Issuer, out.Subject)
 	// Output: iss: issuer, sub: subject
@@ -72,17 +77,20 @@ func ExampleParseSignedAndEncrypted() {
 		[]jose.ContentEncryption{jose.A128GCM},
 		[]jose.SignatureAlgorithm{jose.RS256})
 	if err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 
 	nested, err := tok.Decrypt(sharedEncryptionKey)
 	if err != nil {
-		panic(err)
+		fmt.Printf("decrypting JWT: %s\n", err)
+		return
 	}
 
 	out := jwt.Claims{}
 	if err := nested.Claims(&rsaPrivKey.PublicKey, &out); err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 
 	fmt.Printf("iss: %s, sub: %s\n", out.Issuer, out.Subject)
@@ -103,7 +111,8 @@ func ExampleClaims_Validate() {
 		Time:   time.Date(2016, 1, 1, 0, 10, 0, 0, time.UTC),
 	})
 	if err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 
 	fmt.Printf("valid!")
@@ -111,15 +120,17 @@ func ExampleClaims_Validate() {
 }
 
 func ExampleClaims_Validate_withParse() {
-	raw := `eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.gpHyA1B1H6X4a4Edm9wo7D3X2v3aLSDBDG2_5BzXYe0`
+	raw := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.OFD0iVfPczqWBA_TRi1jGB5PF699eekcHt4D6qNoimc`
 	tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
-		panic(err)
+		fmt.Printf("parsing JWT: %s\n", err)
+		return
 	}
 
 	cl := jwt.Claims{}
 	if err := tok.Claims(sharedKey, &cl); err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 
 	err = cl.Validate(jwt.Expected{
@@ -127,7 +138,8 @@ func ExampleClaims_Validate_withParse() {
 		Subject: "subject",
 	})
 	if err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 
 	fmt.Printf("valid!")
@@ -135,10 +147,11 @@ func ExampleClaims_Validate_withParse() {
 }
 
 func ExampleSigned() {
-	key := []byte("secret")
+	key := []byte("0102030405060708090A0B0C0D0E0F10")
 	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key}, (&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {
-		panic(err)
+		fmt.Printf("making signer: %s\n", err)
+		return
 	}
 
 	cl := jwt.Claims{
@@ -149,18 +162,20 @@ func ExampleSigned() {
 	}
 	raw, err := jwt.Signed(sig).Claims(cl).Serialize()
 	if err != nil {
-		panic(err)
+		fmt.Printf("signing JWT: %s\n", err)
+		return
 	}
 
 	fmt.Println(raw)
-	// Output: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsibGVlbGEiLCJmcnkiXSwiaXNzIjoiaXNzdWVyIiwibmJmIjoxNDUxNjA2NDAwLCJzdWIiOiJzdWJqZWN0In0.4PgCj0VO-uG_cb1mNA38NjJyp0N-NdGIDLoYelEkciw
+	// Output: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsibGVlbGEiLCJmcnkiXSwiaXNzIjoiaXNzdWVyIiwibmJmIjoxNDUxNjA2NDAwLCJzdWIiOiJzdWJqZWN0In0.qEmW0Ehle1yO9XE7xZooC3AUVDF2NnJFDSgn4_6QzUo
 }
 
 func ExampleSigned_privateClaims() {
-	key := []byte("secret")
+	key := []byte("0102030405060708090A0B0C0D0E0F10")
 	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key}, (&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {
-		panic(err)
+		fmt.Printf("making signer: %s\n", err)
+		return
 	}
 
 	cl := jwt.Claims{
@@ -181,11 +196,12 @@ func ExampleSigned_privateClaims() {
 
 	raw, err := jwt.Signed(sig).Claims(cl).Claims(privateCl).Serialize()
 	if err != nil {
-		panic(err)
+		fmt.Printf("signing JWT: %s\n", err)
+		return
 	}
 
 	fmt.Println(raw)
-	// Output: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsibGVlbGEiLCJmcnkiXSwiY3VzdG9tIjoiY3VzdG9tIGNsYWltIHZhbHVlIiwiaXNzIjoiaXNzdWVyIiwibmJmIjoxNDUxNjA2NDAwLCJzdWIiOiJzdWJqZWN0In0.knXH3ReNJToS5XI7BMCkk80ugpCup3tOy53xq-ga47o
+	// Output: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsibGVlbGEiLCJmcnkiXSwiY3VzdG9tIjoiY3VzdG9tIGNsYWltIHZhbHVlIiwiaXNzIjoiaXNzdWVyIiwibmJmIjoxNDUxNjA2NDAwLCJzdWIiOiJzdWJqZWN0In0.m6GDh-23MdwYKmzGHuWLMUcx874cGbyMG7nv-5J1ifk
 }
 
 func ExampleEncrypted() {
@@ -195,7 +211,8 @@ func ExampleEncrypted() {
 		(&jose.EncrypterOptions{}).WithType("JWT"),
 	)
 	if err != nil {
-		panic(err)
+		fmt.Printf("making encrypter: %s\n", err)
+		return
 	}
 
 	cl := jwt.Claims{
@@ -204,7 +221,8 @@ func ExampleEncrypted() {
 	}
 	raw, err := jwt.Encrypted(enc).Claims(cl).Serialize()
 	if err != nil {
-		panic(err)
+		fmt.Printf("encrypting JWT: %s\n", err)
+		return
 	}
 
 	fmt.Println(raw)
@@ -219,7 +237,8 @@ func ExampleSignedAndEncrypted() {
 		},
 		(&jose.EncrypterOptions{}).WithType("JWT").WithContentType("JWT"))
 	if err != nil {
-		panic(err)
+		fmt.Printf("making encrypter: %s\n", err)
+		return
 	}
 
 	cl := jwt.Claims{
@@ -228,7 +247,8 @@ func ExampleSignedAndEncrypted() {
 	}
 	raw, err := jwt.SignedAndEncrypted(rsaSigner, enc).Claims(cl).Serialize()
 	if err != nil {
-		panic(err)
+		fmt.Printf("encrypting and signing JWT: %s\n", err)
+		return
 	}
 
 	fmt.Println(raw)
@@ -246,23 +266,26 @@ func ExampleSigned_multipleClaims() {
 	}
 	raw, err := jwt.Signed(signer).Claims(c).Claims(c2).Serialize()
 	if err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 
 	fmt.Println(raw)
-	// Output: eyJhbGciOiJIUzI1NiJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sImlzcyI6Imlzc3VlciIsInN1YiI6InN1YmplY3QifQ.esKOIsmwkudr_gnfnB4SngxIr-7pspd5XzG3PImfQ6Y
+	// Output: eyJhbGciOiJIUzI1NiJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sImlzcyI6Imlzc3VlciIsInN1YiI6InN1YmplY3QifQ.9VjIUvZ8VPFg1mMPq0kTbN7CpVOfn-WChY9RAVu-I6o
 }
 
 func ExampleJSONWebToken_Claims_map() {
-	raw := `eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.gpHyA1B1H6X4a4Edm9wo7D3X2v3aLSDBDG2_5BzXYe0`
+	raw := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.OFD0iVfPczqWBA_TRi1jGB5PF699eekcHt4D6qNoimc`
 	tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
-		panic(err)
+		fmt.Printf("parsing JWT: %s\n", err)
+		return
 	}
 
 	out := make(map[string]interface{})
 	if err := tok.Claims(sharedKey, &out); err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 
 	fmt.Printf("iss: %s, sub: %s\n", out["iss"], out["sub"])
@@ -270,21 +293,23 @@ func ExampleJSONWebToken_Claims_map() {
 }
 
 func ExampleJSONWebToken_Claims_multiple() {
-	raw := `eyJhbGciOiJIUzI1NiJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sImlzcyI6Imlzc3VlciIsInN1YiI6InN1YmplY3QifQ.esKOIsmwkudr_gnfnB4SngxIr-7pspd5XzG3PImfQ6Y`
+	raw := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.O9XxAYZsxXxWpTftO75vLpyYZ1g7FHxBvyvctGg3Ih0`
 	tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.HS256})
 	if err != nil {
-		panic(err)
+		fmt.Printf("parsing JWT: %s\n", err)
+		return
 	}
 
 	out := jwt.Claims{}
 	out2 := struct {
-		Scopes []string
+		Scopes []string `json:"scopes"`
 	}{}
 	if err := tok.Claims(sharedKey, &out, &out2); err != nil {
-		panic(err)
+		fmt.Printf("validating claims: %s\n", err)
+		return
 	}
 	fmt.Printf("iss: %s, sub: %s, scopes: %s\n", out.Issuer, out.Subject, strings.Join(out2.Scopes, ","))
-	// Output: iss: issuer, sub: subject, scopes: foo,bar
+	// Output: iss: issuer, sub: subject, scopes: s1,s2
 }
 
 func mustUnmarshalRSA(data string) *rsa.PrivateKey {

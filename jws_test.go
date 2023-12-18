@@ -385,33 +385,6 @@ func TestSampleNimbusJWSMessagesEC(t *testing.T) {
 	}
 }
 
-// Test vectors generated with nimbus-jose-jwt
-func TestSampleNimbusJWSMessagesHMAC(t *testing.T) {
-	hmacTestKey := fromHexBytes("DF1FA4F36FFA7FC42C81D4B3C033928D")
-
-	hmacSampleMessages := []string{
-		"eyJhbGciOiJIUzI1NiJ9.TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ.W5tc_EUhxexcvLYEEOckyyvdb__M5DQIVpg6Nmk1XGM",
-		"eyJhbGciOiJIUzM4NCJ9.TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ.sBu44lXOJa4Nd10oqOdYH2uz3lxlZ6o32QSGHaoGdPtYTDG5zvSja6N48CXKqdAh",
-		"eyJhbGciOiJIUzUxMiJ9.TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ.M0yR4tmipsORIix-BitIbxEPGaxPchDfj8UNOpKuhDEfnb7URjGvCKn4nOlyQ1z9mG1FKbwnqR1hOVAWSzAU_w",
-	}
-
-	for _, msg := range hmacSampleMessages {
-		obj, err := ParseSigned(msg, []SignatureAlgorithm{HS256, HS384, HS512})
-		if err != nil {
-			t.Error("unable to parse message", msg, err)
-			continue
-		}
-		payload, err := obj.Verify(hmacTestKey)
-		if err != nil {
-			t.Error("unable to verify message", msg, err)
-			continue
-		}
-		if string(payload) != "Lorem ipsum dolor sit amet" {
-			t.Error("payload is not what we expected for msg", msg)
-		}
-	}
-}
-
 func TestHeaderFieldsCompact(t *testing.T) {
 	msg := "eyJhbGciOiJFUzUxMiJ9.TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ.AeYNFC1rwIgQv-5fwd8iRyYzvTaSCYTEICepgu9gRId-IW99kbSVY7yH0MvrQnqI-a0L8zwKWDR35fW5dukPAYRkADp3Y1lzqdShFcEFziUVGo46vqbiSajmKFrjBktJcCsfjKSaLHwxErF-T10YYPCQFHWb2nXJOOI3CZfACYqgO84g"
 
@@ -691,4 +664,30 @@ func TestJWSComputeAuthDataBase64(t *testing.T) {
 	assert.Nil(t, err)
 	// Payload should *not* be b64 encoded
 	assert.Len(t, data, len(b64FalseHeader.base64())+len(payload)+1)
+}
+
+func TestInvalidHMACKeySize(t *testing.T) {
+	s, err := NewSigner(SigningKey{
+		Key:       make([]byte, 31),
+		Algorithm: HS256,
+	}, nil)
+	assert.NoError(t, err)
+	_, err = s.Sign([]byte("Lorem ipsum dolor sit amet"))
+	assert.ErrorIs(t, err, ErrInvalidKeySize)
+
+	s, err = NewSigner(SigningKey{
+		Key:       make([]byte, 47),
+		Algorithm: HS384,
+	}, nil)
+	assert.NoError(t, err)
+	_, err = s.Sign([]byte("Lorem ipsum dolor sit amet"))
+	assert.ErrorIs(t, err, ErrInvalidKeySize)
+
+	s, err = NewSigner(SigningKey{
+		Key:       make([]byte, 63),
+		Algorithm: HS512,
+	}, nil)
+	assert.NoError(t, err)
+	_, err = s.Sign([]byte("Lorem ipsum dolor sit amet"))
+	assert.ErrorIs(t, err, ErrInvalidKeySize)
 }
