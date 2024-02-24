@@ -20,6 +20,8 @@ token".
      "billion hash attack" relies in part on programs accepting the PBES2
      encryption algorithm and doing the necessary work even if they weren't
      specifically configured to allow PBES2.
+ - Revert "Strip padding off base64 strings" (#82)
+  - The specs require base64url encoding without padding.
 
 ## Added
 
