@@ -173,6 +173,41 @@ func TestSignedFullSerializeAndToken(t *testing.T) {
 	require.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
 }
 
+func TestSignedDetachedSerializeAndToken(t *testing.T) {
+	claims := &testClaims{"foo"}
+	payload, err := json.Marshal(claims)
+	require.NoError(t, err, "Error marshaling claims.")
+	b := Signed(rsaSigner).Claims(claims)
+
+	jwt, err := b.(DetachedSerializer).DetachedCompactSerialize()
+	require.NoError(t, err, "Error creating JWT.")
+	t.Logf("jwt: %v", jwt)
+	parsed, err := ParseDetached(jwt, payload)
+	require.NoError(t, err, "Error parsing JWT.")
+	t.Logf("parsed: %+v", parsed)
+	out := &testClaims{}
+	if assert.NoError(t, parsed.Claims(&testPrivRSAKey1.PublicKey, &out), "Error unmarshaling claims.") {
+		assert.Equal(t, &testClaims{
+			Subject: "foo",
+		}, out)
+	}
+
+	jwt2, err := b.Token()
+	require.NoError(t, err, "Error creating JWT.")
+	out2 := &testClaims{}
+	if assert.NoError(t, jwt2.Claims(&testPrivRSAKey1.PublicKey, &out2), "Error unmarshaling claims.") {
+		assert.Equal(t, &testClaims{
+			Subject: "foo",
+		}, out2)
+	}
+
+	b2 := Signed(rsaSigner).Claims(&invalidMarshalClaims{})
+	_, err = b2.(DetachedSerializer).DetachedCompactSerialize()
+	require.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
+	_, err = b2.Token()
+	require.EqualError(t, err, "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
+}
+
 func TestEncryptedFullSerializeAndToken(t *testing.T) {
 	recipient := jose.Recipient{
 		Algorithm: jose.RSA1_5,

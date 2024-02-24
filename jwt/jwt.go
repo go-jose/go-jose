@@ -101,6 +101,24 @@ func ParseSigned(s string) (*JSONWebToken, error) {
 	}, nil
 }
 
+// ParseDetached parses detached token from JWS form.
+func ParseDetached(s string, payload []byte) (*JSONWebToken, error) {
+	sig, err := jose.ParseDetached(s, payload)
+	if err != nil {
+		return nil, err
+	}
+	headers := make([]jose.Header, len(sig.Signatures))
+	for i, signature := range sig.Signatures {
+		headers[i] = signature.Header
+	}
+
+	return &JSONWebToken{
+		payload:           sig.Verify,
+		unverifiedPayload: sig.UnsafePayloadWithoutVerification,
+		Headers:           headers,
+	}, nil
+}
+
 // ParseEncrypted parses token from JWE form.
 func ParseEncrypted(s string) (*JSONWebToken, error) {
 	enc, err := jose.ParseEncrypted(s)

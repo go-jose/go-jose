@@ -203,6 +203,20 @@ func (b *signedBuilder) CompactSerialize() (string, error) {
 	return sig.CompactSerialize()
 }
 
+type DetachedSerializer interface{ DetachedCompactSerialize() (string, error) }
+
+var _ DetachedSerializer = (*signedBuilder)(nil)
+
+// DetachedCompactSerialise serializes a detached token using the detached compact serialization format (compact with missing middle part).
+func (b *signedBuilder) DetachedCompactSerialize() (string, error) {
+	sig, err := b.sign()
+	if err != nil {
+		return "", err
+	}
+
+	return sig.DetachedCompactSerialize()
+}
+
 func (b *signedBuilder) FullSerialize() (string, error) {
 	sig, err := b.sign()
 	if err != nil {
