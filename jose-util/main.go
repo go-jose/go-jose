@@ -23,10 +23,10 @@ import (
 	"io"
 	"os"
 
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"github.com/alecthomas/kingpin/v2"
 
-	generator "github.com/go-jose/go-jose/jose-util/generator"
-	jose "github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jose-util/generator"
 )
 
 var (
@@ -79,7 +79,7 @@ var (
 )
 
 func main() {
-	app.Version("v3")
+	app.Version("v4")
 	app.UsageTemplate(kingpin.LongHelpTemplate)
 
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))

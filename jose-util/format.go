@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright 2019 Square Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 
 package main
 
-import jose "github.com/go-jose/go-jose/v3"
+import "github.com/go-jose/go-jose/v4"
 
 func expand() {
 	input := string(readInput(*inFile))
@@ -32,7 +32,7 @@ func expand() {
 		}
 	case "JWS":
 		var jws *jose.JSONWebSignature
-		jws, err = jose.ParseSigned(input)
+		jws, err = jose.ParseSigned(input, [])
 		if err == nil {
 			serialized = jws.FullSerialize()
 		}
