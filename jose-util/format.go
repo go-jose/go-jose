@@ -26,13 +26,13 @@ func expand() {
 	switch *expandFormatFlag {
 	case "", "JWE":
 		var jwe *jose.JSONWebEncryption
-		jwe, err = jose.ParseEncrypted(input)
+		jwe, err = jose.ParseEncrypted(input, allKeyAlgorithms, allContentEncryption)
 		if err == nil {
 			serialized = jwe.FullSerialize()
 		}
 	case "JWS":
 		var jws *jose.JSONWebSignature
-		jws, err = jose.ParseSigned(input, [])
+		jws, err = jose.ParseSigned(input, allSignatureAlgorithms)
 		if err == nil {
 			serialized = jws.FullSerialize()
 		}

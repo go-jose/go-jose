@@ -21,6 +21,52 @@ import (
 	"github.com/go-jose/go-jose/v4/jose-util/generator"
 )
 
+var allKeyAlgorithms = []jose.KeyAlgorithm{
+	jose.ED25519,
+	jose.RSA1_5,
+	jose.RSA_OAEP,
+	jose.RSA_OAEP_256,
+	jose.A128KW,
+	jose.A192KW,
+	jose.A256KW,
+	jose.DIRECT,
+	jose.ECDH_ES,
+	jose.ECDH_ES_A128KW,
+	jose.ECDH_ES_A192KW,
+	jose.ECDH_ES_A256KW,
+	jose.A128GCMKW,
+	jose.A192GCMKW,
+	jose.A256GCMKW,
+	jose.PBES2_HS256_A128KW,
+	jose.PBES2_HS384_A192KW,
+	jose.PBES2_HS512_A256KW,
+}
+
+var allSignatureAlgorithms = []jose.SignatureAlgorithm{
+	jose.EdDSA,
+	jose.HS256,
+	jose.HS384,
+	jose.HS512,
+	jose.RS256,
+	jose.RS384,
+	jose.RS512,
+	jose.ES256,
+	jose.ES384,
+	jose.ES512,
+	jose.PS256,
+	jose.PS384,
+	jose.PS512,
+}
+
+var allContentEncryption = []jose.ContentEncryption{
+	jose.A128CBC_HS256,
+	jose.A192CBC_HS384,
+	jose.A256CBC_HS512,
+	jose.A128GCM,
+	jose.A192GCM,
+	jose.A256GCM,
+}
+
 func encrypt() {
 	pub, err := generator.LoadPublicKey(keyBytes())
 	app.FatalIfError(err, "unable to read public key")
@@ -49,7 +95,7 @@ func decrypt() {
 	priv, err := generator.LoadPrivateKey(keyBytes())
 	app.FatalIfError(err, "unable to read private key")
 
-	obj, err := jose.ParseEncrypted(string(readInput(*inFile)))
+	obj, err := jose.ParseEncrypted(string(readInput(*inFile)), allKeyAlgorithms, allContentEncryption)
 	app.FatalIfError(err, "unable to parse message")
 
 	plaintext, err := obj.Decrypt(priv)
@@ -84,7 +130,7 @@ func verify() {
 	verificationKey, err := generator.LoadPublicKey(keyBytes())
 	app.FatalIfError(err, "unable to read public key")
 
-	obj, err := jose.ParseSigned(string(readInput(*inFile)))
+	obj, err := jose.ParseSigned(string(readInput(*inFile)), allSignatureAlgorithms)
 	app.FatalIfError(err, "unable to parse message")
 
 	plaintext, err := obj.Verify(verificationKey)
