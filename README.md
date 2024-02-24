@@ -37,14 +37,17 @@ libraries in other languages.
 
 ### Versions
 
-[Version 3](https://github.com/go-jose/go-jose)
-([branch](https://github.com/go-jose/go-jose/tree/v3),
-[doc](https://pkg.go.dev/github.com/go-jose/go-jose/v3), [releases](https://github.com/go-jose/go-jose/releases)) is the current stable version:
+[Version 4](https://github.com/go-jose/go-jose)
+([branch](https://github.com/go-jose/go-jose/tree/main),
+[doc](https://pkg.go.dev/github.com/go-jose/go-jose/v4), [releases](https://github.com/go-jose/go-jose/releases)) is the current stable version:
 
-    import "github.com/go-jose/go-jose/v3"
+    import "github.com/go-jose/go-jose/v4"
 
 The old [square/go-jose](https://github.com/square/go-jose) repo contains the prior v1 and v2 versions, which
-are still useable but not actively developed anymore. 
+are still useable but not actively developed anymore.
+
+Version 3, in this repo, is still receiving security fixes but not functionality
+updates.
 
 ### Supported algorithms
 
