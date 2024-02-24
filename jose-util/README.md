@@ -111,12 +111,3 @@ Expands a compact message to the JWE/JWS JSON Serialization format.
 
     jose-util expand --format JWE   # Expands a compact JWE to JWE JSON Serialization
     jose-util expand --format JWS   # Expands a compact JWS to JWS JSON Serialization
-
-### Decode base64
-
-The JOSE format uses url-safe base64 in payloads, but the `base64` utility that ships with
-most Linux distributions (or macOS) only supports the standard base64 encoding. To make it easier
-to deal with these payloads a `b64decode` command is available in `jose-util` that can decode
-both regular and url-safe base64 data.
-
-    echo "8J-Ukgo" | jose-util b64decode

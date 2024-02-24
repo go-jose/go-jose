@@ -17,6 +17,9 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jose-util/generator"
 )
@@ -67,74 +70,163 @@ var allContentEncryption = []jose.ContentEncryption{
 	jose.A256GCM,
 }
 
-func encrypt() {
-	pub, err := generator.LoadPublicKey(keyBytes())
-	app.FatalIfError(err, "unable to read public key")
+func encrypt(args []string) error {
+	fs := flag.NewFlagSet("encrypt", flag.ExitOnError)
+	encryptAlgFlag := fs.String("alg", "", "Key management algorithm (e.g. RSA-OAEP)")
+	encryptEncFlag := fs.String("enc", "", "Content encryption algorithm (e.g. A128GCM)")
+	encryptFullFlag := fs.Bool("full", false, "Use JSON Serialization format (instead of compact)")
+	registerCommon(fs)
+	err := fs.Parse(args)
+
+	bytes, err := keyBytes()
+	if err != nil {
+		return err
+	}
+
+	pub, err := generator.LoadPublicKey(bytes)
+	if err != nil {
+		return fmt.Errorf("unable to read public key: %w", err)
+	}
 
 	alg := jose.KeyAlgorithm(*encryptAlgFlag)
 	enc := jose.ContentEncryption(*encryptEncFlag)
 
 	crypter, err := jose.NewEncrypter(enc, jose.Recipient{Algorithm: alg, Key: pub}, nil)
-	app.FatalIfError(err, "unable to instantiate encrypter")
+	if err != nil {
+		return fmt.Errorf("unable to instantiate encrypter: %w", err)
+	}
 
-	obj, err := crypter.Encrypt(readInput(*inFile))
-	app.FatalIfError(err, "unable to encrypt")
+	input, err := readInput(*inFile)
+	if err != nil {
+		return err
+	}
+
+	obj, err := crypter.Encrypt(input)
+	if err != nil {
+		return fmt.Errorf("unable to encrypt: %w", err)
+	}
 
 	var msg string
 	if *encryptFullFlag {
 		msg = obj.FullSerialize()
 	} else {
 		msg, err = obj.CompactSerialize()
-		app.FatalIfError(err, "unable to serialize message")
+		if err != nil {
+			return fmt.Errorf("unable to serialzie message: %w", err)
+		}
 	}
 
-	writeOutput(*outFile, []byte(msg))
+	return writeOutput(*outFile, []byte(msg))
 }
 
-func decrypt() {
-	priv, err := generator.LoadPrivateKey(keyBytes())
-	app.FatalIfError(err, "unable to read private key")
+func decrypt(args []string) error {
+	fs := flag.NewFlagSet("decrypt", flag.ExitOnError)
+	registerCommon(fs)
+	fs.Parse(args)
 
-	obj, err := jose.ParseEncrypted(string(readInput(*inFile)), allKeyAlgorithms, allContentEncryption)
-	app.FatalIfError(err, "unable to parse message")
+	bytes, err := keyBytes()
+	if err != nil {
+		return err
+	}
+
+	priv, err := generator.LoadPrivateKey(bytes)
+	if err != nil {
+		return fmt.Errorf("unable to read private key %s: %w", priv, err)
+	}
+
+	input, err := readInput(*inFile)
+	if err != nil {
+		return err
+	}
+
+	obj, err := jose.ParseEncrypted(string(input), allKeyAlgorithms, allContentEncryption)
+	if err != nil {
+		return fmt.Errorf("unable to parse message: %w", err)
+	}
 
 	plaintext, err := obj.Decrypt(priv)
-	app.FatalIfError(err, "unable to decrypt message")
+	if err != nil {
+		return fmt.Errorf("unable to decrypt message: %w", err)
+	}
 
-	writeOutput(*outFile, plaintext)
+	return writeOutput(*outFile, plaintext)
 }
 
-func sign() {
-	signingKey, err := generator.LoadPrivateKey(keyBytes())
-	app.FatalIfError(err, "unable to read private key")
+func sign(args []string) error {
+	fs := flag.NewFlagSet("encrypt", flag.ExitOnError)
+	signAlgFlag := fs.String("alg", "", "Key management algorithm (e.g. RSA-OAEP)")
+	signFullFlag := fs.Bool("full", false, "Use JSON Serialization format (instead of compact)")
+	registerCommon(fs)
+	fs.Parse(args)
+
+	bytes, err := keyBytes()
+	if err != nil {
+		return err
+	}
+
+	signingKey, err := generator.LoadPrivateKey(bytes)
+	if err != nil {
+		return fmt.Errorf("unable to read private key: %w", err)
+	}
 
 	alg := jose.SignatureAlgorithm(*signAlgFlag)
 	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: alg, Key: signingKey}, nil)
-	app.FatalIfError(err, "unable to make signer")
+	if err != nil {
+		return fmt.Errorf("unable to make signer: %w", err)
+	}
 
-	obj, err := signer.Sign(readInput(*inFile))
-	app.FatalIfError(err, "unable to sign")
+	input, err := readInput(*inFile)
+	if err != nil {
+		return err
+	}
+
+	obj, err := signer.Sign(input)
+	if err != nil {
+		return fmt.Errorf("unable to sign: %w", err)
+	}
 
 	var msg string
 	if *signFullFlag {
 		msg = obj.FullSerialize()
 	} else {
 		msg, err = obj.CompactSerialize()
-		app.FatalIfError(err, "unable to serialize message")
+		if err != nil {
+			return fmt.Errorf("unable to serialize message: %w", err)
+		}
 	}
 
-	writeOutput(*outFile, []byte(msg))
+	return writeOutput(*outFile, []byte(msg))
 }
 
-func verify() {
-	verificationKey, err := generator.LoadPublicKey(keyBytes())
-	app.FatalIfError(err, "unable to read public key")
+func verify(args []string) error {
+	fs := flag.NewFlagSet("verify", flag.ExitOnError)
+	registerCommon(fs)
+	fs.Parse(args)
 
-	obj, err := jose.ParseSigned(string(readInput(*inFile)), allSignatureAlgorithms)
-	app.FatalIfError(err, "unable to parse message")
+	bytes, err := keyBytes()
+	if err != nil {
+		return err
+	}
+
+	verificationKey, err := generator.LoadPublicKey(bytes)
+	if err != nil {
+		return fmt.Errorf("unable to read public key: %w", err)
+	}
+
+	input, err := readInput(*inFile)
+	if err != nil {
+		return err
+	}
+
+	obj, err := jose.ParseSigned(string(input), allSignatureAlgorithms)
+	if err != nil {
+		return fmt.Errorf("unable to parse message: %w", err)
+	}
 
 	plaintext, err := obj.Verify(verificationKey)
-	app.FatalIfError(err, "invalid signature")
+	if err != nil {
+		return fmt.Errorf("invalid signature: %w", err)
+	}
 
-	writeOutput(*outFile, plaintext)
+	return writeOutput(*outFile, plaintext)
 }
