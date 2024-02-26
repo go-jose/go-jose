@@ -22,6 +22,7 @@ token".
      specifically configured to allow PBES2.
  - Revert "Strip padding off base64 strings" (#82)
   - The specs require base64url encoding without padding.
+ - Minimum supported Go version is now 1.21
 
 ## Added
 
