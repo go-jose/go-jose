@@ -19,14 +19,21 @@ package main
 import (
 	"crypto"
 	"encoding/base64"
-	"errors"
+	"flag"
 	"fmt"
 
-	"github.com/go-jose/go-jose/jose-util/generator"
-	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jose-util/generator"
 )
 
-func generate() {
+func generate(args []string) error {
+	fs := flag.NewFlagSet("generate", flag.ExitOnError)
+	generateUseFlag := fs.String("use", "", "Desired public key usage (use header), one of [enc sig]")
+	generateAlgFlag := fs.String("alg", "", "Desired key pair algorithm (alg header)")
+	generateKeySizeFlag := fs.Int("size", 0, "Key size in bits (e.g. 2048 if generating an RSA key)")
+	generateKeyIdentFlag := fs.String("kid", "", "Optional Key ID (kid header, generate random kid if not set)")
+	fs.Parse(args)
+
 	var privKey crypto.PrivateKey
 	var pubKey crypto.PublicKey
 	var err error
@@ -40,9 +47,11 @@ func generate() {
 		// According to RFC 7517 section-8.2.  This is unlikely to change in the
 		// near future. If it were, new values could be found in the registry under
 		// "JSON Web Key Use": https://www.iana.org/assignments/jose/jose.xhtml
-		app.FatalIfError(errors.New("invalid key use.  Must be \"sig\" or \"enc\""), "unable to generate key")
+		return fmt.Errorf("invalid key use '%s'.  Must be \"sig\" or \"enc\"", *generateUseFlag)
 	}
-	app.FatalIfError(err, "unable to generate key")
+	if err != nil {
+		return fmt.Errorf("unable to generate key: %w", err)
+	}
 
 	kid := *generateKeyIdentFlag
 
@@ -51,7 +60,9 @@ func generate() {
 	// Generate a canonical kid based on RFC 7638
 	if kid == "" {
 		thumb, err := priv.Thumbprint(crypto.SHA256)
-		app.FatalIfError(err, "unable to compute thumbprint")
+		if err != nil {
+			return fmt.Errorf("unable to compute thumbprint: %w", err)
+		}
 
 		kid = base64.URLEncoding.EncodeToString(thumb)
 		priv.KeyID = kid
@@ -63,21 +74,32 @@ func generate() {
 	pub := jose.JSONWebKey{Key: pubKey, KeyID: kid, Algorithm: *generateAlgFlag, Use: *generateUseFlag}
 
 	if priv.IsPublic() || !pub.IsPublic() || !priv.Valid() || !pub.Valid() {
-		app.Fatalf("invalid keys were generated")
+		// This should never happen
+		panic("invalid keys were generated")
 	}
 
 	privJSON, err := priv.MarshalJSON()
-	app.FatalIfError(err, "failed to marshal private key to JSON")
+	if err != nil {
+		return fmt.Errorf("failed to marshal private key to JSON: %w", err)
+	}
 	pubJSON, err := pub.MarshalJSON()
-	app.FatalIfError(err, "failed to marshal public key to JSON")
+	if err != nil {
+		return fmt.Errorf("failed to marshal public key to JSON: %w", err)
+	}
 
 	name := fmt.Sprintf("jwk-%s-%s", *generateUseFlag, kid)
 	pubFile := fmt.Sprintf("%s-pub.json", name)
 	privFile := fmt.Sprintf("%s-priv.json", name)
 
 	err = writeNewFile(pubFile, pubJSON, 0444)
-	app.FatalIfError(err, "error on write to file %s", pubFile)
+	if err != nil {
+		return fmt.Errorf("error on write to file %s: %w", pubFile, err)
+	}
 
 	err = writeNewFile(privFile, privJSON, 0400)
-	app.FatalIfError(err, "error on write to file %s", privFile)
+	if err != nil {
+		return fmt.Errorf("error on write to file %s: %w", privFile, err)
+	}
+
+	return nil
 }

@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright 2019 Square Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,29 +16,49 @@
 
 package main
 
-import jose "github.com/go-jose/go-jose/v3"
+import (
+	"flag"
+	"fmt"
 
-func expand() {
-	input := string(readInput(*inFile))
+	"github.com/go-jose/go-jose/v4"
+)
+
+func expand(args []string) error {
+	fs := flag.NewFlagSet("expand", flag.ExitOnError)
+	expandFormatFlag := fs.String("format", "", "Type of message to expand (JWS or JWE, defaults to JWE)")
+	registerCommon(fs)
+	fs.Parse(args)
+
+	bytes, err := readInput(*inFile)
+	if err != nil {
+		return err
+	}
+
+	input := string(bytes)
 
 	var serialized string
-	var err error
 	switch *expandFormatFlag {
 	case "", "JWE":
 		var jwe *jose.JSONWebEncryption
-		jwe, err = jose.ParseEncrypted(input)
+		jwe, err = jose.ParseEncrypted(input, allKeyAlgorithms, allContentEncryption)
 		if err == nil {
 			serialized = jwe.FullSerialize()
 		}
 	case "JWS":
 		var jws *jose.JSONWebSignature
-		jws, err = jose.ParseSigned(input)
+		jws, err = jose.ParseSigned(input, allSignatureAlgorithms)
 		if err == nil {
 			serialized = jws.FullSerialize()
 		}
 	}
 
-	app.FatalIfError(err, "unable to expand message")
-	writeOutput(*outFile, []byte(serialized))
-	writeOutput(*outFile, []byte("\n"))
+	if err != nil {
+		return fmt.Errorf("unable to expand message: %w", err)
+	}
+	err = writeOutput(*outFile, []byte(serialized))
+	if err != nil {
+		return err
+	}
+
+	return writeOutput(*outFile, []byte("\n"))
 }

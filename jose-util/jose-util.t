@@ -105,17 +105,3 @@ Generate signing keys in JWK format.
   $ jose-util generate-key --use sig --alg RS256 --kid test && ls jwk-sig-test-*.json
   jwk-sig-test-priv.json
   jwk-sig-test-pub.json
-
-Base64-decode data in various formats (padded, unpadded, standard, url-safe).
-
-  $ echo "8J+Ukgo=" | jose-util b64decode
-  🔒
-
-  $ echo "8J+Ukgo" | jose-util b64decode
-  🔒
-
-  $ echo "8J-Ukgo=" | jose-util b64decode
-  🔒
-
-  $ echo "8J-Ukgo" | jose-util b64decode
-  🔒

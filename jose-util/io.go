@@ -17,12 +17,13 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 )
 
 // Read input from file or stdin
-func readInput(path string) []byte {
+func readInput(path string) ([]byte, error) {
 	var bytes []byte
 	var err error
 
@@ -32,27 +33,14 @@ func readInput(path string) []byte {
 		bytes, err = io.ReadAll(os.Stdin)
 	}
 
-	app.FatalIfError(err, "unable to read input")
-	return bytes
-}
-
-// Get input stream from file or stdin
-func inputStream(path string) *os.File {
-	var file *os.File
-	var err error
-
-	if path != "" {
-		file, err = os.Open(path)
-	} else {
-		file = os.Stdin
+	if err != nil {
+		return nil, fmt.Errorf("unable to read input: %w", err)
 	}
-
-	app.FatalIfError(err, "unable to read input")
-	return file
+	return bytes, nil
 }
 
 // Write output to file or stdin
-func writeOutput(path string, data []byte) {
+func writeOutput(path string, data []byte) error {
 	var err error
 
 	if path != "" {
@@ -61,29 +49,22 @@ func writeOutput(path string, data []byte) {
 		_, err = os.Stdout.Write(data)
 	}
 
-	app.FatalIfError(err, "unable to write output")
-}
-
-// Get output stream for file or stdout
-func outputStream(path string) *os.File {
-	var file *os.File
-	var err error
-
-	if path != "" {
-		file, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	} else {
-		file = os.Stdout
+	if err != nil {
+		return fmt.Errorf("unable to write output: %w", err)
 	}
-
-	app.FatalIfError(err, "unable to write output")
-	return file
+	return nil
 }
 
 // Byte contents of key file
-func keyBytes() []byte {
+func keyBytes() ([]byte, error) {
+	if *keyFile == "" {
+		return nil, fmt.Errorf("no key file provided. See -h for usage")
+	}
 	keyBytes, err := os.ReadFile(*keyFile)
-	app.FatalIfError(err, "unable to read key file")
-	return keyBytes
+	if err != nil {
+		return nil, fmt.Errorf("unable to read key file: %w", err)
+	}
+	return keyBytes, nil
 }
 
 // Write new file to current dir
