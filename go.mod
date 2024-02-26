@@ -1,6 +1,6 @@
 module github.com/go-jose/go-jose/v4
 
-go 1.12
+go 1.21
 
 require (
 	github.com/google/go-cmp v0.5.9
