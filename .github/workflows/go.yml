@@ -12,8 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         GO_VERSION:
-          - "1.16.x"
-          - "1.21.5"
+          - "1.22.x"
+          - "1.21.x"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -35,9 +35,8 @@ jobs:
     strategy:
       matrix:
         GO_VERSION:
-          # go1.16 does not meet the minimum requirements to run govulncheck so
-          # we will skip testing against it.
-          - "1.21.5"
+          # We only need to test vulns on one version
+          - "1.22.x"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
