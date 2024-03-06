@@ -46,6 +46,9 @@ jobs:
       - name: Set up Go ${{ matrix.GO_VERSION }}
         uses: actions/setup-go@v4
         with:
+          # When Go produces a security release, we want govulncheck to run
+          # against the most recently released Go version.
+          check-latest: true
           go-version: "${{ matrix.GO_VERSION }}"
 
       - name: Run govulncheck
