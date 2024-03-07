@@ -18,6 +18,8 @@ package jose
 
 import (
 	"bytes"
+	"crypto/rand"
+	"io"
 	"strings"
 	"testing"
 )
@@ -54,6 +56,38 @@ func TestInvalidCompression(t *testing.T) {
 	_, err = decompress(DEFLATE, []byte{1, 2, 3, 4})
 	if err == nil {
 		t.Error("should not accept invalid data")
+	}
+}
+
+// TestLargeZip tests that we can decompress a large input, so long as its
+// compression ratio is reasonable.
+func TestLargeZip(t *testing.T) {
+	input := new(bytes.Buffer)
+	_, err := io.CopyN(input, rand.Reader, 251000)
+	if err != nil {
+		t.Fatalf("generating input: %s", err)
+	}
+	compressed, err := compress(DEFLATE, input.Bytes())
+	if err != nil {
+		t.Errorf("compressing: %s", err)
+	}
+	t.Logf("compression ratio: %g", float64(len(input.Bytes()))/float64(len(compressed)))
+	_, err = decompress(DEFLATE, compressed)
+	if err != nil {
+		t.Errorf("decompressing large input with low compression ratio: %s", err)
+	}
+}
+
+func TestZipBomb(t *testing.T) {
+	input := strings.Repeat("a", 251000)
+	compressed, err := compress(DEFLATE, []byte(input))
+	if err != nil {
+		t.Errorf("compressing: %s", err)
+	}
+	t.Logf("compression ratio: %d %g", len(compressed), float64(len(input))/float64(len(compressed)))
+	out, err := decompress(DEFLATE, compressed)
+	if err == nil {
+		t.Errorf("expected error decompressing zip bomb, got none. output size %d", len(out))
 	}
 }
 
