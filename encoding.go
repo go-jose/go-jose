@@ -106,7 +106,10 @@ func inflate(input []byte) ([]byte, error) {
 	output := new(bytes.Buffer)
 	reader := flate.NewReader(bytes.NewBuffer(input))
 
-	maxCompressedSize := max(250_000, 10*int64(len(input)))
+	maxCompressedSize := 10 * int64(len(input))
+	if maxCompressedSize < 250000 {
+		maxCompressedSize = 250000
+	}
 
 	limit := maxCompressedSize + 1
 	n, err := io.CopyN(output, reader, limit)

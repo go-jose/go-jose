@@ -63,7 +63,7 @@ func TestInvalidCompression(t *testing.T) {
 // compression ratio is reasonable.
 func TestLargeZip(t *testing.T) {
 	input := new(bytes.Buffer)
-	_, err := io.CopyN(input, rand.Reader, 251_000)
+	_, err := io.CopyN(input, rand.Reader, 251000)
 	if err != nil {
 		t.Fatalf("generating input: %s", err)
 	}
@@ -79,7 +79,7 @@ func TestLargeZip(t *testing.T) {
 }
 
 func TestZipBomb(t *testing.T) {
-	input := strings.Repeat("a", 251_000)
+	input := strings.Repeat("a", 251000)
 	compressed, err := compress(DEFLATE, []byte(input))
 	if err != nil {
 		t.Errorf("compressing: %s", err)
