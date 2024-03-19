@@ -202,7 +202,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	switch raw.Kty {
-	case "EC":
+	case "EC", "EC-HSM":
 		if raw.D != nil {
 			key, err = raw.ecPrivateKey()
 			if err == nil {
@@ -212,7 +212,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 			key, err = raw.ecPublicKey()
 			keyPub = key
 		}
-	case "RSA":
+	case "RSA", "RSA-HSM":
 		if raw.D != nil {
 			key, err = raw.rsaPrivateKey()
 			if err == nil {
@@ -222,7 +222,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 			key, err = raw.rsaPublicKey()
 			keyPub = key
 		}
-	case "oct":
+	case "oct", "oct-HSM":
 		if certPub != nil {
 			return errors.New("go-jose/go-jose: invalid JWK, found 'oct' (symmetric) key with cert chain")
 		}
