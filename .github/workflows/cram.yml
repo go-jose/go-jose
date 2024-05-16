@@ -16,7 +16,7 @@ jobs:
 
       - run: pip install cram
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
 
       - run: go build .
         working-directory: jose-util
