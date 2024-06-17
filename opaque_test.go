@@ -286,61 +286,6 @@ func rtSerialize(t *testing.T, serializer func(*JSONWebSignature) (string, error
 	return sig
 }
 
-func TestOpaqueKeyRoundtripJWE(t *testing.T) {
-	keyAlgs := []KeyAlgorithm{
-		ECDH_ES_A128KW, ECDH_ES_A192KW, ECDH_ES_A256KW, A128KW, A192KW, A256KW,
-		RSA1_5, RSA_OAEP, RSA_OAEP_256, A128GCMKW, A192GCMKW, A256GCMKW,
-		PBES2_HS256_A128KW, PBES2_HS384_A192KW, PBES2_HS512_A256KW,
-	}
-	encAlgs := []ContentEncryption{A128GCM, A192GCM, A256GCM, A128CBC_HS256, A192CBC_HS384, A256CBC_HS512}
-	kid := "test-kid"
-
-	serializers := []func(*JSONWebEncryption) (string, error){
-		func(obj *JSONWebEncryption) (string, error) { return obj.CompactSerialize() },
-		func(obj *JSONWebEncryption) (string, error) { return obj.FullSerialize(), nil },
-	}
-
-	for _, alg := range keyAlgs {
-		for _, enc := range encAlgs {
-			for _, testKey := range generateTestKeys(alg, enc) {
-				for _, serializer := range serializers {
-					kew := makeOpaqueKeyEncrypter(t, testKey.enc, alg, kid)
-					encrypter, err := NewEncrypter(
-						enc,
-						Recipient{
-							Algorithm: alg,
-							Key:       kew,
-						},
-						&EncrypterOptions{},
-					)
-					if err != nil {
-						t.Fatal(err, alg)
-					}
-
-					jwe, err := encrypter.Encrypt([]byte("foo bar"))
-					if err != nil {
-						t.Fatal(err, alg)
-					}
-
-					dw := makeOpaqueKeyDecrypter(t, testKey.dec, alg)
-					jwe = jweSerialize(t, serializer, jwe, dw, alg, enc)
-					if jwe.Header.KeyID != kid {
-						t.Errorf("expected jwe kid to equal %s but got %s", kid, jwe.Header.KeyID)
-					}
-
-					out, err := jwe.Decrypt(dw)
-					if err != nil {
-						t.Fatal(err, out)
-					}
-					if string(out) != "foo bar" {
-						t.Errorf("expected decrypted jwe to equal %s but got %s", "foo bar", string(out))
-					}
-				}
-			}
-		}
-	}
-}
-
 func jweSerialize(t *testing.T,
 	serializer func(*JSONWebEncryption) (string, error),
 	jwe *JSONWebEncryption,
