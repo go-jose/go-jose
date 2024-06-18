@@ -27,6 +27,8 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
@@ -680,23 +682,46 @@ func TestWebKeyVectorsInvalid(t *testing.T) {
 	}
 }
 
-func TestWebKeyVectorsUnsupported(t *testing.T) {
-	keys := []string{
-		// Unknown kty
-		`{"kty": "XXX"}`,
-		// Unsupported OKP curve
-		`{"kty": "OKP", "crv": "X25519", "x": "89abcdef"}`,
+// TestJWKUnsupported checks for an error when parsing a JWK with an unsupported key type.
+func TestJWKUnsupported(t *testing.T) {
+	var jwk JSONWebKey
+	err := jwk.UnmarshalJSON([]byte(`{"kty": "XXX"}`))
+	if !errors.Is(err, ErrUnsupportedKeyType) {
+		t.Error("expected ErrUnsupportedKeyType, got:", err)
+	}
+}
+
+// TestJWKUnsupported checks that unmarshaling into a JSONWebKeySet succeeds even if some JWKs have an unsupported key type.
+func TestJWKSetIgnoresUnsupported(t *testing.T) {
+	var jwkSet JSONWebKeySet
+	err := jwkSet.UnmarshalJSON([]byte(fmt.Sprintf(`
+		{
+			"keys": [
+				%s,
+				{"kty": "XXX"}
+			]
+		}
+	`, cookbookJWKs[0])))
+	if err != nil {
+		t.Error("parsing JWK Set with one unsupported and one supported key:", err)
+	}
+	if len(jwkSet.Keys) != 1 {
+		t.Error("expected one key to be parsed, got:", len(jwkSet.Keys))
 	}
 
-	for _, key := range keys {
-		var jwk2 JSONWebKey
-		err := jwk2.UnmarshalJSON([]byte(key))
-		if err != nil {
-			t.Error("failed to parse key with unsupported type or algorithm:", key)
+	err = jwkSet.UnmarshalJSON([]byte(`
+		{
+			"keys": [
+				{"kty": "ABC"},
+				{"kty": "XXX"}
+			]
 		}
-		if jwk2.Valid() {
-			t.Error("unsupported key type or algorithm parsed into a valid key:", key)
-		}
+	`))
+	if err != nil {
+		t.Error("parsing JWK Set with two unsupported keys:", err)
+	}
+	if len(jwkSet.Keys) != 0 {
+		t.Error("expected zero keys to be parsed, got:", len(jwkSet.Keys))
 	}
 }
 
