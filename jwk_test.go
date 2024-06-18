@@ -926,6 +926,16 @@ func TestMarshalUnmarshalJWKSet(t *testing.T) {
 	if !bytes.Equal(jsonbar, jsonbar2) {
 		t.Error("roundtrip should not lose information")
 	}
+
+	set3 := JSONWebKeySet{Keys: []JSONWebKey{jwk1}}
+	err = json.Unmarshal(jsonbar, &set3)
+	if err != nil {
+		t.Fatal("problem unmarshalling set", err)
+	}
+
+	if len(set3.Keys) != 2 {
+		t.Error("unmarshaling should clear any existing keys")
+	}
 }
 
 func TestJWKSetKey(t *testing.T) {

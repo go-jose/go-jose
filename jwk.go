@@ -363,6 +363,8 @@ func (s *JSONWebKeySet) Key(kid string) []JSONWebKey {
 }
 
 func (s *JSONWebKeySet) UnmarshalJSON(data []byte) (err error) {
+	s.Keys = nil
+
 	type rawJSONWebKeySet struct {
 		Keys []json.RawMessage `json:"keys"`
 	}
