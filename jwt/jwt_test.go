@@ -21,8 +21,9 @@ import (
 	"strings"
 	"testing"
 
-	jose "github.com/go-jose/go-jose/v4"
 	"github.com/stretchr/testify/assert"
+
+	jose "github.com/go-jose/go-jose/v4"
 )
 
 var (
@@ -108,6 +109,35 @@ func TestDecodeTokenWithJWKS(t *testing.T) {
 		if assert.NoError(t, tok.Claims(*jwks, &cl)) {
 			assert.Equal(t, expected, cl)
 		}
+	}
+}
+
+// TestDecodeTokenWithMismatchedJWKSKID tests a case where the JWT has a KID
+// header which does not match any of the keys in the JWKS.
+func TestDecodeTokenWithMismatchedJWKSKID(t *testing.T) {
+	jwks := &jose.JSONWebKeySet{
+		Keys: []jose.JSONWebKey{
+			{
+				KeyID: "does-not-match",
+				Key:   &testPrivRSAKey1.PublicKey,
+			},
+		},
+	}
+
+	tok, err := ParseSigned(rsaSignedTokenWithKid, []jose.SignatureAlgorithm{jose.RS256})
+	if assert.NoError(t, err, "Error parsing signed token.") {
+		cl := make(map[string]interface{})
+		err := tok.Claims(jwks, &cl)
+		assert.Error(t, err, "Expected error when JWT KID does not match any key in JWKS.")
+		assert.ErrorIs(t, err, jose.ErrJWKSKidNotFound)
+	}
+
+	tok, err = ParseSigned(rsaSignedToken, []jose.SignatureAlgorithm{jose.RS256})
+	if assert.NoError(t, err, "Error parsing signed token.") {
+		cl := make(map[string]interface{})
+		err := tok.Claims(jwks, &cl)
+		assert.Error(t, err, "Expected error when JWT KID does not match any key in JWKS.")
+		assert.ErrorIs(t, err, jose.ErrJWKSKidNotFound)
 	}
 }
 
