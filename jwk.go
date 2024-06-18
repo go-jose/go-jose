@@ -174,8 +174,6 @@ func (k JSONWebKey) MarshalJSON() ([]byte, error) {
 	return json.Marshal(raw)
 }
 
-var errUnsupportedJWK = errors.New("go-jose/go-jose: unsupported json web key")
-
 // UnmarshalJSON reads a key from its JSON representation.
 func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 	var raw rawJSONWebKey
@@ -230,7 +228,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 		}
 		key, err = raw.symmetricKey()
 	case "OKP":
-		if raw.Crv == "Ed25519" {
+		if raw.Crv == "Ed25519" && raw.X != nil {
 			if raw.D != nil {
 				key, err = raw.edPrivateKey()
 				if err == nil {
@@ -240,27 +238,15 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 				key, err = raw.edPublicKey()
 				keyPub = key
 			}
+		} else {
+			err = fmt.Errorf("go-jose/go-jose: unknown curve %s'", raw.Crv)
 		}
-	case "":
-		// kty MUST be present
-		err = fmt.Errorf("go-jose/go-jose: missing json web key type")
+	default:
+		err = fmt.Errorf("go-jose/go-jose: unknown json web key type '%s'", raw.Kty)
 	}
 
 	if err != nil {
 		return
-	}
-
-	if key == nil {
-		// RFC 7517:
-		// 5.  JWK Set Format
-		// ...
-		//     Implementations SHOULD ignore JWKs within a JWK Set that use "kty"
-		//     (key type) values that are not understood by them, that are missing
-		//     required members, or for which values are out of the supported
-		//     ranges.
-
-		// Fail unmarshal with errUnsupportedJWK
-		return errUnsupportedJWK
 	}
 
 	if certPub != nil && keyPub != nil {
@@ -360,34 +346,6 @@ func (s *JSONWebKeySet) Key(kid string) []JSONWebKey {
 	}
 
 	return keys
-}
-
-func (s *JSONWebKeySet) UnmarshalJSON(data []byte) (err error) {
-	type rawJSONWebKeySet struct {
-		Keys []json.RawMessage `json:"keys"`
-	}
-
-	var rs rawJSONWebKeySet
-	err = json.Unmarshal(data, &rs)
-	if err != nil {
-		return err
-	}
-
-	for _, rk := range rs.Keys {
-		var k JSONWebKey
-		err = json.Unmarshal(rk, &k)
-		if err != nil {
-			// Skip key and continue unmarshalling the key set if key unmarshal
-			// failed because of unsupported key type or parameters.
-			if !errors.Is(err, errUnsupportedJWK) {
-				return err
-			}
-		} else {
-			s.Keys = append(s.Keys, k)
-		}
-	}
-
-	return nil
 }
 
 const rsaThumbprintTemplate = `{"e":"%s","kty":"RSA","n":"%s"}`
