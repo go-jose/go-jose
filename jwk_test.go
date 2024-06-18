@@ -663,6 +663,12 @@ func TestWebKeyVectorsInvalid(t *testing.T) {
 		`{"kty":"EC","crv":"P-256","d":"XXX"}`,
 		`{"kty":"EC","crv":"ABC","d":"dGVzdA","x":"dGVzdA"}`,
 		`{"kty":"EC","crv":"P-256","d":"dGVzdA","x":"dGVzdA"}`,
+		// Invalid oct key
+		`{"kty":"oct"}`,
+		`{"kty":"oct","k":"%not-base64url-encoded*"}`,
+		// Invalid OKP key
+		`{"kty":"OKP","crv":"Ed25519"}`,
+		`{"kty":"OKP","crv":"Ed25519","x":"%not-base64url-encoded*"}`,
 	}
 
 	for _, key := range keys {
@@ -670,6 +676,26 @@ func TestWebKeyVectorsInvalid(t *testing.T) {
 		err := jwk2.UnmarshalJSON([]byte(key))
 		if err == nil {
 			t.Error("managed to parse invalid key:", key)
+		}
+	}
+}
+
+func TestWebKeyVectorsUnsupported(t *testing.T) {
+	keys := []string{
+		// Unknown kty
+		`{"kty": "XXX"}`,
+		// Unsupported OKP curve
+		`{"kty": "OKP", "crv": "X25519", "x": "89abcdef"}`,
+	}
+
+	for _, key := range keys {
+		var jwk2 JSONWebKey
+		err := jwk2.UnmarshalJSON([]byte(key))
+		if err != nil {
+			t.Error("failed to parse key with unsupported type or algorithm:", key)
+		}
+		if jwk2.Valid() {
+			t.Error("unsupported key type or algorithm parsed into a valid key:", key)
 		}
 	}
 }
