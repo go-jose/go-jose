@@ -782,7 +782,7 @@ func (key rawJSONWebKey) symmetricKey() ([]byte, error) {
 var (
 	// ErrJWKSKidNotFound is returned when a JWKS does not contain a JWK with a
 	// key ID which matches one in the provided tokens headers.
-	ErrJWKSKidNotFound = errors.New("go-jose/go-jose: JWK with matching kid not found in JWKS")
+	ErrJWKSKidNotFound = errors.New("go-jose/go-jose: JWK with matching kid not found in JWK Set")
 )
 
 func tryJWKS(key interface{}, headers ...Header) (interface{}, error) {

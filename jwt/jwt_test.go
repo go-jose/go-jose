@@ -131,6 +131,14 @@ func TestDecodeTokenWithMismatchedJWKSKID(t *testing.T) {
 		assert.Error(t, err, "Expected error when JWT KID does not match any key in JWKS.")
 		assert.ErrorIs(t, err, jose.ErrJWKSKidNotFound)
 	}
+
+	tok, err = ParseSigned(rsaSignedToken, []jose.SignatureAlgorithm{jose.RS256})
+	if assert.NoError(t, err, "Error parsing signed token.") {
+		cl := make(map[string]interface{})
+		err := tok.Claims(jwks, &cl)
+		assert.Error(t, err, "Expected error when JWT KID does not match any key in JWKS.")
+		assert.ErrorIs(t, err, jose.ErrJWKSKidNotFound)
+	}
 }
 
 func TestDecodeToken(t *testing.T) {
