@@ -243,7 +243,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 		}
 	case "":
 		// kty MUST be present
-		err = fmt.Errorf("go-jose/go-jose: missing json web key type")
+		return errors.New("go-jose/go-jose: missing json web key type")
 	}
 
 	if err != nil {
