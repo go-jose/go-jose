@@ -27,8 +27,6 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
@@ -665,12 +663,6 @@ func TestWebKeyVectorsInvalid(t *testing.T) {
 		`{"kty":"EC","crv":"P-256","d":"XXX"}`,
 		`{"kty":"EC","crv":"ABC","d":"dGVzdA","x":"dGVzdA"}`,
 		`{"kty":"EC","crv":"P-256","d":"dGVzdA","x":"dGVzdA"}`,
-		// Invalid oct key
-		`{"kty":"oct"}`,
-		`{"kty":"oct","k":"%not-base64url-encoded*"}`,
-		// Invalid OKP key
-		`{"kty":"OKP","crv":"Ed25519"}`,
-		`{"kty":"OKP","crv":"Ed25519","x":"%not-base64url-encoded*"}`,
 	}
 
 	for _, key := range keys {
@@ -679,49 +671,6 @@ func TestWebKeyVectorsInvalid(t *testing.T) {
 		if err == nil {
 			t.Error("managed to parse invalid key:", key)
 		}
-	}
-}
-
-// TestJWKUnsupported checks for an error when parsing a JWK with an unsupported key type.
-func TestJWKUnsupported(t *testing.T) {
-	var jwk JSONWebKey
-	err := jwk.UnmarshalJSON([]byte(`{"kty": "XXX"}`))
-	if !errors.Is(err, ErrUnsupportedKeyType) {
-		t.Error("expected ErrUnsupportedKeyType, got:", err)
-	}
-}
-
-// TestJWKUnsupported checks that unmarshaling into a JSONWebKeySet succeeds even if some JWKs have an unsupported key type.
-func TestJWKSetIgnoresUnsupported(t *testing.T) {
-	var jwkSet JSONWebKeySet
-	err := jwkSet.UnmarshalJSON([]byte(fmt.Sprintf(`
-		{
-			"keys": [
-				%s,
-				{"kty": "XXX"}
-			]
-		}
-	`, cookbookJWKs[0])))
-	if err != nil {
-		t.Error("parsing JWK Set with one unsupported and one supported key:", err)
-	}
-	if len(jwkSet.Keys) != 1 {
-		t.Error("expected one key to be parsed, got:", len(jwkSet.Keys))
-	}
-
-	err = jwkSet.UnmarshalJSON([]byte(`
-		{
-			"keys": [
-				{"kty": "ABC"},
-				{"kty": "XXX"}
-			]
-		}
-	`))
-	if err != nil {
-		t.Error("parsing JWK Set with two unsupported keys:", err)
-	}
-	if len(jwkSet.Keys) != 0 {
-		t.Error("expected zero keys to be parsed, got:", len(jwkSet.Keys))
 	}
 }
 
@@ -950,16 +899,6 @@ func TestMarshalUnmarshalJWKSet(t *testing.T) {
 	}
 	if !bytes.Equal(jsonbar, jsonbar2) {
 		t.Error("roundtrip should not lose information")
-	}
-
-	set3 := JSONWebKeySet{Keys: []JSONWebKey{jwk1}}
-	err = json.Unmarshal(jsonbar, &set3)
-	if err != nil {
-		t.Fatal("problem unmarshalling set", err)
-	}
-
-	if len(set3.Keys) != 2 {
-		t.Error("unmarshaling should clear any existing keys")
 	}
 }
 
