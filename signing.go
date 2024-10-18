@@ -266,7 +266,9 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 			headerAlgorithm: string(recipient.sigAlg),
 		}
 
-		if recipient.publicKey != nil && recipient.publicKey() != nil {
+		publicKey := recipient.publicKey()
+
+		if recipient.publicKey != nil && publicKey != nil {
 			// We want to embed the JWK or set the kid header, but not both. Having a protected
 			// header that contains an embedded JWK while also simultaneously containing the kid
 			// header is confusing, and at least in ACME the two are considered to be mutually
@@ -278,7 +280,7 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 			if ctx.embedJWK {
 				protected[headerJWK] = recipient.publicKey()
 			} else {
-				keyID := recipient.publicKey().KeyID
+				keyID := publicKey.KeyID
 				if keyID != "" {
 					protected[headerKeyID] = keyID
 				}
