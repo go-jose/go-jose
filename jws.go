@@ -369,6 +369,9 @@ func parseSignedCompact(
 	payload []byte,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
+	if input == "" {
+		return nil, fmt.Errorf("go-jose/go-jose: expected compact JWS, got blank string")
+	}
 	protected, s, ok := strings.Cut(input, tokenDelim)
 	if !ok { // no period found
 		return nil, fmt.Errorf("go-jose/go-jose: compact JWS format must have three parts")
