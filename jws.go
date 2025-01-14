@@ -327,6 +327,10 @@ func parseSignedCompact(
 	payload []byte,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
+	if input == "" {
+		return nil, fmt.Errorf("go-jose/go-jose: expected compact JWS, got blank string")
+	}
+
 	parts := strings.Split(input, ".")
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("go-jose/go-jose: compact JWS format must have three parts")
