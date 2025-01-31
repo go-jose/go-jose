@@ -101,6 +101,6 @@ allows attaching a key id.
 
 Examples can be found in the Godoc
 reference for this package. The
-[`jose-util`](https://github.com/go-jose/go-jose/tree/v4/jose-util)
+[`jose-util`](https://github.com/go-jose/go-jose/tree/main/jose-util)
 subdirectory also contains a small command-line utility which might be useful
 as an example as well.
