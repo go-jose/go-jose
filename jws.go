@@ -75,7 +75,9 @@ type Signature struct {
 	original  *rawSignatureInfo
 }
 
-// ParseSigned parses a signed message in JWS Compact or JWS JSON Serialization.
+// ParseSigned parses a signed message in JWS Compact or JWS JSON Serialization. Validation fails if
+// the JWS is signed with an algorithm that isn't in the provided list of signature algorithms.
+// Applications should decide for themselves which signature algorithms are acceptable.
 //
 // https://datatracker.ietf.org/doc/html/rfc7515#section-7
 func ParseSigned(
@@ -90,7 +92,9 @@ func ParseSigned(
 	return parseSignedCompact(signature, nil, signatureAlgorithms)
 }
 
-// ParseSignedCompact parses a message in JWS Compact Serialization.
+// ParseSignedCompact parses a message in JWS Compact Serialization. Validation fails if the JWS is
+// signed with an algorithm that isn't in the provided list of signature algorithms. Applications
+// should decide for themselves which signature algorithms are acceptable.
 //
 // https://datatracker.ietf.org/doc/html/rfc7515#section-7.1
 func ParseSignedCompact(
@@ -101,6 +105,11 @@ func ParseSignedCompact(
 }
 
 // ParseDetached parses a signed message in compact serialization format with detached payload.
+// Validation fails if the JWS is signed with an algorithm that isn't in the provided list of
+// signature algorithms. Applications should decide for themselves which signature algorithms are
+// acceptable.
+//
+// https://datatracker.ietf.org/doc/html/rfc7515#appendix-F
 func ParseDetached(
 	signature string,
 	payload []byte,
