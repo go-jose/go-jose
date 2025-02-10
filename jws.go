@@ -81,7 +81,8 @@ type Signature struct {
 // not sure which signature algorithms your application might receive, consult the documentation of
 // the program which provides them or the protocol that you are implementing. You can also try
 // getting an example JWS and decoding it with a tool like https://jwt.io to see what its "alg"
-// header parameter indicates.
+// header parameter indicates. The signature on the JWS does not get validated during parsing. Call
+// Verify() after parsing to validate the signature and obtain the payload.
 //
 // https://datatracker.ietf.org/doc/html/rfc7515#section-7
 func ParseSigned(
@@ -102,7 +103,8 @@ func ParseSigned(
 // signature algorithms your application might receive, consult the documentation of the program
 // which provides them or the protocol that you are implementing. You can also try getting an
 // example JWS and decoding it with a tool like https://jwt.io to see what its "alg" header
-// parameter indicates.
+// parameter indicates. The signature on the JWS does not get validated during parsing. Call
+// Verify() after parsing to validate the signature and obtain the payload.
 //
 // https://datatracker.ietf.org/doc/html/rfc7515#section-7.1
 func ParseSignedCompact(
@@ -118,7 +120,8 @@ func ParseSignedCompact(
 // acceptable. If you're not sure which signature algorithms your application might receive, consult
 // the documentation of the program which provides them or the protocol that you are implementing.
 // You can also try getting an example JWS and decoding it with a tool like https://jwt.io to see
-// what its "alg" header parameter indicates.
+// what its "alg" header parameter indicates. The signature on the JWS does not get validated during
+// parsing. Call Verify() after parsing to validate the signature and obtain the payload.
 //
 // https://datatracker.ietf.org/doc/html/rfc7515#appendix-F
 func ParseDetached(
