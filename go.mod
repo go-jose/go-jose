@@ -1,11 +1,13 @@
 module github.com/go-jose/go-jose/v4
 
-go 1.21
+go 1.23.0
+
+toolchain go1.23.6
 
 require (
 	github.com/google/go-cmp v0.6.0
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/crypto v0.32.0
+	golang.org/x/crypto v0.35.0
 )
 
 require (
