@@ -75,7 +75,14 @@ type Signature struct {
 	original  *rawSignatureInfo
 }
 
-// ParseSigned parses a signed message in JWS Compact or JWS JSON Serialization.
+// ParseSigned parses a signed message in JWS Compact or JWS JSON Serialization. Validation fails if
+// the JWS is signed with an algorithm that isn't in the provided list of signature algorithms.
+// Applications should decide for themselves which signature algorithms are acceptable. If you're
+// not sure which signature algorithms your application might receive, consult the documentation of
+// the program which provides them or the protocol that you are implementing. You can also try
+// getting an example JWS and decoding it with a tool like https://jwt.io to see what its "alg"
+// header parameter indicates. The signature on the JWS does not get validated during parsing. Call
+// Verify() after parsing to validate the signature and obtain the payload.
 //
 // https://datatracker.ietf.org/doc/html/rfc7515#section-7
 func ParseSigned(
@@ -90,7 +97,14 @@ func ParseSigned(
 	return parseSignedCompact(signature, nil, signatureAlgorithms)
 }
 
-// ParseSignedCompact parses a message in JWS Compact Serialization.
+// ParseSignedCompact parses a message in JWS Compact Serialization. Validation fails if the JWS is
+// signed with an algorithm that isn't in the provided list of signature algorithms. Applications
+// should decide for themselves which signature algorithms are acceptable.If you're not sure which
+// signature algorithms your application might receive, consult the documentation of the program
+// which provides them or the protocol that you are implementing. You can also try getting an
+// example JWS and decoding it with a tool like https://jwt.io to see what its "alg" header
+// parameter indicates. The signature on the JWS does not get validated during parsing. Call
+// Verify() after parsing to validate the signature and obtain the payload.
 //
 // https://datatracker.ietf.org/doc/html/rfc7515#section-7.1
 func ParseSignedCompact(
@@ -101,6 +115,15 @@ func ParseSignedCompact(
 }
 
 // ParseDetached parses a signed message in compact serialization format with detached payload.
+// Validation fails if the JWS is signed with an algorithm that isn't in the provided list of
+// signature algorithms. Applications should decide for themselves which signature algorithms are
+// acceptable. If you're not sure which signature algorithms your application might receive, consult
+// the documentation of the program which provides them or the protocol that you are implementing.
+// You can also try getting an example JWS and decoding it with a tool like https://jwt.io to see
+// what its "alg" header parameter indicates. The signature on the JWS does not get validated during
+// parsing. Call Verify() after parsing to validate the signature and obtain the payload.
+//
+// https://datatracker.ietf.org/doc/html/rfc7515#appendix-F
 func ParseDetached(
 	signature string,
 	payload []byte,
