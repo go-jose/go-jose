@@ -12,11 +12,11 @@ jobs:
       fail-fast: false
       matrix:
         GO_VERSION:
-          - "1.16.x"
-          - "1.21.5"
+          - "1.23.x"
+          - "1.24.x"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         persist-credentials: false
 
@@ -35,17 +35,16 @@ jobs:
     strategy:
       matrix:
         GO_VERSION:
-          # go1.16 does not meet the minimum requirements to run govulncheck so
-          # we will skip testing against it.
-          - "1.21.5"
+          # Just run govulncheck on the latest Go version.
+          - "1.24.x"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
       - name: Set up Go ${{ matrix.GO_VERSION }}
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: "${{ matrix.GO_VERSION }}"
 
