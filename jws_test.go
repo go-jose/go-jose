@@ -119,6 +119,9 @@ func TestCompactParseJWS(t *testing.T) {
 		"////.eyJhbGciOiJYWVoifQ.c2lnbmF0dXJl",
 		// Invalid header
 		"cGF5bG9hZA.cGF5bG9hZA.c2lnbmF0dXJl",
+		// Too many parts
+		"eyJhbGciOiJYWVoifQ.cGF5bG9hZA.c2lnbmF0dXJl.....................................................",
+		"eyJhbGciOiJYWVoifQ.cGF5bG9hZA.c2lnbmF0dXJl.cGF5bG9hZA.cGF5bG9hZA.cGF5bG9hZA....................",
 	}
 
 	for i := range failures {

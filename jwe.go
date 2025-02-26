@@ -201,10 +201,11 @@ func (parsed *rawJSONWebEncryption) sanitized() (*JSONWebEncryption, error) {
 
 // parseEncryptedCompact parses a message in compact format.
 func parseEncryptedCompact(input string) (*JSONWebEncryption, error) {
-	parts := strings.Split(input, ".")
-	if len(parts) != 5 {
+	// Five parts is four separators
+	if strings.Count(input, ".") != 4 {
 		return nil, fmt.Errorf("go-jose/go-jose: compact JWE format must have five parts")
 	}
+	parts := strings.SplitN(input, ".", 5)
 
 	rawProtected, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
