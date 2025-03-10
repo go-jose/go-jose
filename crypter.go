@@ -446,6 +446,13 @@ func (ctx *genericEncrypter) Options() EncrypterOptions {
 func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) {
 	headers := obj.mergedHeaders(nil)
 
+	// According to RFC 7516 Section 7.2.1: The "protected" member MUST be
+	// present and contain the value BASE64URL(UTF8(JWE Protected Header)) when
+	// the JWE Protected Header value is non-empty; otherwise, it MUST be absent.
+	if obj.protected == nil || len(*obj.protected) <= 0 {
+		return nil, fmt.Errorf("go-jose/go-jose: protected header is missing")
+	}
+
 	if len(obj.recipients) > 1 {
 		return nil, errors.New("go-jose/go-jose: too many recipients in payload; expecting only one")
 	}
@@ -492,7 +499,9 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 		plaintext, err = cipher.decrypt(cek, authData, parts)
 	}
 
-	if plaintext == nil {
+	// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
+	// byte-string. If obj.ciphertext is empty, plaintext can be nil.
+	if plaintext == nil && len(obj.ciphertext) > 0 {
 		return nil, ErrCryptoFailure
 	}
 
@@ -519,6 +528,13 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 // data would be >250kB or >3x the size of the compressed data, whichever is larger.
 func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Header, []byte, error) {
 	globalHeaders := obj.mergedHeaders(nil)
+
+	// According to RFC 7516 Section 7.2.1: The "protected" member MUST be
+	// present and contain the value BASE64URL(UTF8(JWE Protected Header)) when
+	// the JWE Protected Header value is non-empty; otherwise, it MUST be absent.
+	if obj.protected == nil || len(*obj.protected) <= 0 {
+		return -1, Header{}, nil, fmt.Errorf("go-jose/go-jose: protected header is missing")
+	}
 
 	critical, err := globalHeaders.getCritical()
 	if err != nil {
@@ -572,7 +588,9 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 		}
 	}
 
-	if plaintext == nil {
+	// BASE64URL(JWE Ciphertext) of an empty byte-string is an empty
+	// byte-string. If obj.ciphertext is empty, plaintext can be nil.
+	if plaintext == nil && len(obj.ciphertext) > 0 {
 		return -1, Header{}, nil, ErrCryptoFailure
 	}
 
