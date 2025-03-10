@@ -247,6 +247,20 @@ func TestCompactSerialize(t *testing.T) {
 	}
 }
 
+func TestCompactSerializeWithAdditionalAuthenticatedData(t *testing.T) {
+	// Compact serialization must fail if we have Additional Authenticated Data (AAD).
+	obj := &JSONWebEncryption{
+		aad:        []byte{0},
+		protected:  &rawHeader{},
+		recipients: []recipientInfo{{}},
+	}
+
+	_, err := obj.CompactSerialize()
+	if err == nil {
+		t.Error("Object with aad can't be compact serialized")
+	}
+}
+
 func TestVectorsJWE(t *testing.T) {
 	plaintext := []byte("The true sign of intelligence is not knowledge but imagination.")
 
