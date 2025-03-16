@@ -176,29 +176,39 @@ func NewMultiSigner(sigs []SigningKey, opts *SignerOptions) (Signer, error) {
 
 // newVerifier creates a verifier based on the key type
 func newVerifier(verificationKey interface{}) (payloadVerifier, error) {
-	switch verificationKey := verificationKey.(type) {
+	// Reject private keys
+	switch k := verificationKey.(type) {
+	case *JSONWebKey:
+		if !k.IsPublic() {
+			return nil, errors.New("go-jose/go-jose: cannot verify with private key")
+		}
+	case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+		return nil, errors.New("go-jose/go-jose: cannot verify with private key")
+	}
+
+	switch key := verificationKey.(type) {
 	case ed25519.PublicKey:
 		return &edEncrypterVerifier{
-			publicKey: verificationKey,
+			publicKey: key,
 		}, nil
 	case *rsa.PublicKey:
 		return &rsaEncrypterVerifier{
-			publicKey: verificationKey,
+			publicKey: key,
 		}, nil
 	case *ecdsa.PublicKey:
 		return &ecEncrypterVerifier{
-			publicKey: verificationKey,
+			publicKey: key,
 		}, nil
 	case []byte:
 		return &symmetricMac{
-			key: verificationKey,
+			key: key,
 		}, nil
 	case JSONWebKey:
-		return newVerifier(verificationKey.Key)
+		return newVerifier(key.Key)
 	case *JSONWebKey:
-		return newVerifier(verificationKey.Key)
+		return newVerifier(key.Key)
 	case OpaqueVerifier:
-		return &opaqueVerifier{verifier: verificationKey}, nil
+		return &opaqueVerifier{verifier: key}, nil
 	default:
 		return nil, ErrUnsupportedKeyType
 	}
@@ -344,37 +354,6 @@ func (ctx *genericSigner) Options() SignerOptions {
 	}
 }
 
-// Verify validates the signature on the object and returns the payload.
-// This function does not support multi-signature. If you desire multi-signature
-// verification use VerifyMulti instead.
-//
-// Be careful when verifying signatures based on embedded JWKs inside the
-// payload header. You cannot assume that the key received in a payload is
-// trusted.
-//
-// The verificationKey argument must have one of these types:
-//   - ed25519.PublicKey
-//   - *ecdsa.PublicKey
-//   - *rsa.PublicKey
-//   - *JSONWebKey
-//   - JSONWebKey
-//   - *JSONWebKeySet
-//   - JSONWebKeySet
-//   - []byte (an HMAC key)
-//   - Any type that implements the OpaqueVerifier interface.
-//
-// If the key is an HMAC key, it must have at least as many bytes as the relevant hash output:
-//   - HS256: 32 bytes
-//   - HS384: 48 bytes
-//   - HS512: 64 bytes
-func (obj JSONWebSignature) Verify(verificationKey interface{}) ([]byte, error) {
-	err := obj.DetachedVerify(obj.payload, verificationKey)
-	if err != nil {
-		return nil, err
-	}
-	return obj.payload, nil
-}
-
 // UnsafePayloadWithoutVerification returns the payload without
 // verifying it. The content returned from this function cannot be
 // trusted.
@@ -388,7 +367,7 @@ func (obj JSONWebSignature) UnsafePayloadWithoutVerification() []byte {
 // each other.
 //
 // The verificationKey argument must have one of the types allowed for the
-// verificationKey argument of JSONWebSignature.Verify().
+// corresponding signature algorithm. See RFC 7518 for details.
 func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey interface{}) error {
 	key, err := tryJWKS(verificationKey, obj.headers()...)
 	if err != nil {
