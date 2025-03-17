@@ -18,9 +18,6 @@ package jose
 
 import (
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/rsa"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -445,68 +442,4 @@ func (obj JSONWebSignature) FullSerialize() string {
 	}
 
 	return string(mustSerializeJSON(raw))
-}
-
-// Verify validates the signature on the object and returns the payload.
-// The key argument must be the corresponding public key for the signature.
-// See RFC 7515.
-func (obj JSONWebSignature) Verify(key interface{}) ([]byte, error) {
-	// Refuse to verify with private keys - they must be public
-	switch k := key.(type) {
-	case *JSONWebKey:
-		if !k.IsPublic() {
-			return nil, errors.New("go-jose/go-jose: cannot verify with private key")
-		}
-	case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
-		return nil, errors.New("go-jose/go-jose: cannot verify with private key")
-	}
-
-	// If no signatures present, return error
-	if len(obj.Signatures) == 0 {
-		return nil, errors.New("go-jose/go-jose: no signatures in payload")
-	}
-
-	// Try to verify any of the signatures
-	key, err := tryJWKS(key, obj.headers()...)
-	if err != nil {
-		return nil, err
-	}
-
-	verifier, err := newVerifier(key)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, signature := range obj.Signatures {
-		headers := signature.mergedHeaders()
-		critical, err := headers.getCritical()
-		if err != nil {
-			continue
-		}
-
-		// Check that there are no unrecognized critical headers
-		var unsupported bool
-		for _, header := range critical {
-			if !supportedCritical[header] {
-				unsupported = true
-				break
-			}
-		}
-		if unsupported {
-			continue
-		}
-
-		input, err := obj.computeAuthData(obj.payload, &signature)
-		if err != nil {
-			continue
-		}
-
-		alg := headers.getSignatureAlgorithm()
-		err = verifier.verifyPayload(input, signature.Signature, alg)
-		if err == nil {
-			return obj.payload, nil
-		}
-	}
-
-	return nil, ErrCryptoFailure
 }

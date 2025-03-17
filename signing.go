@@ -354,6 +354,90 @@ func (ctx *genericSigner) Options() SignerOptions {
 	}
 }
 
+// Verify validates the signature on the object and returns the payload.
+// This function does not support multi-signature. If you desire multi-signature
+// verification use VerifyMulti instead.
+//
+// Be careful when verifying signatures based on embedded JWKs inside the
+// payload header. You cannot assume that the key received in a payload is
+// trusted.
+//
+// The verificationKey argument must have one of these types:
+//   - ed25519.PublicKey
+//   - *ecdsa.PublicKey
+//   - *rsa.PublicKey
+//   - *JSONWebKey
+//   - JSONWebKey
+//   - *JSONWebKeySet
+//   - JSONWebKeySet
+//   - []byte (an HMAC key)
+//   - Any type that implements the OpaqueVerifier interface.
+//
+// If the key is an HMAC key, it must have at least as many bytes as the relevant hash output:
+//   - HS256: 32 bytes
+//   - HS384: 48 bytes
+//   - HS512: 64 bytes
+func (obj JSONWebSignature) Verify(verificationKey interface{}) ([]byte, error) {
+	// Refuse to verify with private keys - they must be public
+	switch k := verificationKey.(type) {
+	case *JSONWebKey:
+		if !k.IsPublic() {
+			return nil, errors.New("go-jose/go-jose: cannot verify with private key")
+		}
+	case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+		return nil, errors.New("go-jose/go-jose: cannot verify with private key")
+	}
+
+	// If no signatures present, return error
+	if len(obj.Signatures) == 0 {
+		return nil, errors.New("go-jose/go-jose: no signatures in payload")
+	}
+
+	// Try to verify any of the signatures
+	key, err := tryJWKS(verificationKey, obj.headers()...)
+	if err != nil {
+		return nil, err
+	}
+
+	verifier, err := newVerifier(key)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, signature := range obj.Signatures {
+		headers := signature.mergedHeaders()
+		critical, err := headers.getCritical()
+		if err != nil {
+			continue
+		}
+
+		// Check that there are no unrecognized critical headers
+		var unsupported bool
+		for _, header := range critical {
+			if !supportedCritical[header] {
+				unsupported = true
+				break
+			}
+		}
+		if unsupported {
+			continue
+		}
+
+		input, err := obj.computeAuthData(obj.payload, &signature)
+		if err != nil {
+			continue
+		}
+
+		alg := headers.getSignatureAlgorithm()
+		err = verifier.verifyPayload(input, signature.Signature, alg)
+		if err == nil {
+			return obj.payload, nil
+		}
+	}
+
+	return nil, ErrCryptoFailure
+}
+
 // UnsafePayloadWithoutVerification returns the payload without
 // verifying it. The content returned from this function cannot be
 // trusted.
