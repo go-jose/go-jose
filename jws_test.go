@@ -19,6 +19,7 @@ package jose
 import (
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"strings"
 	"testing"
 
@@ -434,6 +435,60 @@ func TestErrorMissingPayloadJWS(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "missing payload") {
 		t.Errorf("unexpected error message, should contain 'missing payload': %s", err)
+	}
+}
+
+func TestErrorUnexpectedSignatureAlgorithmInProtected(t *testing.T) {
+	// protected: {"alg":"HS256", "jwk":{"kty":"oct", "k":"MTEx"}}
+	msg := `{"payload":"TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ","protected":"eyJhbGciOiJIUzI1NiIsICJqd2siOnsia3R5Ijoib2N0IiwgImsiOiJNVEV4In19","signature":"lvo41ZZsuHwQvSh0uJtEXRR3vmuBJ7in6qMoD7p9jyo"}`
+
+	_, err := ParseSigned(msg, []SignatureAlgorithm{ES256})
+	if err == nil {
+		t.Fatal("was able to parse message with unexpected signature algorithm")
+	}
+	var errUnexpectedSigAlg *ErrUnexpectedSignatureAlgorithm
+	if !errors.As(err, &errUnexpectedSigAlg) {
+		t.Fatal("unexpected error type, should be UnsupportedAlgorithmError")
+	}
+	if errUnexpectedSigAlg.Got != HS256 {
+		t.Fatalf("unexpected algo should be HS256, got: %s", errUnexpectedSigAlg.Got)
+	}
+	if len(errUnexpectedSigAlg.expected) != 1 {
+		t.Fatalf("expected algo should be a single algo, got: %d", len(errUnexpectedSigAlg.expected))
+	}
+	if errUnexpectedSigAlg.expected[0] != ES256 {
+		t.Fatalf("expected algo should be ES256, got: %s", errUnexpectedSigAlg.expected)
+	}
+}
+
+func TestErrorUnexpectedSignatureAlgorithmInSignatures(t *testing.T) {
+	// protected: {"alg":"HS256", "jwk":{"kty":"oct", "k":"MTEx"}}
+	msg := `{
+		"payload":"TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ",
+		"signatures":[
+			{
+				"protected":"eyJhbGciOiJIUzI1NiIsICJqd2siOnsia3R5Ijoib2N0IiwgImsiOiJNVEV4In19",
+				"signature":"lvo41ZZsuHwQvSh0uJtEXRR3vmuBJ7in6qMoD7p9jyo"
+			}
+		]
+	}`
+
+	_, err := ParseSigned(msg, []SignatureAlgorithm{ES256})
+	if err == nil {
+		t.Fatal("was able to parse message with unexpected signature algorithm")
+	}
+	var errUnexpectedSigAlg *ErrUnexpectedSignatureAlgorithm
+	if !errors.As(err, &errUnexpectedSigAlg) {
+		t.Fatal("unexpected error type, should be UnsupportedAlgorithmError")
+	}
+	if errUnexpectedSigAlg.Got != HS256 {
+		t.Fatalf("unexpected algo should be HS256, got: %s", errUnexpectedSigAlg.Got)
+	}
+	if len(errUnexpectedSigAlg.expected) != 1 {
+		t.Fatalf("expected algo should be a single algo, got: %d", len(errUnexpectedSigAlg.expected))
+	}
+	if errUnexpectedSigAlg.expected[0] != ES256 {
+		t.Fatalf("expected algo should be ES256, got: %s", errUnexpectedSigAlg.expected)
 	}
 }
 
