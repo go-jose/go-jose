@@ -204,6 +204,25 @@ func containsSignatureAlgorithm(haystack []SignatureAlgorithm, needle SignatureA
 	return false
 }
 
+// ErrUnexpectedSignatureAlgorithm is returned when the signature algorithm in
+// the JWS header does not match one of the expected algorithms.
+type ErrUnexpectedSignatureAlgorithm struct {
+	// Got is the signature algorithm found in the JWS header.
+	Got      SignatureAlgorithm
+	expected []SignatureAlgorithm
+}
+
+func (e *ErrUnexpectedSignatureAlgorithm) Error() string {
+	return fmt.Sprintf("unexpected signature algorithm %q; expected %q", e.Got, e.expected)
+}
+
+func newErrUnexpectedSignatureAlgorithm(got SignatureAlgorithm, expected []SignatureAlgorithm) error {
+	return &ErrUnexpectedSignatureAlgorithm{
+		Got:      got,
+		expected: expected,
+	}
+}
+
 // sanitized produces a cleaned-up JWS object from the raw JSON.
 func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgorithm) (*JSONWebSignature, error) {
 	if len(signatureAlgorithms) == 0 {
@@ -259,8 +278,7 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 
 		alg := SignatureAlgorithm(signature.Header.Algorithm)
 		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
-			return nil, fmt.Errorf("go-jose/go-jose: unexpected signature algorithm %q; expected %q",
-				alg, signatureAlgorithms)
+			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
 		if signature.header != nil {
@@ -308,8 +326,7 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 
 		alg := SignatureAlgorithm(obj.Signatures[i].Header.Algorithm)
 		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
-			return nil, fmt.Errorf("go-jose/go-jose: unexpected signature algorithm %q; expected %q",
-				alg, signatureAlgorithms)
+			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
 		if obj.Signatures[i].header != nil {
