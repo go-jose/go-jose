@@ -821,3 +821,71 @@ func tryJWKS(key interface{}, headers ...Header) (interface{}, error) {
 
 	return keys[0].Key, nil
 }
+
+// JWKPublic represents a public key in JWK format. It will refuse to unmarshal private keys.
+type JWKPublic struct {
+	JSONWebKey
+}
+
+// UnmarshalJSON validates that the key is public before unmarshaling.
+func (k *JWKPublic) UnmarshalJSON(data []byte) error {
+	var raw rawJSONWebKey
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	// Check if the key contains private key fields
+	if raw.D != nil || raw.P != nil || raw.Q != nil || raw.Dp != nil || raw.Dq != nil || raw.Qi != nil {
+		return errors.New("go-jose/go-jose: invalid JWK, private key fields present in JWKPublic")
+	}
+
+	// Unmarshal into the embedded JSONWebKey
+	err = k.JSONWebKey.UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	// Double check that the key is public
+	if !k.JSONWebKey.IsPublic() {
+		return errors.New("go-jose/go-jose: invalid JWK, private key detected in JWKPublic")
+	}
+
+	return nil
+}
+
+// JWKPrivate represents a private key in JWK format.
+type JWKPrivate struct {
+	JSONWebKey
+}
+
+// UnmarshalJSON validates that the key is private before unmarshaling.
+func (k *JWKPrivate) UnmarshalJSON(data []byte) error {
+	err := k.JSONWebKey.UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	// Check that the key is not public
+	if k.JSONWebKey.IsPublic() {
+		return errors.New("go-jose/go-jose: invalid JWK, public key detected in JWKPrivate")
+	}
+
+	return nil
+}
+
+// JWKSetPublic represents a JWK Set containing only public keys.
+type JWKSetPublic struct {
+	Keys []JWKPublic `json:"keys"`
+}
+
+// Key convenience method returns public keys by key ID.
+func (s *JWKSetPublic) Key(kid string) []JWKPublic {
+	var keys []JWKPublic
+	for _, key := range s.Keys {
+		if key.KeyID == kid {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}

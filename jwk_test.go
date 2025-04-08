@@ -1170,3 +1170,153 @@ func TestJWKPaddingY(t *testing.T) {
 		t.Errorf("Expected key to be invalid, but it was valid.")
 	}
 }
+
+// TestVerifyWithPrivateKey tests that using private keys for verification
+// is properly rejected as per RFC 7515 Section 4.1.3
+func TestVerifyWithPrivateKey(t *testing.T) {
+	// Test data
+	payload := []byte("test payload")
+
+	// Test cases for different key types
+	testCases := []struct {
+		name        string
+		signingKey  interface{}
+		verifyKey   interface{}
+		algorithm   SignatureAlgorithm
+		expectError string
+	}{
+		{
+			name:        "RSA Private Key",
+			signingKey:  rsaTestKey,
+			verifyKey:   rsaTestKey, // Direct private key
+			algorithm:   RS256,
+			expectError: "cannot verify with private key",
+		},
+		{
+			name:        "ECDSA Private Key",
+			signingKey:  ecTestKey256,
+			verifyKey:   ecTestKey256, // Direct private key
+			algorithm:   ES256,
+			expectError: "cannot verify with private key",
+		},
+		{
+			name:        "Ed25519 Private Key",
+			signingKey:  ed25519PrivateKey,
+			verifyKey:   ed25519PrivateKey, // Direct private key
+			algorithm:   EdDSA,
+			expectError: "cannot verify with private key",
+		},
+		{
+			name:        "JWK with RSA Private Key",
+			signingKey:  rsaTestKey,
+			verifyKey:   &JSONWebKey{Key: rsaTestKey, KeyID: "test-key-rsa", Algorithm: string(RS256)},
+			algorithm:   RS256,
+			expectError: "cannot verify with private key",
+		},
+		{
+			name:        "JWK with ECDSA Private Key",
+			signingKey:  ecTestKey256,
+			verifyKey:   &JSONWebKey{Key: ecTestKey256, KeyID: "test-key-ec", Algorithm: string(ES256)},
+			algorithm:   ES256,
+			expectError: "cannot verify with private key",
+		},
+		{
+			name:        "JWK with Ed25519 Private Key",
+			signingKey:  ed25519PrivateKey,
+			verifyKey:   &JSONWebKey{Key: ed25519PrivateKey, KeyID: "test-key-ed", Algorithm: string(EdDSA)},
+			algorithm:   EdDSA,
+			expectError: "cannot verify with private key",
+		},
+	}
+
+	// Run test cases
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a signer with the appropriate algorithm
+			signer, err := NewSigner(SigningKey{Algorithm: tc.algorithm, Key: tc.signingKey}, nil)
+			require.NoError(t, err, "Error creating signer")
+
+			// Sign the payload
+			jws, err := signer.Sign(payload)
+			require.NoError(t, err, "Error signing payload")
+
+			// Attempt to verify with the private key
+			_, err = jws.Verify(tc.verifyKey)
+
+			// Verify that the error is as expected
+			assert.Error(t, err, "Expected an error when verifying with a private key")
+			assert.Contains(t, err.Error(), tc.expectError, "Error message should indicate private key rejection")
+		})
+	}
+}
+
+// TestVerifyWithPublicKey tests that using public keys for verification works correctly
+func TestVerifyWithPublicKey(t *testing.T) {
+	// Test data
+	payload := []byte("test payload")
+
+	// Test cases for different key types
+	testCases := []struct {
+		name       string
+		signingKey interface{}
+		verifyKey  interface{}
+		algorithm  SignatureAlgorithm
+	}{
+		{
+			name:       "RSA Public Key",
+			signingKey: rsaTestKey,
+			verifyKey:  &rsaTestKey.PublicKey, // Public key
+			algorithm:  RS256,
+		},
+		{
+			name:       "ECDSA Public Key",
+			signingKey: ecTestKey256,
+			verifyKey:  &ecTestKey256.PublicKey, // Public key
+			algorithm:  ES256,
+		},
+		{
+			name:       "Ed25519 Public Key",
+			signingKey: ed25519PrivateKey,
+			verifyKey:  ed25519PublicKey, // Public key
+			algorithm:  EdDSA,
+		},
+		{
+			name:       "JWK with RSA Public Key",
+			signingKey: rsaTestKey,
+			verifyKey:  &JSONWebKey{Key: &rsaTestKey.PublicKey, KeyID: "test-key-rsa", Algorithm: string(RS256)},
+			algorithm:  RS256,
+		},
+		{
+			name:       "JWK with ECDSA Public Key",
+			signingKey: ecTestKey256,
+			verifyKey:  &JSONWebKey{Key: &ecTestKey256.PublicKey, KeyID: "test-key-ec", Algorithm: string(ES256)},
+			algorithm:  ES256,
+		},
+		{
+			name:       "JWK with Ed25519 Public Key",
+			signingKey: ed25519PrivateKey,
+			verifyKey:  &JSONWebKey{Key: ed25519PublicKey, KeyID: "test-key-ed", Algorithm: string(EdDSA)},
+			algorithm:  EdDSA,
+		},
+	}
+
+	// Run test cases
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a signer with the appropriate algorithm
+			signer, err := NewSigner(SigningKey{Algorithm: tc.algorithm, Key: tc.signingKey}, nil)
+			require.NoError(t, err, "Error creating signer")
+
+			// Sign the payload
+			jws, err := signer.Sign(payload)
+			require.NoError(t, err, "Error signing payload")
+
+			// Verify with the public key
+			verifiedPayload, err := jws.Verify(tc.verifyKey)
+
+			// Verification should succeed
+			assert.NoError(t, err, "Verification with public key should succeed")
+			assert.Equal(t, payload, verifiedPayload, "Verified payload should match original")
+		})
+	}
+}
