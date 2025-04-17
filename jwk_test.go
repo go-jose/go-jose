@@ -34,7 +34,6 @@ import (
 
 	"github.com/go-jose/go-jose/v4/json"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -316,8 +315,9 @@ func TestRoundtripX509(t *testing.T) {
 			jsonbar2, err := jwk2.MarshalJSON()
 			require.NoError(t, err)
 
-			require.Empty(t, cmp.Diff(jsonbar, jsonbar2))
 			if !bytes.Equal(jsonbar, jsonbar2) {
+				t.Logf("Original JSON: %s", string(jsonbar))
+				t.Logf("New JSON: %s", string(jsonbar2))
 				t.Error("roundtrip should not lose information")
 			}
 		})
@@ -364,7 +364,9 @@ func TestRoundtripX509Hex(t *testing.T) {
 	var j1, j2 map[string]interface{}
 	require.NoError(t, json.Unmarshal(js, &j1))
 	require.NoError(t, json.Unmarshal([]byte(output), &j2))
-	require.Empty(t, cmp.Diff(j1, j2))
+	if !reflect.DeepEqual(j1, j2) {
+		t.Errorf("Not equal after round trip: '%v' '%v'", j1, j2)
+	}
 }
 
 func TestCertificatesURL(t *testing.T) {
@@ -384,7 +386,9 @@ func TestCertificatesURL(t *testing.T) {
 	var j1, j2 map[string]interface{}
 	require.NoError(t, json.Unmarshal(js, &j1))
 	require.NoError(t, json.Unmarshal([]byte(urlJWK), &j2))
-	require.Empty(t, cmp.Diff(j1, j2))
+	if !reflect.DeepEqual(j1, j2) {
+		t.Errorf("Not equal after round trip: '%v' '%v'", j1, j2)
+	}
 
 	var invalidURLJWK = `{
    "kty":"RSA",
