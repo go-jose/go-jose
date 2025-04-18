@@ -176,29 +176,39 @@ func NewMultiSigner(sigs []SigningKey, opts *SignerOptions) (Signer, error) {
 
 // newVerifier creates a verifier based on the key type
 func newVerifier(verificationKey interface{}) (payloadVerifier, error) {
-	switch verificationKey := verificationKey.(type) {
+	// Reject private keys
+	switch k := verificationKey.(type) {
+	case *JSONWebKey:
+		if !k.IsPublic() {
+			return nil, errors.New("go-jose/go-jose: cannot verify with private key")
+		}
+	case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+		return nil, errors.New("go-jose/go-jose: cannot verify with private key")
+	}
+
+	switch key := verificationKey.(type) {
 	case ed25519.PublicKey:
 		return &edEncrypterVerifier{
-			publicKey: verificationKey,
+			publicKey: key,
 		}, nil
 	case *rsa.PublicKey:
 		return &rsaEncrypterVerifier{
-			publicKey: verificationKey,
+			publicKey: key,
 		}, nil
 	case *ecdsa.PublicKey:
 		return &ecEncrypterVerifier{
-			publicKey: verificationKey,
+			publicKey: key,
 		}, nil
 	case []byte:
 		return &symmetricMac{
-			key: verificationKey,
+			key: key,
 		}, nil
 	case JSONWebKey:
-		return newVerifier(verificationKey.Key)
+		return newVerifier(key.Key)
 	case *JSONWebKey:
-		return newVerifier(verificationKey.Key)
+		return newVerifier(key.Key)
 	case OpaqueVerifier:
-		return &opaqueVerifier{verifier: verificationKey}, nil
+		return &opaqueVerifier{verifier: key}, nil
 	default:
 		return nil, ErrUnsupportedKeyType
 	}
@@ -368,11 +378,64 @@ func (ctx *genericSigner) Options() SignerOptions {
 //   - HS384: 48 bytes
 //   - HS512: 64 bytes
 func (obj JSONWebSignature) Verify(verificationKey interface{}) ([]byte, error) {
-	err := obj.DetachedVerify(obj.payload, verificationKey)
+	// Refuse to verify with private keys - they must be public
+	switch k := verificationKey.(type) {
+	case *JSONWebKey:
+		if !k.IsPublic() {
+			return nil, errors.New("go-jose/go-jose: cannot verify with private key")
+		}
+	case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+		return nil, errors.New("go-jose/go-jose: cannot verify with private key")
+	}
+
+	// If no signatures present, return error
+	if len(obj.Signatures) == 0 {
+		return nil, errors.New("go-jose/go-jose: no signatures in payload")
+	}
+
+	// Try to verify any of the signatures
+	key, err := tryJWKS(verificationKey, obj.headers()...)
 	if err != nil {
 		return nil, err
 	}
-	return obj.payload, nil
+
+	verifier, err := newVerifier(key)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, signature := range obj.Signatures {
+		headers := signature.mergedHeaders()
+		critical, err := headers.getCritical()
+		if err != nil {
+			continue
+		}
+
+		// Check that there are no unrecognized critical headers
+		var unsupported bool
+		for _, header := range critical {
+			if !supportedCritical[header] {
+				unsupported = true
+				break
+			}
+		}
+		if unsupported {
+			continue
+		}
+
+		input, err := obj.computeAuthData(obj.payload, &signature)
+		if err != nil {
+			continue
+		}
+
+		alg := headers.getSignatureAlgorithm()
+		err = verifier.verifyPayload(input, signature.Signature, alg)
+		if err == nil {
+			return obj.payload, nil
+		}
+	}
+
+	return nil, ErrCryptoFailure
 }
 
 // UnsafePayloadWithoutVerification returns the payload without
@@ -388,7 +451,7 @@ func (obj JSONWebSignature) UnsafePayloadWithoutVerification() []byte {
 // each other.
 //
 // The verificationKey argument must have one of the types allowed for the
-// verificationKey argument of JSONWebSignature.Verify().
+// corresponding signature algorithm. See RFC 7518 for details.
 func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey interface{}) error {
 	key, err := tryJWKS(verificationKey, obj.headers()...)
 	if err != nil {
