@@ -749,3 +749,13 @@ func TestInvalidHMACKeySize(t *testing.T) {
 	_, err = s.Sign([]byte("Lorem ipsum dolor sit amet"))
 	assert.ErrorIs(t, err, ErrInvalidKeySize)
 }
+
+func BenchmarkParseSignedCompat(b *testing.B) {
+	raw := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJpc3N1ZXIiLCJzdWIiOiJzdWJqZWN0In0.OFD0iVfPczqWBA_TRi1jGB5PF699eekcHt4D6qNoimc`
+
+	for b.Loop() {
+		if _, err := ParseSignedCompact(raw, []SignatureAlgorithm{HS256}); err != nil {
+			panic(err)
+		}
+	}
+}
