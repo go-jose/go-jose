@@ -288,11 +288,20 @@ func ParseEncryptedCompact(
 	keyAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
 ) (*JSONWebEncryption, error) {
-	// Five parts is four separators
-	if strings.Count(input, ".") != 4 {
-		return nil, fmt.Errorf("go-jose/go-jose: compact JWE format must have five parts")
+	var parts [5]string
+	var ok bool
+
+	for i := range 4 {
+		parts[i], input, ok = strings.Cut(input, ".")
+		if !ok {
+			return nil, errors.New("go-jose/go-jose: compact JWE format must have five parts")
+		}
 	}
-	parts := strings.SplitN(input, ".", 5)
+	// Validate that the last part does not contain more dots
+	if strings.ContainsRune(input, '.') {
+		return nil, errors.New("go-jose/go-jose: compact JWE format must have five parts")
+	}
+	parts[4] = input
 
 	rawProtected, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
