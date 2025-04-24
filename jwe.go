@@ -342,7 +342,8 @@ func ParseEncryptedCompact(
 // CompactSerialize serializes an object using the compact serialization format.
 func (obj JSONWebEncryption) CompactSerialize() (string, error) {
 	if len(obj.recipients) != 1 || obj.unprotected != nil ||
-		obj.protected == nil || obj.recipients[0].header != nil {
+		obj.protected == nil || obj.recipients[0].header != nil ||
+		len(obj.aad) > 0 {
 		return "", ErrNotSupported
 	}
 
