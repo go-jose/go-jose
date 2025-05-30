@@ -274,7 +274,7 @@ func validateAlgEnc(headers rawHeader, keyAlgorithms []KeyAlgorithm, contentEncr
 	if alg != "" && !containsKeyAlgorithm(keyAlgorithms, alg) {
 		return fmt.Errorf("unexpected key algorithm %q; expected %q", alg, keyAlgorithms)
 	}
-	if alg != "" && !containsContentEncryption(contentEncryption, enc) {
+	if enc != "" && !containsContentEncryption(contentEncryption, enc) {
 		return fmt.Errorf("unexpected content encryption algorithm %q; expected %q", enc, contentEncryption)
 	}
 	return nil
