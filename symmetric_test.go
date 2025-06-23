@@ -19,7 +19,6 @@ package jose
 import (
 	"bytes"
 	"crypto/cipher"
-	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
 	"io"
@@ -181,7 +180,7 @@ func TestVectorPBES2_HS256A_128KW(t *testing.T) {
 		188, 66, 125, 36, 200, 222, 124, 5, 103, 249, 52, 117, 184, 140, 81,
 		246, 158, 161, 177, 20, 33, 245, 57, 59, 4}
 
-	derivedKey, err := pbkdf2.Key(sha256.New, string(cipher.key), salt, cipher.p2c, 16)
+	derivedKey, err := pbkdf2Key(sha256.New, string(cipher.key), salt, cipher.p2c, 16)
 	if err != nil {
 		t.Fatal("Unable to encrypt:", err)
 	}
