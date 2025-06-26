@@ -175,6 +175,8 @@ func (k JSONWebKey) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON reads a key from its JSON representation.
+//
+// Returns ErrUnsupportedKeyType for unrecognized or unsupported "kty" header values.
 func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 	var raw rawJSONWebKey
 	err = json.Unmarshal(data, &raw)
@@ -228,7 +230,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 		}
 		key, err = raw.symmetricKey()
 	case "OKP":
-		if raw.Crv == "Ed25519" && raw.X != nil {
+		if raw.Crv == "Ed25519" {
 			if raw.D != nil {
 				key, err = raw.edPrivateKey()
 				if err == nil {
@@ -238,15 +240,25 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 				key, err = raw.edPublicKey()
 				keyPub = key
 			}
-		} else {
-			return fmt.Errorf("go-jose/go-jose: unknown curve '%s'", raw.Crv)
 		}
-	default:
-		return fmt.Errorf("go-jose/go-jose: unknown json web key type '%s'", raw.Kty)
+	case "":
+		// kty MUST be present
+		err = fmt.Errorf("go-jose/go-jose: missing json web key type")
 	}
 
 	if err != nil {
 		return
+	}
+
+	if key == nil {
+		// RFC 7517:
+		// 5.  JWK Set Format
+		// ...
+		//     Implementations SHOULD ignore JWKs within a JWK Set that use "kty"
+		//     (key type) values that are not understood by them, that are missing
+		//     required members, or for which values are out of the supported
+		//     ranges.
+		return ErrUnsupportedKeyType
 	}
 
 	if certPub != nil && keyPub != nil {
