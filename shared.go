@@ -17,11 +17,13 @@
 package jose
 
 import (
+	"bytes"
 	"crypto/elliptic"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/go-jose/go-jose/v4/json"
 )
@@ -197,6 +199,70 @@ type Header struct {
 	//
 	// [json.Unmarshal]: https://pkg.go.dev/encoding/json#Unmarshal
 	ExtraHeaders map[HeaderKey]interface{}
+}
+
+// Equal compares a header struct with another header struct
+func (h1 Header) Equal(h2 any) bool {
+	h2Typed, ok := h2.(Header)
+	if !ok {
+		return false
+	}
+	if h1.KeyID != h2Typed.KeyID {
+		return false
+	}
+	if h1.JSONWebKey == nil && h2Typed.JSONWebKey != nil {
+		return false
+	}
+	if h1.JSONWebKey != nil && h2Typed.JSONWebKey == nil {
+		return false
+	}
+	if h1.JSONWebKey != nil && h2Typed.JSONWebKey != nil {
+		h1JSONWebKey, err := h1.JSONWebKey.MarshalJSON()
+		if err != nil {
+			return false
+		}
+		h2JSONWebKey, err := h2Typed.JSONWebKey.MarshalJSON()
+		if err != nil {
+			return false
+		}
+		if !bytes.Equal(h1JSONWebKey, h2JSONWebKey) {
+			return false
+		}
+	}
+	if h1.Algorithm != h2Typed.Algorithm {
+		return false
+	}
+	if h1.Nonce != h2Typed.Nonce {
+		return false
+	}
+	if !slices.EqualFunc(h1.certificates, h2Typed.certificates, func(v1, v2 *x509.Certificate) bool {
+		return bytes.Equal(v1.Raw, v2.Raw)
+	}) {
+		return false
+	}
+
+	if len(h1.ExtraHeaders) != len(h2Typed.ExtraHeaders) {
+		return false
+	}
+
+	for i := range h1.ExtraHeaders {
+		if _, ok := h2Typed.ExtraHeaders[i]; !ok {
+			return false
+		}
+		v1, err := json.Marshal(h1.ExtraHeaders[i])
+		if err != nil {
+			return false
+		}
+		v2, err := json.Marshal(h2Typed.ExtraHeaders[i])
+		if err != nil {
+			return false
+		}
+		if !bytes.Equal(v1, v2) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Certificates verifies & returns the certificate chain present
