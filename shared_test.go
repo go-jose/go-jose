@@ -15,7 +15,7 @@ func TestHeaderEqual(t *testing.T) {
 	}
 	ok := header1.Equal(header2)
 	if !ok {
-		t.Fatalf("neader1 and header2 are not equal, expected equal")
+		t.Fatalf("header1 and header2 are not equal, expected equal")
 	}
 }
 
@@ -32,6 +32,6 @@ func TestHeaderNotEqual(t *testing.T) {
 	}
 	ok := header1.Equal(header2)
 	if ok {
-		t.Fatalf("neader1 and header2 are equal, expected not equal")
+		t.Fatalf("header1 and header2 are equal, expected not equal")
 	}
 }

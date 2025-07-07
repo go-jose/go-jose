@@ -7,8 +7,8 @@ type TestStruct1 struct {
 	B int
 }
 
-func (ts1 TestStruct1) Equal(ts2 any) bool {
-	return ts1.A == ts2.(TestStruct1).A && ts1.B == ts2.(TestStruct1).B
+func (ts1 TestStruct1) Equal(ts2 TestStruct1) bool {
+	return ts1.A == ts2.A && ts1.B == ts2.B
 }
 
 func TestEqualSliceFunc(t *testing.T) {

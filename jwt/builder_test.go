@@ -41,14 +41,8 @@ type testClaims struct {
 	Subject string `json:"sub"`
 }
 
-func (tc1 testClaims) Equal(tc2 any) bool {
-	if tc2Typed, ok := tc2.(testClaims); ok {
-		return tc1.Subject == tc2Typed.Subject
-	}
-	if tc2Typed, ok := tc2.(*testClaims); ok {
-		return tc1.Subject == tc2Typed.Subject
-	}
-	return false
+func (tc1 testClaims) Equal(tc2 testClaims) bool {
+	return tc1.Subject == tc2.Subject
 }
 
 type invalidMarshalClaims struct {
@@ -189,7 +183,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 			if nested, err := jwt.Decrypt(encryptionKey); assert.NoError(t, err) {
 				out := &testClaims{}
 				assert.NoError(t, nested.Claims(&testPrivRSAKey1.PublicKey, out))
-				assert.EqualFunc(t, &testClaims{"foo"}, out)
+				assert.EqualFunc(t, testClaims{"foo"}, *out)
 			}
 		}
 	}
@@ -219,7 +213,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 				}}, jws.Headers)
 				out := &testClaims{}
 				assert.NoError(t, jws.Claims(&testPrivRSAKey1.PublicKey, out))
-				assert.EqualFunc(t, &testClaims{"foo"}, out)
+				assert.EqualFunc(t, testClaims{"foo"}, *out)
 			}
 		}
 	}
