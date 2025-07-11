@@ -28,17 +28,20 @@ libraries in other languages.
 
 ### Versions
 
-[Version 4](https://github.com/go-jose/go-jose)
-([branch](https://github.com/go-jose/go-jose/tree/main),
-[doc](https://pkg.go.dev/github.com/go-jose/go-jose/v4), [releases](https://github.com/go-jose/go-jose/releases)) is the current stable version:
+The forthcoming Version 5 will be released with several breaking API changes,
+and will require Golang's `encoding/json/v2`, which is currently requires 
+Go 1.25 built with GOEXPERIMENT=jsonv2.
+
+Version 4 is the current stable version:
 
     import "github.com/go-jose/go-jose/v4"
 
-The old [square/go-jose](https://github.com/square/go-jose) repo contains the prior v1 and v2 versions, which
-are still useable but not actively developed anymore.
+It supports at least the current and previous Golang release. Currently it
+requires Golang 1.23.
 
-Version 3, in this repo, is still receiving security fixes but not functionality
-updates.
+Version 3 is only receiving critical security updates. Migration to Version 4 is recommended.
+
+Versions 1 and 2 are obsolete, but can be found in the old repository, [square/go-jose](https://github.com/square/go-jose).
 
 ### Supported algorithms
 
