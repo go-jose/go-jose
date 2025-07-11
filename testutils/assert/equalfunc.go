@@ -7,12 +7,12 @@ type EqualCapability[T any] interface {
 func EqualSliceFunc[T EqualCapability[T]](t TInterface, expected, actual []T) bool {
 	t.Helper()
 	if len(expected) != len(actual) {
-		t.Errorf("slice are not of equal lengths")
+		t.Errorf("slices are not of equal length")
 		return false
 	}
 	for i := range actual {
 		if !expected[i].Equal(actual[i]) {
-			t.Errorf("expected slice (%+v) is not equal to actual slice (%+v)", actual, expected)
+			t.Errorf("expected slice (%+v) is not equal to actual slice (%+v)", expected, actual)
 			return false
 		}
 	}
