@@ -255,7 +255,7 @@ func TestRoundtripsJWECorrupted(t *testing.T) {
 	}
 }
 
-func TestEncrypterWithJWKAndKeyID(t *testing.T) {
+func TestEncrypterWithJWKAndKeyIDByReference(t *testing.T) {
 	enc, err := NewEncrypter(A128GCM, Recipient{Algorithm: A128KW, Key: &JSONWebKey{
 		KeyID: "test-id",
 		Key:   []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
@@ -277,6 +277,31 @@ func TestEncrypterWithJWKAndKeyID(t *testing.T) {
 	}
 	if parsed2.Header.KeyID != "test-id" {
 		t.Errorf("expected message to have key id from JWK, but found '%s' instead", parsed2.Header.KeyID)
+	}
+}
+
+func TestEncrypterWithJWKAndKeyIDByValue(t *testing.T) {
+	enc, err := NewEncrypter(A128GCM, Recipient{Algorithm: A128KW, Key: JSONWebKey{
+		KeyID: "test-id-value",
+		Key:   []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+	}}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	ciphertext, _ := enc.Encrypt([]byte("Lorem ipsum dolor sit amet"))
+
+	serialized1, _ := ciphertext.CompactSerialize()
+	serialized2 := ciphertext.FullSerialize()
+
+	parsed1, _ := ParseEncrypted(serialized1, []KeyAlgorithm{A128KW}, []ContentEncryption{A128GCM})
+	parsed2, _ := ParseEncrypted(serialized2, []KeyAlgorithm{A128KW}, []ContentEncryption{A128GCM})
+
+	if parsed1.Header.KeyID != "test-id-value" {
+		t.Errorf("expected message to have key id from JWK by value, but found '%s' instead", parsed1.Header.KeyID)
+	}
+	if parsed2.Header.KeyID != "test-id-value" {
+		t.Errorf("expected message to have key id from JWK by value, but found '%s' instead", parsed2.Header.KeyID)
 	}
 }
 
