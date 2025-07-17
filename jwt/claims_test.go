@@ -23,7 +23,7 @@ import (
 
 	"github.com/go-jose/go-jose/v4/json"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/go-jose/go-jose/v4/testutils/assert"
 )
 
 func TestEncodeClaims(t *testing.T) {
@@ -72,7 +72,7 @@ func TestDecodeClaims(t *testing.T) {
 	if err := json.Unmarshal(s, &c); assert.NoError(t, err) {
 		assert.Equal(t, "issuer", c.Issuer)
 		assert.Equal(t, "subject", c.Subject)
-		assert.Equal(t, Audience{"a1", "a2"}, c.Audience)
+		assert.EqualSlice(t, Audience{"a1", "a2"}, c.Audience)
 		assert.True(t, now.Equal(c.IssuedAt.Time()))
 		assert.True(t, now.Add(1*time.Hour).Equal(c.Expiry.Time()))
 	}
@@ -80,7 +80,7 @@ func TestDecodeClaims(t *testing.T) {
 	s2 := []byte(`{"aud": "a1"}`)
 	c2 := Claims{}
 	if err := json.Unmarshal(s2, &c2); assert.NoError(t, err) {
-		assert.Equal(t, Audience{"a1"}, c2.Audience)
+		assert.EqualSlice(t, Audience{"a1"}, c2.Audience)
 	}
 
 	invalid := []struct {
@@ -107,7 +107,7 @@ func TestNumericDate(t *testing.T) {
 
 	nonZeroDate := NewNumericDate(time.Unix(0, 0))
 	expected := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
-	assert.Truef(t, expected.Equal(nonZeroDate.Time()), "Expected derived time to be %s", expected)
+	assert.True(t, expected.Equal(nonZeroDate.Time()), "Expected derived time to be %s", expected)
 }
 
 func TestEncodeClaimsTimeValues(t *testing.T) {

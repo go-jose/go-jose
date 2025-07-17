@@ -34,8 +34,8 @@ import (
 
 	"github.com/go-jose/go-jose/v4/json"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-jose/go-jose/v4/testutils/assert"
+	"github.com/go-jose/go-jose/v4/testutils/require"
 )
 
 // Test chain of two X.509 certificates
@@ -397,7 +397,7 @@ func TestCertificatesURL(t *testing.T) {
    "x5u": "://example.com/keys.json"
 }`
 	err = jwk2.UnmarshalJSON([]byte(invalidURLJWK))
-	require.EqualError(t, err, "go-jose/go-jose: invalid JWK, x5u header is invalid URL: parse \"://example.com/keys.json\": missing protocol scheme")
+	require.Equal(t, err.Error(), "go-jose/go-jose: invalid JWK, x5u header is invalid URL: parse \"://example.com/keys.json\": missing protocol scheme")
 }
 
 func TestInvalidThumbprintsX509(t *testing.T) {
