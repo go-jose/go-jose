@@ -168,7 +168,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 	if nested, err := jwt1Deserialized.Decrypt(encryptionKey); assert.NoError(t, err, "Error decrypting signed-then-encrypted token.") {
 		out := &testClaims{}
 		assert.NoError(t, nested.Claims(&testPrivRSAKey1.PublicKey, out))
-		assert.EqualFunc(t, testClaims{"foo"}, *out)
+		assert.Equal(t, testClaims{"foo"}, *out)
 	}
 
 	b := SignedAndEncrypted(rsaSigner, encrypter).Claims(&testClaims{"foo"})
@@ -183,7 +183,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 			if nested, err := jwt.Decrypt(encryptionKey); assert.NoError(t, err) {
 				out := &testClaims{}
 				assert.NoError(t, nested.Claims(&testPrivRSAKey1.PublicKey, out))
-				assert.EqualFunc(t, testClaims{"foo"}, *out)
+				assert.Equal(t, testClaims{"foo"}, *out)
 			}
 		}
 	}
@@ -196,24 +196,30 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 			[]jose.ContentEncryption{jose.A128CBC_HS256},
 			[]jose.SignatureAlgorithm{jose.RS256})
 		if assert.NoError(t, err, "Error parsing signed-then-encrypted full token.") {
-			assert.EqualSliceFunc(t, []jose.Header{{
+			expected := []jose.Header{{
 				Algorithm: string(jose.DIRECT),
 				ExtraHeaders: map[jose.HeaderKey]interface{}{
 					jose.HeaderType:        "JWT",
 					jose.HeaderContentType: "JWT",
 					"enc":                  "A128CBC-HS256",
 				},
-			}}, jwe.Headers)
+			}}
+			if !reflect.DeepEqual(jwe.Headers, expected) {
+				t.Errorf("headers from ParseSignedAndEncrypted() = %v, want %v", jwe.Headers, expected)
+			}
 			if jws, err := jwe.Decrypt(encryptionKey); assert.NoError(t, err) {
-				assert.EqualSliceFunc(t, []jose.Header{{
+				expected := []jose.Header{{
 					Algorithm: string(jose.RS256),
 					ExtraHeaders: map[jose.HeaderKey]interface{}{
 						jose.HeaderType: "JWT",
 					},
-				}}, jws.Headers)
+				}}
+				if !reflect.DeepEqual(jws.Headers, expected) {
+					t.Errorf("headers from Decrypt() = %v, want %v", jws.Headers, expected)
+				}
 				out := &testClaims{}
 				assert.NoError(t, jws.Claims(&testPrivRSAKey1.PublicKey, out))
-				assert.EqualFunc(t, testClaims{"foo"}, *out)
+				assert.Equal(t, testClaims{"foo"}, *out)
 			}
 		}
 	}
@@ -322,14 +328,17 @@ func TestBuilderHeadersEncrypter(t *testing.T) {
 
 	jwe, err := jose.ParseEncrypted(token, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
 	if assert.NoError(t, err, "error parsing encrypted token") {
-		assert.EqualFunc(t, jose.Header{
+		expected := jose.Header{
 			ExtraHeaders: map[jose.HeaderKey]interface{}{
 				jose.HeaderType: string(wantType),
 				"enc":           "A128CBC-HS256",
 			},
 			Algorithm: string(jose.RSA1_5),
 			KeyID:     wantKeyID,
-		}, jwe.Header)
+		}
+		if !reflect.DeepEqual(jwe.Header, expected) {
+			t.Errorf("header from ParseEncrypted() = %v, want %v", jwe.Header, expected)
+		}
 	}
 }
 

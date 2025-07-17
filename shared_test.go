@@ -1,6 +1,9 @@
 package jose
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestHeaderEqual(t *testing.T) {
 	header1 := Header{
@@ -13,8 +16,7 @@ func TestHeaderEqual(t *testing.T) {
 		Algorithm:    "test",
 		ExtraHeaders: map[HeaderKey]interface{}{"kid": "1-2-3-4"},
 	}
-	ok := header1.Equal(header2)
-	if !ok {
+	if !reflect.DeepEqual(header1, header2) {
 		t.Fatalf("header1 and header2 are not equal, expected equal")
 	}
 }
@@ -30,8 +32,7 @@ func TestHeaderNotEqual(t *testing.T) {
 		Algorithm:    "test",
 		ExtraHeaders: map[HeaderKey]interface{}{"kid": "9-9-9-9"},
 	}
-	ok := header1.Equal(header2)
-	if ok {
+	if reflect.DeepEqual(header1, header2) {
 		t.Fatalf("header1 and header2 are equal, expected not equal")
 	}
 }
