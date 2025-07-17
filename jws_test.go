@@ -697,7 +697,9 @@ func TestJWSComputeAuthDataBase64(t *testing.T) {
 		},
 	})
 	// Invalid header, should return error
-	assert.NotNil(t, err)
+	if err == nil {
+		t.Errorf("expected error when computing auth data for invalid signature")
+	}
 
 	payload := []byte{0x01}
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
@@ -710,7 +712,8 @@ func TestJWSComputeAuthDataBase64(t *testing.T) {
 			Protected: b64TrueHeader,
 		},
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err, "computing auth data for \"b64\": true")
+
 	// Payload should be b64 encoded
 	assert.Len(t, data, len(b64TrueHeader.base64())+len(encodedPayload)+1)
 
@@ -719,7 +722,7 @@ func TestJWSComputeAuthDataBase64(t *testing.T) {
 			Protected: b64FalseHeader,
 		},
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err, "computing auth data for \"b64\": false")
 	// Payload should *not* be b64 encoded
 	assert.Len(t, data, len(b64FalseHeader.base64())+len(payload)+1)
 }
