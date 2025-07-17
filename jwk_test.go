@@ -27,6 +27,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"errors"
 	"math/big"
 	"reflect"
 	"strings"
@@ -675,6 +676,15 @@ func TestWebKeyVectorsInvalid(t *testing.T) {
 		if err == nil {
 			t.Error("managed to parse invalid key:", key)
 		}
+	}
+}
+
+// TestJWKUnsupported checks for an error when parsing a JWK with an unsupported key type.
+func TestJWKUnsupported(t *testing.T) {
+	var jwk JSONWebKey
+	err := jwk.UnmarshalJSON([]byte(`{"kty": "XXX"}`))
+	if !errors.Is(err, ErrUnsupportedKeyType) {
+		t.Error("expected ErrUnsupportedKeyType, got:", err)
 	}
 }
 
