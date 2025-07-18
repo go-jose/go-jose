@@ -67,34 +67,6 @@ func TestJSON(t *testing.T) {
 	}
 }
 
-func TestTrue(t *testing.T) {
-	m := &mockT{}
-	if !True(m, true) {
-		t.Fatalf("expected equal")
-	}
-	m.failed = false
-	m.errors = []string{}
-	if True(m, false) {
-		if !m.failed {
-			t.Fatalf("test didn't fail. Expected test to have failed = true")
-		}
-	}
-}
-
-func TestNil(t *testing.T) {
-	m := &mockT{}
-	if !Nil(m, nil) {
-		t.Fatalf("expected nil")
-	}
-	m.failed = false
-	m.errors = []string{}
-	if Nil(m, "string") {
-		if !m.failed {
-			t.Fatalf("test didn't fail. Expected test to have failed = true")
-		}
-	}
-}
-
 func TestNoError(t *testing.T) {
 	m := &mockT{}
 	if !NoError(m, nil) {
@@ -103,20 +75,6 @@ func TestNoError(t *testing.T) {
 	m.failed = false
 	m.errors = []string{}
 	if NoError(m, errors.New("error")) {
-		if !m.failed {
-			t.Fatalf("test didn't fail. Expected test to have failed = true")
-		}
-	}
-}
-
-func TestNotNil(t *testing.T) {
-	m := &mockT{}
-	if !NotNil(m, "string") {
-		t.Fatalf("expected not nil")
-	}
-	m.failed = false
-	m.errors = []string{}
-	if NotNil(m, nil) {
 		if !m.failed {
 			t.Fatalf("test didn't fail. Expected test to have failed = true")
 		}

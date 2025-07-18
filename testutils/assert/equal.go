@@ -53,33 +53,6 @@ func EqualJSON[K comparable, V comparable](t TInterface, actual, expected map[K]
 	return true
 }
 
-func True(t TInterface, actual bool, errMsg ...any) bool {
-	t.Helper()
-	if !actual {
-		t.Errorf("expected true. Got: %v%s", actual, getMsgParameter(errMsg))
-		return false
-	}
-	return true
-}
-
-func NotNil(t TInterface, actual any) bool {
-	t.Helper()
-	if actual == nil {
-		t.Errorf("expected not nil, got %+v", actual)
-		return false
-	}
-	return true
-}
-
-func Nil(t TInterface, actual any) bool {
-	t.Helper()
-	if actual != nil {
-		t.Errorf("expected nil, got %+v", actual)
-		return false
-	}
-	return true
-}
-
 func NoError(t TInterface, err error, errMsg ...any) bool {
 	t.Helper()
 	if err != nil {

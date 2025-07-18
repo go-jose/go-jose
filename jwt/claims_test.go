@@ -73,8 +73,12 @@ func TestDecodeClaims(t *testing.T) {
 		assert.Equal(t, "issuer", c.Issuer)
 		assert.Equal(t, "subject", c.Subject)
 		assert.EqualSlice(t, Audience{"a1", "a2"}, c.Audience)
-		assert.True(t, now.Equal(c.IssuedAt.Time()))
-		assert.True(t, now.Add(1*time.Hour).Equal(c.Expiry.Time()))
+		if !now.Equal(c.IssuedAt.Time()) {
+			t.Errorf("IssuedAt = %s, want %s", c.IssuedAt.Time(), now)
+		}
+		if !now.Add(1 * time.Hour).Equal(c.Expiry.Time()) {
+			t.Errorf("Expiry = %s, want %s", c.Expiry.Time(), now.Add(1*time.Hour))
+		}
 	}
 
 	s2 := []byte(`{"aud": "a1"}`)
@@ -100,14 +104,20 @@ func TestDecodeClaims(t *testing.T) {
 
 func TestNumericDate(t *testing.T) {
 	zeroDate := NewNumericDate(time.Time{})
-	assert.True(t, time.Time{}.Equal(zeroDate.Time()), "Expected derived time to be time.Time{}")
+	if !zeroDate.Time().Equal(time.Time{}) {
+		t.Errorf("zeroDate.Time() = %s, want %s", zeroDate.Time(), time.Time{})
+	}
 
 	zeroDate2 := (*NumericDate)(nil)
-	assert.True(t, time.Time{}.Equal(zeroDate2.Time()), "Expected derived time to be time.Time{}")
+	if !zeroDate2.Time().Equal(time.Time{}) {
+		t.Errorf("zeroDate2.Time() = %s, want %s", zeroDate2.Time(), time.Time{})
+	}
 
 	nonZeroDate := NewNumericDate(time.Unix(0, 0))
 	expected := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
-	assert.True(t, expected.Equal(nonZeroDate.Time()), "Expected derived time to be %s", expected)
+	if !nonZeroDate.Time().Equal(expected) {
+		t.Errorf("nonZeroDate.Time() = %s, want %s", nonZeroDate.Time(), expected)
+	}
 }
 
 func TestEncodeClaimsTimeValues(t *testing.T) {
@@ -127,8 +137,14 @@ func TestEncodeClaimsTimeValues(t *testing.T) {
 
 	c2 := Claims{}
 	if err := json.Unmarshal(b, &c2); assert.NoError(t, err) {
-		assert.True(t, c.NotBefore.Time().Equal(c2.NotBefore.Time()))
-		assert.True(t, c.IssuedAt.Time().Equal(c2.IssuedAt.Time()))
-		assert.True(t, c.Expiry.Time().Equal(c2.Expiry.Time()))
+		if !c.NotBefore.Time().Equal(c2.NotBefore.Time()) {
+			t.Errorf("c2.NotBefore = %s, want %s", c2.NotBefore.Time(), c.NotBefore.Time())
+		}
+		if !c.IssuedAt.Time().Equal(c2.IssuedAt.Time()) {
+			t.Errorf("c2.IssuedAt = %s, want %s", c2.IssuedAt.Time(), c.IssuedAt.Time())
+		}
+		if !c.Expiry.Time().Equal(c2.Expiry.Time()) {
+			t.Errorf("c2.Expiry = %s, want %s", c2.Expiry.Time(), c.Expiry.Time())
+		}
 	}
 }

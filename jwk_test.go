@@ -836,9 +836,9 @@ func TestEd25519Serialization(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.True(t, bytes.Equal(
-		[]byte(jwk.Key.(ed25519.PrivateKey).Public().(ed25519.PublicKey)),
-		[]byte(jwk2.Key.(ed25519.PrivateKey).Public().(ed25519.PublicKey))))
+	assert.EqualSlice(t,
+		jwk.Key.(ed25519.PrivateKey).Public().(ed25519.PublicKey),
+		jwk2.Key.(ed25519.PrivateKey).Public().(ed25519.PublicKey))
 }
 
 type fakeOpaqueSigner struct {
