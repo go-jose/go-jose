@@ -243,7 +243,7 @@ func TestAESCBCOverhead(t *testing.T) {
 }
 
 func TestPadding(t *testing.T) {
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		slice := make([]byte, i)
 		padded := padBuffer(slice, 16)
 		if len(padded)%16 != 0 {
@@ -335,7 +335,7 @@ func TestInvalidPaddingOpen(t *testing.T) {
 }
 
 func TestInvalidPadding(t *testing.T) {
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		slice := make([]byte, i)
 		padded := padBuffer(slice, 16)
 		if len(padded)%16 != 0 {
@@ -395,8 +395,8 @@ func benchEncryptCBCHMAC(b *testing.B, keySize, chunkSize int) {
 	}
 
 	b.SetBytes(int64(chunkSize))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		aead.Seal(nil, nonce, chunk, nil)
 	}
 }
@@ -423,8 +423,8 @@ func benchDecryptCBCHMAC(b *testing.B, keySize, chunkSize int) {
 	out := aead.Seal(nil, nonce, chunk, nil)
 
 	b.SetBytes(int64(chunkSize))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		if _, err = aead.Open(nil, nonce, out, nil); err != nil {
 			b.Fatal(err)
 		}

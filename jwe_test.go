@@ -720,7 +720,7 @@ func TestJWEWithNullAlg(t *testing.T) {
 
 func BenchmarkParseEncryptedCompat(b *testing.B) {
 	msg := "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkExMjhHQ00ifQ.dGVzdA.dGVzdA.dGVzdA.dGVzdA"
-	for range b.N {
+	for b.Loop() {
 		if _, err := ParseEncryptedCompact(msg, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM}); err != nil {
 			panic(err)
 		}

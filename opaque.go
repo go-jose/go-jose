@@ -16,6 +16,8 @@
 
 package jose
 
+import "slices"
+
 // OpaqueSigner is an interface that supports signing payloads with opaque
 // private key(s). Private key operations performed by implementers may, for
 // example, occur in a hardware module. An OpaqueSigner may rotate signing keys
@@ -36,11 +38,8 @@ type opaqueSigner struct {
 
 func newOpaqueSigner(alg SignatureAlgorithm, signer OpaqueSigner) (recipientSigInfo, error) {
 	var algSupported bool
-	for _, salg := range signer.Algs() {
-		if alg == salg {
-			algSupported = true
-			break
-		}
+	if slices.Contains(signer.Algs(), alg) {
+		algSupported = true
 	}
 	if !algSupported {
 		return recipientSigInfo{}, ErrUnsupportedAlgorithm
@@ -101,11 +100,8 @@ type opaqueKeyEncrypter struct {
 
 func newOpaqueKeyEncrypter(alg KeyAlgorithm, encrypter OpaqueKeyEncrypter) (recipientKeyInfo, error) {
 	var algSupported bool
-	for _, salg := range encrypter.Algs() {
-		if alg == salg {
-			algSupported = true
-			break
-		}
+	if slices.Contains(encrypter.Algs(), alg) {
+		algSupported = true
 	}
 	if !algSupported {
 		return recipientKeyInfo{}, ErrUnsupportedAlgorithm

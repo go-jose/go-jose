@@ -256,9 +256,7 @@ func BenchmarkPKCSDecryptWithValidPayloads(b *testing.B) {
 	dec.privateKey = priv
 	aes := newAESGCM(32)
 
-	b.StopTimer()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		plaintext := make([]byte, 32)
 		_, err = io.ReadFull(rand.Reader, plaintext)
 		if err != nil {
@@ -299,9 +297,7 @@ func BenchmarkPKCSDecryptWithInvalidPayloads(b *testing.B) {
 		size: aes.keySize(),
 	}
 
-	b.StopTimer()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		plaintext := make([]byte, 16)
 		_, err = io.ReadFull(rand.Reader, plaintext)
 		if err != nil {

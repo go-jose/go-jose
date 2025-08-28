@@ -24,6 +24,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/go-jose/go-jose/v4/json"
 )
@@ -293,9 +294,7 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 			protected[headerNonce] = nonce
 		}
 
-		for k, v := range ctx.extraHeaders {
-			protected[k] = v
-		}
+		maps.Copy(protected, ctx.extraHeaders)
 
 		serializedProtected := mustSerializeJSON(protected)
 		needsBase64 := true

@@ -239,7 +239,7 @@ func TestTamperedJWT(t *testing.T) {
 }
 
 func BenchmarkDecodeSignedToken(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := ParseSigned(hmacSignedToken, []jose.SignatureAlgorithm{jose.HS256}); err != nil {
 			b.Fatal(err)
 		}
@@ -247,7 +247,7 @@ func BenchmarkDecodeSignedToken(b *testing.B) {
 }
 
 func BenchmarkDecodeEncryptedHMACToken(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := ParseEncrypted(hmacEncryptedToken, []jose.KeyAlgorithm{jose.DIRECT}, []jose.ContentEncryption{jose.A128GCM}); err != nil {
 			b.Fatal(err)
 		}

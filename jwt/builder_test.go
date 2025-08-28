@@ -350,13 +350,13 @@ func BenchmarkMapClaims(b *testing.B) {
 		"aud": []string{"a1", "a2"},
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Signed(rsaSigner).Claims(m)
 	}
 }
 
 func BenchmarkStructClaims(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Signed(rsaSigner).Claims(sampleClaims)
 	}
 }
@@ -364,8 +364,7 @@ func BenchmarkStructClaims(b *testing.B) {
 func BenchmarkSignedSerializeRSA(b *testing.B) {
 	tb := Signed(rsaSigner).Claims(sampleClaims)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := tb.Serialize(); err != nil {
 			b.Fatal(err)
 		}
@@ -375,8 +374,7 @@ func BenchmarkSignedSerializeRSA(b *testing.B) {
 func BenchmarkSignedSerializeSHA(b *testing.B) {
 	tb := Signed(hmacSigner).Claims(sampleClaims)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := tb.Serialize(); err != nil {
 			b.Fatal(err)
 		}

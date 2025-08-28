@@ -114,8 +114,7 @@ func BenchmarkAesKeyWrap(b *testing.B) {
 
 	block, _ := aes.NewCipher(kek)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := KeyWrap(block, key); err != nil {
 			b.Fatal(err)
 		}
@@ -128,8 +127,7 @@ func BenchmarkAesKeyUnwrap(b *testing.B) {
 
 	block, _ := aes.NewCipher(kek)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := KeyUnwrap(block, input); err != nil {
 			b.Fatal(err)
 		}

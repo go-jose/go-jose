@@ -18,6 +18,7 @@
 package jwt
 
 import (
+	"slices"
 	"strconv"
 	"time"
 
@@ -121,10 +122,5 @@ func (s Audience) MarshalJSON() ([]byte, error) {
 
 // Contains checks whether a given string is included in the Audience
 func (s Audience) Contains(v string) bool {
-	for _, a := range s {
-		if a == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, v)
 }

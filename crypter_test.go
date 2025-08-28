@@ -977,7 +977,7 @@ func benchEncrypt(chunkKey, primKey string, b *testing.B) {
 	}
 
 	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := enc.Encrypt(data); err != nil {
 			b.Fatal(err)
 		}
@@ -1154,8 +1154,8 @@ func benchDecrypt(chunkKey, primKey string, b *testing.B) {
 	}
 
 	b.SetBytes(int64(len(chunk)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		if _, err := data.Decrypt(dec); err != nil {
 			b.Fatal(err)
 		}

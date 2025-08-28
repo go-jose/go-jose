@@ -126,9 +126,8 @@ func benchmarkKDF(b *testing.B, total int) {
 	out := make([]byte, total)
 	reader := NewConcatKDF(crypto.SHA256, z, algID, ptyUInfo, ptyVInfo, supPubInfo, supPrivInfo)
 
-	b.ResetTimer()
 	b.SetBytes(int64(total))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = reader.Read(out)
 	}
 }

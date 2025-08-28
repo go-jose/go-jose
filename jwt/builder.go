@@ -19,6 +19,7 @@ package jwt
 
 import (
 	"bytes"
+	"maps"
 	"reflect"
 
 	"github.com/go-jose/go-jose/v4/json"
@@ -150,12 +151,8 @@ func normalize(i interface{}) (map[string]interface{}, error) {
 
 func (b *builder) merge(m map[string]interface{}) builder {
 	p := make(map[string]interface{})
-	for k, v := range b.payload {
-		p[k] = v
-	}
-	for k, v := range m {
-		p[k] = v
-	}
+	maps.Copy(p, b.payload)
+	maps.Copy(p, m)
 
 	return builder{
 		payload: p,
