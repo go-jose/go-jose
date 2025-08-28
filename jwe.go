@@ -106,14 +106,6 @@ func (obj JSONWebEncryption) computeAuthData() []byte {
 	return output
 }
 
-func containsKeyAlgorithm(haystack []KeyAlgorithm, needle KeyAlgorithm) bool {
-	return slices.Contains(haystack, needle)
-}
-
-func containsContentEncryption(haystack []ContentEncryption, needle ContentEncryption) bool {
-	return slices.Contains(haystack, needle)
-}
-
 // ParseEncrypted parses an encrypted message in JWE Compact or JWE JSON Serialization.
 //
 // https://datatracker.ietf.org/doc/html/rfc7516#section-3.1
@@ -262,10 +254,10 @@ func (parsed *rawJSONWebEncryption) sanitized(
 func validateAlgEnc(headers rawHeader, keyAlgorithms []KeyAlgorithm, contentEncryption []ContentEncryption) error {
 	alg := headers.getAlgorithm()
 	enc := headers.getEncryption()
-	if alg != "" && !containsKeyAlgorithm(keyAlgorithms, alg) {
+	if alg != "" && !slices.Contains(keyAlgorithms, alg) {
 		return fmt.Errorf("unexpected key algorithm %q; expected %q", alg, keyAlgorithms)
 	}
-	if enc != "" && !containsContentEncryption(contentEncryption, enc) {
+	if enc != "" && !slices.Contains(contentEncryption, enc) {
 		return fmt.Errorf("unexpected content encryption algorithm %q; expected %q", enc, contentEncryption)
 	}
 	return nil

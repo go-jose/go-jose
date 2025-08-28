@@ -196,10 +196,6 @@ func ParseSignedJSON(
 	return parsed.sanitized(signatureAlgorithms)
 }
 
-func containsSignatureAlgorithm(haystack []SignatureAlgorithm, needle SignatureAlgorithm) bool {
-	return slices.Contains(haystack, needle)
-}
-
 // ErrUnexpectedSignatureAlgorithm is returned when the signature algorithm in
 // the JWS header does not match one of the expected algorithms.
 type ErrUnexpectedSignatureAlgorithm struct {
@@ -273,7 +269,7 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 		}
 
 		alg := SignatureAlgorithm(signature.Header.Algorithm)
-		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
+		if !slices.Contains(signatureAlgorithms, alg) {
 			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
@@ -321,7 +317,7 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 		}
 
 		alg := SignatureAlgorithm(obj.Signatures[i].Header.Algorithm)
-		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
+		if !slices.Contains(signatureAlgorithms, alg) {
 			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
