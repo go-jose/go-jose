@@ -17,9 +17,10 @@
 
 package jwt
 
-import "slices"
-
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 const (
 	// DefaultLeeway defines the default leeway for matching NotBefore/Expiry claims.
