@@ -21,7 +21,7 @@ jobs:
         persist-credentials: false
 
     - name: Set up Go ${{ matrix.GO_VERSION }}
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: "${{ matrix.GO_VERSION }}"
 
@@ -44,7 +44,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go ${{ matrix.GO_VERSION }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           # When Go produces a security release, we want govulncheck to run
           # against the most recently released Go version.
