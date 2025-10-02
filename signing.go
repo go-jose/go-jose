@@ -406,8 +406,12 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 	signature := obj.Signatures[0]
 
 	if signature.header != nil {
-		// No unsupported headers should be present in the unprotected header
-		err = signature.header.checkSupportedCritical(nil)
+		// Per https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.11,
+		// 4.1.11. "crit" (Critical) Header Parameter
+		// "When used, this Header Parameter MUST be integrity
+		// protected; therefore, it MUST occur only within the JWS
+		// Protected Header.
+		err = signature.header.checkNoCritical()
 		if err != nil {
 			return err
 		}
@@ -475,8 +479,12 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 outer:
 	for i, signature := range obj.Signatures {
 		if signature.header != nil {
-			// No unsupported headers should be present in the unprotected header
-			err = signature.header.checkSupportedCritical(nil)
+			// Per https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.11,
+			// 4.1.11. "crit" (Critical) Header Parameter
+			// "When used, this Header Parameter MUST be integrity
+			// protected; therefore, it MUST occur only within the JWS
+			// Protected Header.
+			err = signature.header.checkNoCritical()
 			if err != nil {
 				continue outer
 			}

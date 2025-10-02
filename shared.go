@@ -349,6 +349,15 @@ func (parsed rawHeader) getCritical() ([]string, error) {
 	return q, nil
 }
 
+// checkNoCritical verifies there are no critical headers present.
+func (parsed rawHeader) checkNoCritical() error {
+	if _, ok := parsed[headerCritical]; ok {
+		return ErrUnsupportedCriticalHeader
+	}
+
+	return nil
+}
+
 // checkSupportedCritical verifies there are no unsupported critical headers.
 // Supported headers are passed in as a set: map of names to empty structs
 func (parsed rawHeader) checkSupportedCritical(supported map[string]struct{}) error {
