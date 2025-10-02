@@ -410,7 +410,7 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 		// 4.1.11. "crit" (Critical) Header Parameter
 		// "When used, this Header Parameter MUST be integrity
 		// protected; therefore, it MUST occur only within the JWS
-		// Protected Header.
+		// Protected Header."
 		err = signature.header.checkNoCritical()
 		if err != nil {
 			return err
