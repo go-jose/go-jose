@@ -28,7 +28,7 @@ import (
 
 // rawJSONWebSignature represents a raw JWS JSON object. Used for parsing/serializing.
 type rawJSONWebSignature struct {
-	Payload    *byteBuffer        `json:"payload,omitempty"`
+	Payload    string             `json:"payload,omitempty"`
 	Signatures []rawSignatureInfo `json:"signatures,omitempty"`
 	Protected  *byteBuffer        `json:"protected,omitempty"`
 	Header     *rawHeader         `json:"header,omitempty"`
@@ -192,7 +192,7 @@ func ParseSignedJSON(
 		return nil, err
 	}
 
-	return parsed.sanitized(signatureAlgorithms)
+	return parsed.sanitized(signatureAlgorithms, false)
 }
 
 func containsSignatureAlgorithm(haystack []SignatureAlgorithm, needle SignatureAlgorithm) bool {
@@ -224,20 +224,19 @@ func newErrUnexpectedSignatureAlgorithm(got SignatureAlgorithm, expected []Signa
 }
 
 // sanitized produces a cleaned-up JWS object from the raw JSON.
-func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgorithm) (*JSONWebSignature, error) {
+func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgorithm, detached bool) (*JSONWebSignature, error) {
 	if len(signatureAlgorithms) == 0 {
 		return nil, errors.New("go-jose/go-jose: no signature algorithms specified")
 	}
-	if parsed.Payload == nil {
-		return nil, fmt.Errorf("go-jose/go-jose: missing payload in JWS message")
-	}
 
 	obj := &JSONWebSignature{
-		payload:    parsed.Payload.bytes(),
 		Signatures: make([]Signature, len(parsed.Signatures)),
 	}
 
+	// RFC 7797 JWS Unencoded Payload Option
+	needsBase64 := true
 	if len(parsed.Signatures) == 0 {
+
 		// No signatures array, must be flattened serialization
 		signature := Signature{}
 		if parsed.Protected != nil && len(parsed.Protected.bytes()) > 0 {
@@ -245,6 +244,10 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 			err := json.Unmarshal(parsed.Protected.bytes(), signature.protected)
 			if err != nil {
 				return nil, err
+			}
+			// RFC 7797 JWS Unencoded Payload Option
+			if b, err := signature.protected.getB64(); err == nil {
+				needsBase64 = b
 			}
 		}
 
@@ -354,8 +357,27 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 		// Copy value of sig
 		original := sig
 
+		// RFC 7797 JWS Unencoded Payload Option
+		if b, err := obj.Signatures[i].protected.getB64(); err == nil {
+			needsBase64 = b
+		}
+
 		obj.Signatures[i].header = sig.Header
 		obj.Signatures[i].original = &original
+	}
+
+	// Only non-detached signatures with b64=false (default) are base64-encoded
+	if !detached && needsBase64 {
+		// Standard JWS signature
+		decoded, err := base64.RawURLEncoding.DecodeString(parsed.Payload)
+		if err != nil {
+			return nil, err
+		}
+		obj.payload = decoded
+	} else {
+		// RFC 7797 JWS Unencoded Payload Option or
+		// detached signature
+		obj.payload = []byte(parsed.Payload)
 	}
 
 	return obj, nil
@@ -390,11 +412,14 @@ func parseSignedCompact(
 		return nil, err
 	}
 
+	var pl string
+	var detached bool
 	if payload == nil {
-		payload, err = base64.RawURLEncoding.DecodeString(claims)
-		if err != nil {
-			return nil, err
-		}
+		detached = false
+		pl = claims
+	} else {
+		detached = true
+		pl = string(payload)
 	}
 
 	signature, err := base64.RawURLEncoding.DecodeString(sig)
@@ -403,11 +428,11 @@ func parseSignedCompact(
 	}
 
 	raw := &rawJSONWebSignature{
-		Payload:   newBuffer(payload),
+		Payload:   pl,
 		Protected: newBuffer(rawProtected),
 		Signature: newBuffer(signature),
 	}
-	return raw.sanitized(signatureAlgorithms)
+	return raw.sanitized(signatureAlgorithms, detached)
 }
 
 func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
@@ -417,16 +442,34 @@ func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 
 	serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
 
+	needsBase64 := true
+	if b, err := obj.Signatures[0].protected.getB64(); err == nil {
+		needsBase64 = b
+	}
+
+	if !needsBase64 && !detached {
+		// RFC 7797 §7.2: Compact serialization with non-detached payload can only be used if the
+		// payload contains no '.' characters and is otherwise safe for transport.
+		if bytes.Contains(obj.payload, []byte{'.'}) {
+			return "", fmt.Errorf("payload contains '.' and cannot be represented in compact serialization (RFC 7797 §7.2)")
+		}
+	}
+
 	var payload []byte
 	if !detached {
 		payload = obj.payload
 	}
 
-	return base64JoinWithDots(
-		serializedProtected,
-		payload,
-		obj.Signatures[0].Signature,
-	), nil
+	protectedPart := base64.RawURLEncoding.EncodeToString(serializedProtected)
+	var payloadPart string
+	if needsBase64 {
+		payloadPart = base64.RawURLEncoding.EncodeToString(payload)
+	} else {
+		payloadPart = string(payload)
+	}
+	signaturePart := base64.RawURLEncoding.EncodeToString(obj.Signatures[0].Signature)
+
+	return strings.Join([]string{protectedPart, payloadPart, signaturePart}, "."), nil
 }
 
 // CompactSerialize serializes an object using the compact serialization format.
@@ -441,14 +484,17 @@ func (obj JSONWebSignature) DetachedCompactSerialize() (string, error) {
 
 // FullSerialize serializes an object using the full JSON serialization format.
 func (obj JSONWebSignature) FullSerialize() string {
-	raw := rawJSONWebSignature{
-		Payload: newBuffer(obj.payload),
-	}
 
+	raw := rawJSONWebSignature{}
+
+	needsBase64 := true
 	if len(obj.Signatures) == 1 {
 		if obj.Signatures[0].protected != nil {
 			serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
 			raw.Protected = newBuffer(serializedProtected)
+			if b, err := obj.Signatures[0].protected.getB64(); err == nil {
+				needsBase64 = b
+			}
 		}
 		raw.Header = obj.Signatures[0].header
 		raw.Signature = newBuffer(obj.Signatures[0].Signature)
@@ -462,8 +508,18 @@ func (obj JSONWebSignature) FullSerialize() string {
 
 			if signature.protected != nil {
 				raw.Signatures[i].Protected = newBuffer(mustSerializeJSON(signature.protected))
+				if b, err := obj.Signatures[0].protected.getB64(); err == nil {
+					needsBase64 = b
+				}
+
 			}
 		}
+	}
+
+	if needsBase64 {
+		raw.Payload = base64.RawURLEncoding.EncodeToString(obj.payload)
+	} else {
+		raw.Payload = string(obj.payload)
 	}
 
 	return string(mustSerializeJSON(raw))

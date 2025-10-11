@@ -429,7 +429,7 @@ func TestHeaderFieldsFull(t *testing.T) {
 }
 
 func TestErrorMissingPayloadJWS(t *testing.T) {
-	_, err := (&rawJSONWebSignature{}).sanitized([]SignatureAlgorithm{RS256})
+	_, err := (&rawJSONWebSignature{}).sanitized([]SignatureAlgorithm{RS256}, false)
 	if err == nil {
 		t.Error("was able to parse message with missing payload")
 	}
