@@ -132,6 +132,11 @@ func ParseDetached(
 	if payload == nil {
 		return nil, errors.New("go-jose/go-jose: nil payload")
 	}
+	signature = stripWhitespace(signature)
+	if strings.HasPrefix(signature, "{") {
+		return parseSignedJSON(signature, payload, signatureAlgorithms)
+	}
+
 	return parseSignedCompact(stripWhitespace(signature), payload, signatureAlgorithms)
 }
 
@@ -186,13 +191,7 @@ func ParseSignedJSON(
 	input string,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
-	var parsed rawJSONWebSignature
-	err := json.Unmarshal([]byte(input), &parsed)
-	if err != nil {
-		return nil, err
-	}
-
-	return parsed.sanitized(signatureAlgorithms, false)
+	return parseSignedJSON(input, nil, signatureAlgorithms)
 }
 
 func containsSignatureAlgorithm(haystack []SignatureAlgorithm, needle SignatureAlgorithm) bool {
@@ -435,6 +434,32 @@ func parseSignedCompact(
 	return raw.sanitized(signatureAlgorithms, detached)
 }
 
+// parseSignedJSON parses a message in JSON format.
+func parseSignedJSON(
+	input string,
+	payload []byte,
+	signatureAlgorithms []SignatureAlgorithm,
+) (*JSONWebSignature, error) {
+
+	var parsed rawJSONWebSignature
+	err := json.Unmarshal([]byte(input), &parsed)
+	if err != nil {
+		return nil, err
+	}
+
+	if parsed.Payload != "" && payload != nil {
+		return nil, fmt.Errorf("go-jose/go-jose: payload is not detached")
+	}
+
+	detached := false
+	if payload != nil {
+		detached = true
+		parsed.Payload = string(payload)
+	}
+
+	return parsed.sanitized(signatureAlgorithms, detached)
+}
+
 func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 	if len(obj.Signatures) != 1 || obj.Signatures[0].header != nil || obj.Signatures[0].protected == nil {
 		return "", ErrNotSupported
@@ -482,9 +507,7 @@ func (obj JSONWebSignature) DetachedCompactSerialize() (string, error) {
 	return obj.compactSerialize(true)
 }
 
-// FullSerialize serializes an object using the full JSON serialization format.
-func (obj JSONWebSignature) FullSerialize() string {
-
+func (obj JSONWebSignature) fullSerialize(detached bool) string {
 	raw := rawJSONWebSignature{}
 
 	needsBase64 := true
@@ -516,11 +539,23 @@ func (obj JSONWebSignature) FullSerialize() string {
 		}
 	}
 
-	if needsBase64 {
-		raw.Payload = base64.RawURLEncoding.EncodeToString(obj.payload)
-	} else {
-		raw.Payload = string(obj.payload)
+	if !detached {
+		if needsBase64 {
+			raw.Payload = base64.RawURLEncoding.EncodeToString(obj.payload)
+		} else {
+			raw.Payload = string(obj.payload)
+		}
 	}
 
 	return string(mustSerializeJSON(raw))
+}
+
+// FullSerialize serializes an object using the full JSON serialization format.
+func (obj JSONWebSignature) FullSerialize() string {
+	return obj.fullSerialize(false)
+}
+
+// DetachedFullSerialize serializes an object using the full JSON serialization format with detached payload.
+func (obj JSONWebSignature) DetachedFullSerialize() string {
+	return obj.fullSerialize(true)
 }
