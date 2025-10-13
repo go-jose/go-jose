@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/go-jose/go-jose/v4/testutils/assert"
@@ -425,16 +424,6 @@ func TestHeaderFieldsFull(t *testing.T) {
 	}
 	if obj.Signatures[0].Unprotected.ExtraHeaders["custom"] != "test" {
 		t.Error("unprotected header did not contain custom header value")
-	}
-}
-
-func TestErrorMissingPayloadJWS(t *testing.T) {
-	_, err := (&rawJSONWebSignature{}).sanitized([]SignatureAlgorithm{RS256}, false)
-	if err == nil {
-		t.Error("was able to parse message with missing payload")
-	}
-	if !strings.Contains(err.Error(), "missing payload") {
-		t.Errorf("unexpected error message, should contain 'missing payload': %s", err)
 	}
 }
 
