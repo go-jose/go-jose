@@ -572,9 +572,9 @@ func TestSignerExtraHeaderInclusion(t *testing.T) {
 	}
 }
 
-func TestSignerB64(t *testing.T) {
-	const exp = "eyJhbGciOiJIUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19.JC4wMg.A5dxf2s96_n5FLueVuW1Z_vh161FwXZC4YLPff6dmDY"
+func TestSignVerifyParams(t *testing.T) {
 
+	// RFC 7517 Appendix A.1 example key
 	key := []byte{
 		0x03, 0x23, 0x35, 0x4b, 0x2b, 0x0f, 0xa5, 0xbc, 0x83, 0x7e, 0x06, 0x65, 0x77, 0x7b, 0xa6, 0x8f,
 		0x5a, 0xb3, 0x28, 0xe6, 0xf0, 0x54, 0xc9, 0x28, 0xa9, 0x0f, 0x84, 0xb2, 0xd2, 0x50, 0x2e, 0xbf,
@@ -582,42 +582,215 @@ func TestSignerB64(t *testing.T) {
 		0x3d, 0x2e, 0x21, 0x72, 0x05, 0x2e, 0x4f, 0x08, 0xc0, 0xcd, 0x9a, 0xf5, 0x67, 0xd0, 0x80, 0xa3,
 	}
 
-	opts := new(SignerOptions)
-	opts.WithBase64(false)
+	// RFC 7797 JWS Unencoded Payload Option Section 4 example data
+	data := []byte("$.02")
 
-	signer, err := NewSigner(SigningKey{Algorithm: HS256, Key: key}, opts)
+	// Alternative data for compact serialization with unencoded payload
+	data2 := []byte(`{"foo":"bar","baz":1}`)
+
+	type args struct {
+		key      []byte
+		data     []byte
+		payload  []byte
+		b64      bool
+		compact  bool
+		detached bool
+	}
+
+	// Tests with RFC 7797 JWS Unencoded Payload Option Section 4 example test vectors
+	tests := []struct {
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			"Compact Detached",
+			args{key, data, data, true, true, true},
+			[]byte("eyJhbGciOiJIUzI1NiJ9..5mvfOroL-g7HyqJoozehmsaqmvTYGEq5jTI1gVvoEoQ"),
+			false,
+		},
+		{
+			"Compact",
+			args{key, data, nil, true, true, false},
+			[]byte("eyJhbGciOiJIUzI1NiJ9.JC4wMg.5mvfOroL-g7HyqJoozehmsaqmvTYGEq5jTI1gVvoEoQ"),
+			false,
+		},
+		{
+			"JSON Detached",
+			args{key, data, data, true, false, true},
+			[]byte(`{"protected":"eyJhbGciOiJIUzI1NiJ9","signature":"5mvfOroL-g7HyqJoozehmsaqmvTYGEq5jTI1gVvoEoQ"}`),
+			false,
+		},
+		{
+			"JSON",
+			args{key, data, nil, true, false, false},
+			[]byte(`{"protected":"eyJhbGciOiJIUzI1NiJ9","payload":"JC4wMg","signature":"5mvfOroL-g7HyqJoozehmsaqmvTYGEq5jTI1gVvoEoQ"}`),
+			false,
+		},
+		{
+			"Compact Detached Unencoded Payload",
+			args{key, data, data, false, true, true},
+			[]byte("eyJhbGciOiJIUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..A5dxf2s96_n5FLueVuW1Z_vh161FwXZC4YLPff6dmDY"),
+			false,
+		},
+		{
+			"Compact Unencoded Payload",
+			args{key, data2, nil, false, true, false},
+			[]byte(`eyJhbGciOiJIUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19.{"foo":"bar","baz":1}.QF66nY6IARUiw-7w2R7xAQulIUhm1wQLrG7GVn8qPR8`),
+			false,
+		},
+		{
+			"JSON Detached Unencoded Payload",
+			args{key, data, data, false, false, true},
+			[]byte(`{"protected":"eyJhbGciOiJIUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19","signature":"A5dxf2s96_n5FLueVuW1Z_vh161FwXZC4YLPff6dmDY"}`),
+			false,
+		},
+		{
+			"JSON Unencoded Payload",
+			args{key, data, nil, false, false, false},
+			[]byte(`{"protected":"eyJhbGciOiJIUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19","payload":"$.02","signature":"A5dxf2s96_n5FLueVuW1Z_vh161FwXZC4YLPff6dmDY"}`),
+			false,
+		},
+		{
+			"JSON Unencoded Payload Alternative Data Needs Unescaping",
+			args{key, data2, nil, false, false, false},
+			[]byte(`{"protected":"eyJhbGciOiJIUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19","payload":"{\"foo\":\"bar\",\"baz\":1}","signature":"QF66nY6IARUiw-7w2R7xAQulIUhm1wQLrG7GVn8qPR8"}`),
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			signed, err := signWithParams(tt.args.data, tt.args.key, tt.args.b64, tt.args.compact, tt.args.detached)
+			if err != nil {
+				t.Errorf("failed to sign: %v", err)
+			}
+
+			err = verifyWithParams(signed, tt.args.key, tt.args.payload)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TestSignVerifyParams() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			equal := testEqual(signed, tt.want, tt.args.compact)
+			if !equal {
+				t.Errorf("Expected '%v', got '%v'", string(tt.want), string(signed))
+			}
+		})
+	}
+}
+
+func signWithParams(data []byte, secret []byte, b64, compact, detached bool) ([]byte, error) {
+
+	if len(secret) == 0 {
+		return nil, fmt.Errorf("secret key must not be empty")
+	}
+
+	opts := (&SignerOptions{}).WithBase64(b64)
+
+	signer, err := NewSigner(SigningKey{Algorithm: HS256, Key: secret}, opts)
 	if err != nil {
-		t.Error("Failed to create signer")
+		return nil, fmt.Errorf("failed to create HMAC signer: %w", err)
 	}
 
-	input := []byte("$.02")
-
-	obj, err := signer.Sign(input)
+	obj, err := signer.Sign(data)
 	if err != nil {
-		t.Error("Failed to sign payload")
+		return nil, fmt.Errorf("failed to sign new JWS: %w", err)
 	}
 
-	msg, err := obj.CompactSerialize()
+	if compact {
+		if detached {
+			out, err := obj.DetachedCompactSerialize()
+			if err != nil {
+				return nil, fmt.Errorf("failed to serialize with compact serialization: %w", err)
+			}
+			return []byte(out), nil
+		} else {
+			out, err := obj.CompactSerialize()
+			if err != nil {
+				return nil, fmt.Errorf("failed to serialize with compact serialization: %w", err)
+			}
+			return []byte(out), nil
+		}
+	} else {
+		if detached {
+			return []byte(obj.DetachedFullSerialize()), nil
+		} else {
+			return []byte(obj.FullSerialize()), nil
+		}
+	}
+}
+
+func verifyWithParams(data []byte, secret []byte, payload []byte) error {
+	if payload == nil {
+		return verify(data, secret)
+	} else {
+		err := verifyDetached1(data, secret, payload)
+		if err != nil {
+			return err
+		}
+		return verifyDetached2(data, secret, payload)
+	}
+}
+
+func verify(data []byte, secret []byte) error {
+
+	object, err := ParseSigned(string(data), []SignatureAlgorithm{HS256})
 	if err != nil {
-		t.Error("Failed to serialize")
+		return fmt.Errorf("failed to parse JWS: %w", err)
 	}
 
-	if msg != exp {
-		t.Errorf("Invalid serialization, got '%s', expected '%s'", msg, exp)
-	}
-
-	parsed, err := ParseSigned(msg, []SignatureAlgorithm{HS256})
+	_, err = object.Verify(secret)
 	if err != nil {
-		t.Errorf("Error on parse: %s", err)
+		return fmt.Errorf("failed to verify HMAC signature: %w", err)
 	}
 
-	output, err := parsed.Verify(key)
+	return nil
+}
+
+func verifyDetached1(data []byte, secret []byte, payload []byte) error {
+
+	object, err := ParseDetached(string(data), payload, []SignatureAlgorithm{HS256})
 	if err != nil {
-		t.Errorf("Error on verify: %s", err)
+		return fmt.Errorf("failed to parse JWS with detached payload: %w", err)
 	}
 
-	if !bytes.Equal(output, input) {
-		t.Errorf("Input/output do not match, got '%s', expected '%s'", output, input)
+	_, err = object.Verify(secret)
+	if err != nil {
+		return fmt.Errorf("failed to verify HMAC signature: %w", err)
+	}
+
+	return nil
+
+}
+
+func verifyDetached2(data []byte, secret []byte, payload []byte) error {
+
+	object, err := ParseSigned(string(data), []SignatureAlgorithm{HS256})
+	if err != nil {
+		return fmt.Errorf("failed to parse JWS: %w", err)
+	}
+
+	err = object.DetachedVerify(payload, secret)
+	if err != nil {
+		return fmt.Errorf("failed to verify HMAC signature %w", err)
+	}
+
+	return nil
+}
+
+func testEqual(got, expected []byte, compact bool) bool {
+	if compact {
+		return reflect.DeepEqual(got, expected)
+	} else {
+		var obj1, obj2 interface{}
+		if err := json.Unmarshal(got, &obj1); err != nil {
+			panic(err)
+		}
+		if err := json.Unmarshal(expected, &obj2); err != nil {
+			panic(err)
+		}
+		return reflect.DeepEqual(obj1, obj2)
 	}
 }
 
