@@ -24,7 +24,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/go-jose/go-jose/v4/json"
 )
@@ -372,7 +371,7 @@ func (ctx *genericSigner) Options() SignerOptions {
 // The optional crits argument can be used to add non-standard crit headers to
 // the supported list
 func (obj JSONWebSignature) Verify(verificationKey interface{}, crits ...string) ([]byte, error) {
-	err := obj.DetachedVerify(obj.payload, verificationKey, strings.Join(crits, ","))
+	err := obj.DetachedVerify(obj.payload, verificationKey, crits...)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +456,7 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 // The optional crits argument can be used to add non-standard crit headers to
 // the supported list
 func (obj JSONWebSignature) VerifyMulti(verificationKey interface{}, crits ...string) (int, Signature, []byte, error) {
-	idx, sig, err := obj.DetachedVerifyMulti(obj.payload, verificationKey, strings.Join(crits, ","))
+	idx, sig, err := obj.DetachedVerifyMulti(obj.payload, verificationKey, crits...)
 	if err != nil {
 		return -1, Signature{}, nil, err
 	}
