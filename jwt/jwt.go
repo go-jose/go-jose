@@ -97,7 +97,9 @@ func ParseSigned(s string, signatureAlgorithms []jose.SignatureAlgorithm) (*JSON
 	}
 
 	return &JSONWebToken{
-		payload:           sig.Verify,
+		payload: func(verificationKey interface{}) ([]byte, error) {
+			return sig.Verify(verificationKey)
+		},
 		unverifiedPayload: sig.UnsafePayloadWithoutVerification,
 		Headers:           headers,
 	}, nil

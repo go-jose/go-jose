@@ -488,6 +488,7 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 		return -1, Signature{}, err
 	}
 
+	suppCrits := getSupportedCritical(crits)
 outer:
 	for i, signature := range obj.Signatures {
 		if signature.header != nil {
@@ -504,7 +505,7 @@ outer:
 
 		if signature.protected != nil {
 			// Check for only supported critical headers
-			err = signature.protected.checkSupportedCritical(getSupportedCritical(crits))
+			err = signature.protected.checkSupportedCritical(suppCrits)
 			if err != nil {
 				continue outer
 			}
@@ -535,7 +536,12 @@ func (obj JSONWebSignature) headers() []Header {
 }
 
 func getSupportedCritical(crits []string) map[string]struct{} {
-	sp := supportedCritical
+
+	sp := make(map[string]struct{})
+	for k, v := range supportedCritical {
+		sp[k] = v
+	}
+
 	for _, c := range crits {
 		sp[c] = struct{}{}
 	}
