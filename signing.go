@@ -368,8 +368,11 @@ func (ctx *genericSigner) Options() SignerOptions {
 //   - HS384: 48 bytes
 //   - HS512: 64 bytes
 //
-// The optional crits argument can be used to add non-standard crit headers to
-// the supported list
+// The optional crits argument lists non-standard crit header names that
+// go-jose should treat as known. go-jose will only skip failing with an
+// unsupported-crit error for these names; it does not implement or enforce
+// their semantics. Callers are responsible for understanding and validating
+// the meaning of any such critical headers.
 func (obj JSONWebSignature) Verify(verificationKey interface{}, crits ...string) ([]byte, error) {
 	err := obj.DetachedVerify(obj.payload, verificationKey, crits...)
 	if err != nil {
