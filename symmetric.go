@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/fips140"
 	"crypto/hmac"
 	"crypto/pbkdf2"
 	"crypto/rand"
@@ -30,6 +31,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"slices"
 
 	josecipher "github.com/go-jose/go-jose/v4/cipher"
 )
@@ -71,11 +73,17 @@ type aeadParts struct {
 	iv, ciphertext, tag []byte
 }
 
+// gcmNonceSize is the standard GCM nonce size in bytes (96 bits).
+const gcmNonceSize = 12
+
 // A content cipher based on an AEAD construction
 type aeadContentCipher struct {
 	keyBytes     int
 	authtagBytes int
 	getAead      func(key []byte) (cipher.AEAD, error)
+	// randomNonce indicates that the AEAD uses NewGCMWithRandomNonce,
+	// where the nonce is generated internally and prepended to the ciphertext.
+	randomNonce bool
 }
 
 // Random key generator
@@ -104,6 +112,25 @@ func newAESGCM(keySize int) contentCipher {
 	}
 }
 
+// newAESGCMRandomNonce creates an AES-GCM content cipher that uses
+// NewGCMWithRandomNonce, where nonces are generated internally.
+// This is required for FIPS 140 compliance.
+func newAESGCMRandomNonce(keySize int) contentCipher {
+	return &aeadContentCipher{
+		keyBytes:     keySize,
+		authtagBytes: 16,
+		randomNonce:  true,
+		getAead: func(key []byte) (cipher.AEAD, error) {
+			aes, err := aes.NewCipher(key)
+			if err != nil {
+				return nil, err
+			}
+
+			return cipher.NewGCMWithRandomNonce(aes)
+		},
+	}
+}
+
 // Create a new content cipher based on AES-CBC+HMAC
 func newAESCBC(keySize int) contentCipher {
 	return &aeadContentCipher{
@@ -115,15 +142,24 @@ func newAESCBC(keySize int) contentCipher {
 	}
 }
 
+// getAESGCMCipher returns the appropriate AES-GCM content cipher,
+// using NewGCMWithRandomNonce when FIPS 140 mode is enabled.
+func getAESGCMCipher(keySize int) contentCipher {
+	if fips140.Enabled() {
+		return newAESGCMRandomNonce(keySize)
+	}
+	return newAESGCM(keySize)
+}
+
 // Get an AEAD cipher object for the given content encryption algorithm
 func getContentCipher(alg ContentEncryption) contentCipher {
 	switch alg {
 	case A128GCM:
-		return newAESGCM(16)
+		return getAESGCMCipher(16)
 	case A192GCM:
-		return newAESGCM(24)
+		return getAESGCMCipher(24)
 	case A256GCM:
-		return newAESGCM(32)
+		return getAESGCMCipher(32)
 	case A128CBC_HS256:
 		return newAESCBC(16)
 	case A192CBC_HS384:
@@ -236,6 +272,20 @@ func (ctx aeadContentCipher) encrypt(key, aad, pt []byte) (*aeadParts, error) {
 		return nil, err
 	}
 
+	if ctx.randomNonce {
+		// NewGCMWithRandomNonce generates the nonce internally and prepends
+		// it to the ciphertext. We extract it to fit the JOSE format.
+		out := aead.Seal(nil, nil, pt, aad)
+		// out = nonce (12) || ciphertext || tag (16)
+		iv := out[:gcmNonceSize]
+		offset := len(out) - ctx.authtagBytes
+		return &aeadParts{
+			iv:         iv,
+			ciphertext: out[gcmNonceSize:offset],
+			tag:        out[offset:],
+		}, nil
+	}
+
 	// Initialize a new nonce
 	iv := make([]byte, aead.NonceSize())
 	_, err = io.ReadFull(randReader, iv)
@@ -260,6 +310,16 @@ func (ctx aeadContentCipher) decrypt(key, aad []byte, parts *aeadParts) ([]byte,
 		return nil, err
 	}
 
+	if ctx.randomNonce {
+		// NewGCMWithRandomNonce expects nonce || ciphertext || tag as input.
+		if len(parts.iv) != gcmNonceSize || len(parts.tag) < ctx.authtagBytes {
+			return nil, ErrCryptoFailure
+		}
+		// NewGCMWithRandomNonce expects nonce || ciphertext || tag as input.
+		joined := slices.Concat(parts.iv, parts.ciphertext, parts.tag)
+		return aead.Open(nil, nil, joined, aad)
+	}
+
 	if len(parts.iv) != aead.NonceSize() || len(parts.tag) < ctx.authtagBytes {
 		return nil, ErrCryptoFailure
 	}
@@ -275,7 +335,7 @@ func (ctx *symmetricKeyCipher) encryptKey(cek []byte, alg KeyAlgorithm) (recipie
 			header: &rawHeader{},
 		}, nil
 	case A128GCMKW, A192GCMKW, A256GCMKW:
-		aead := newAESGCM(len(ctx.key))
+		aead := getAESGCMCipher(len(ctx.key))
 
 		parts, err := aead.encrypt(ctx.key, []byte{}, cek)
 		if err != nil {
@@ -382,7 +442,7 @@ func (ctx *symmetricKeyCipher) decryptKey(headers rawHeader, recipient *recipien
 
 	switch alg {
 	case A128GCMKW, A192GCMKW, A256GCMKW:
-		aead := newAESGCM(len(ctx.key))
+		aead := getAESGCMCipher(len(ctx.key))
 
 		iv, err := headers.getIV()
 		if err != nil {

@@ -21,6 +21,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/fips140"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
@@ -147,6 +148,8 @@ func TestRoundtripsJWE(t *testing.T) {
 		RSA1_5, RSA_OAEP, RSA_OAEP_256, A128GCMKW, A192GCMKW, A256GCMKW,
 		PBES2_HS256_A128KW, PBES2_HS384_A192KW, PBES2_HS512_A256KW,
 	}
+	// RSA1_5 and RSA-OAEP (SHA-1) are not available in FIPS mode
+	fipsExcludedAlgs := map[KeyAlgorithm]bool{RSA1_5: true, RSA_OAEP: true}
 	encAlgs := []ContentEncryption{A128GCM, A192GCM, A256GCM, A128CBC_HS256, A192CBC_HS384, A256CBC_HS512}
 	zipAlgs := []CompressionAlgorithm{NONE, DEFLATE}
 
@@ -165,6 +168,9 @@ func TestRoundtripsJWE(t *testing.T) {
 
 	// Test all different configurations
 	for _, alg := range keyAlgs {
+		if fips140.Enabled() && fipsExcludedAlgs[alg] {
+			continue
+		}
 		for _, enc := range encAlgs {
 			for _, key := range generateTestKeys(alg, enc) {
 				for _, zip := range zipAlgs {
@@ -392,7 +398,7 @@ func TestMultiRecipientJWE(t *testing.T) {
 	}
 
 	enc, err := NewMultiEncrypter(A128GCM, []Recipient{
-		{Algorithm: RSA_OAEP, Key: &rsaTestKey.PublicKey},
+		{Algorithm: RSA_OAEP_256, Key: &rsaTestKey.PublicKey},
 		{Algorithm: A256GCMKW, Key: sharedKey},
 	}, nil)
 	if err != nil {
@@ -407,7 +413,7 @@ func TestMultiRecipientJWE(t *testing.T) {
 
 	msg := obj.FullSerialize()
 
-	parsed, err := ParseEncrypted(msg, []KeyAlgorithm{RSA_OAEP, A256GCMKW}, []ContentEncryption{A128GCM})
+	parsed, err := ParseEncrypted(msg, []KeyAlgorithm{RSA_OAEP_256, A256GCMKW}, []ContentEncryption{A128GCM})
 	if err != nil {
 		t.Fatal("error in parse: ", err)
 	}

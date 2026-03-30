@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/fips140"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -139,6 +140,9 @@ func (k JSONWebKey) MarshalJSON() ([]byte, error) {
 	x5tSHA1Len := len(k.CertificateThumbprintSHA1)
 	x5tSHA256Len := len(k.CertificateThumbprintSHA256)
 	if x5tSHA1Len > 0 {
+		if fips140.Enabled() {
+			return nil, errors.New("go-jose/go-jose: x5t (SHA-1 thumbprint) is not allowed in FIPS 140 mode, use x5t#S256 instead")
+		}
 		if x5tSHA1Len != sha1.Size {
 			return nil, fmt.Errorf("go-jose/go-jose: invalid SHA-1 thumbprint (must be %d bytes, not %d)", sha1.Size, x5tSHA1Len)
 		}
@@ -156,14 +160,17 @@ func (k JSONWebKey) MarshalJSON() ([]byte, error) {
 	// ensure we don't accidentally produce a JWK with semantically inconsistent
 	// data in the headers.
 	if len(k.Certificates) > 0 {
-		expectedSHA1 := sha1.Sum(k.Certificates[0].Raw)
-		expectedSHA256 := sha256.Sum256(k.Certificates[0].Raw)
-
-		if len(k.CertificateThumbprintSHA1) > 0 && !bytes.Equal(k.CertificateThumbprintSHA1, expectedSHA1[:]) {
-			return nil, errors.New("go-jose/go-jose: invalid SHA-1 thumbprint, does not match cert chain")
+		if len(k.CertificateThumbprintSHA1) > 0 {
+			expectedSHA1 := sha1.Sum(k.Certificates[0].Raw)
+			if !bytes.Equal(k.CertificateThumbprintSHA1, expectedSHA1[:]) {
+				return nil, errors.New("go-jose/go-jose: invalid SHA-1 thumbprint, does not match cert chain")
+			}
 		}
-		if len(k.CertificateThumbprintSHA256) > 0 && !bytes.Equal(k.CertificateThumbprintSHA256, expectedSHA256[:]) {
-			return nil, errors.New("go-jose/go-jose: invalid or SHA-256 thumbprint, does not match cert chain")
+		if len(k.CertificateThumbprintSHA256) > 0 {
+			expectedSHA256 := sha256.Sum256(k.Certificates[0].Raw)
+			if !bytes.Equal(k.CertificateThumbprintSHA256, expectedSHA256[:]) {
+				return nil, errors.New("go-jose/go-jose: invalid or SHA-256 thumbprint, does not match cert chain")
+			}
 		}
 	}
 
@@ -315,8 +322,13 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 
 	x5tSHA1Len := len(k.CertificateThumbprintSHA1)
 	x5tSHA256Len := len(k.CertificateThumbprintSHA256)
-	if x5tSHA1Len > 0 && x5tSHA1Len != sha1.Size {
-		return errors.New("go-jose/go-jose: invalid JWK, x5t header is of incorrect size")
+	if x5tSHA1Len > 0 {
+		if fips140.Enabled() {
+			return errors.New("go-jose/go-jose: x5t (SHA-1 thumbprint) is not allowed in FIPS 140 mode, use x5t#S256 instead")
+		}
+		if x5tSHA1Len != sha1.Size {
+			return errors.New("go-jose/go-jose: invalid JWK, x5t header is of incorrect size")
+		}
 	}
 	if x5tSHA256Len > 0 && x5tSHA256Len != sha256.Size {
 		return errors.New("go-jose/go-jose: invalid JWK, x5t#S256 header is of incorrect size")
@@ -324,16 +336,18 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 
 	// If certificate chain *and* thumbprints are set, verify correctness.
 	if len(k.Certificates) > 0 {
-		leaf := k.Certificates[0]
-		sha1sum := sha1.Sum(leaf.Raw)
-		sha256sum := sha256.Sum256(leaf.Raw)
-
-		if len(k.CertificateThumbprintSHA1) > 0 && !bytes.Equal(sha1sum[:], k.CertificateThumbprintSHA1) {
-			return errors.New("go-jose/go-jose: invalid JWK, x5c thumbprint does not match x5t value")
+		if len(k.CertificateThumbprintSHA1) > 0 {
+			sha1sum := sha1.Sum(k.Certificates[0].Raw)
+			if !bytes.Equal(sha1sum[:], k.CertificateThumbprintSHA1) {
+				return errors.New("go-jose/go-jose: invalid JWK, x5c thumbprint does not match x5t value")
+			}
 		}
 
-		if len(k.CertificateThumbprintSHA256) > 0 && !bytes.Equal(sha256sum[:], k.CertificateThumbprintSHA256) {
-			return errors.New("go-jose/go-jose: invalid JWK, x5c thumbprint does not match x5t#S256 value")
+		if len(k.CertificateThumbprintSHA256) > 0 {
+			sha256sum := sha256.Sum256(k.Certificates[0].Raw)
+			if !bytes.Equal(sha256sum[:], k.CertificateThumbprintSHA256) {
+				return errors.New("go-jose/go-jose: invalid JWK, x5c thumbprint does not match x5t#S256 value")
+			}
 		}
 	}
 
