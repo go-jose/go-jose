@@ -88,7 +88,25 @@ func TestCompressionError(t *testing.T) {
 	}
 }
 
-func RoundtripJWE(keyAlg KeyAlgorithm, encAlg ContentEncryption, compressionAlg CompressionAlgorithm, serializer func(*JSONWebEncryption) (string, error), corrupter func(*JSONWebEncryption) bool, aad []byte, encryptionKey interface{}, decryptionKey interface{}) error {
+// RoundtripJWE encrypts some data and then decrypts it.
+//
+// `corrupter` is a function that modifies the encrypted data. If it returns `true` the test is skipped.
+//
+// This function is used in test cases that expect successes, and also test cases that expect failures
+// (i.e. corrupted data). It uses `t.Fatalf()` for failures of setup functions, or other aspects that should
+// never fail even when testing corrupted data. It uses `return fmt.Errorf()` for cases that should fail
+// when dealing with corrupted data but succeed otherwise.
+func RoundtripJWE(
+	t *testing.T,
+	keyAlg KeyAlgorithm,
+	encAlg ContentEncryption,
+	compressionAlg CompressionAlgorithm,
+	serializer func(*JSONWebEncryption) (string, error),
+	corrupter func(*JSONWebEncryption) bool,
+	aad []byte,
+	encryptionKey interface{},
+	decryptionKey interface{},
+) error {
 	var rcpt Recipient
 	switch keyAlg {
 	case PBES2_HS256_A128KW, PBES2_HS384_A192KW, PBES2_HS512_A256KW:
@@ -99,29 +117,29 @@ func RoundtripJWE(keyAlg KeyAlgorithm, encAlg ContentEncryption, compressionAlg 
 	}
 	enc, err := NewEncrypter(encAlg, rcpt, &EncrypterOptions{Compression: compressionAlg})
 	if err != nil {
-		return fmt.Errorf("error on new encrypter: %s", err)
+		t.Fatalf("error on new encrypter: %s", err)
 	}
 
 	input := []byte("Lorem ipsum dolor sit amet")
 	obj, err := enc.EncryptWithAuthData(input, aad)
 	if err != nil {
-		return fmt.Errorf("error in encrypt: %s", err)
+		t.Fatalf("error in encrypt: %s", err)
 	}
 
 	msg, err := serializer(obj)
 	if err != nil {
-		return fmt.Errorf("error in serializer: %s", err)
+		t.Fatalf("error in serializer: %s", err)
 	}
 
 	parsed, err := ParseEncrypted(msg, []KeyAlgorithm{keyAlg}, []ContentEncryption{encAlg})
 	if err != nil {
-		return fmt.Errorf("error in parse: %s, on msg '%s'", err, msg)
+		t.Fatalf("error in parse: %s, on msg '%s'", err, msg)
 	}
 
 	// (Maybe) mangle object
 	skip := corrupter(parsed)
 	if skip {
-		return fmt.Errorf("corrupter indicated message should be skipped")
+		t.Skip("corrupter indicated message should be skipped")
 	}
 
 	if !bytes.Equal(parsed.GetAuthData(), aad) {
@@ -134,7 +152,7 @@ func RoundtripJWE(keyAlg KeyAlgorithm, encAlg ContentEncryption, compressionAlg 
 	}
 
 	if !bytes.Equal(input, output) {
-		return fmt.Errorf("Decrypted output does not match input, got '%s' but wanted '%s'", output, input)
+		t.Fatalf("Decrypted output does not match input, got '%s' but wanted '%s'", output, input)
 	}
 
 	return nil
@@ -155,7 +173,7 @@ func TestRoundtripsJWE(t *testing.T) {
 		func(obj *JSONWebEncryption) (string, error) { return obj.FullSerialize(), nil },
 	}
 
-	corrupter := func(obj *JSONWebEncryption) bool { return false }
+	noCorruption := func(obj *JSONWebEncryption) bool { return false }
 
 	// Note: can't use AAD with compact serialization
 	aads := [][]byte{
@@ -166,13 +184,16 @@ func TestRoundtripsJWE(t *testing.T) {
 	// Test all different configurations
 	for _, alg := range keyAlgs {
 		for _, enc := range encAlgs {
-			for _, key := range generateTestKeys(alg, enc) {
+			for k, key := range generateTestKeys(alg, enc) {
 				for _, zip := range zipAlgs {
 					for i, serializer := range serializers {
-						err := RoundtripJWE(alg, enc, zip, serializer, corrupter, aads[i], key.enc, key.dec)
-						if err != nil {
-							t.Error(err, alg, enc, zip, i)
-						}
+						t.Run(fmt.Sprintf("alg=%s,enc=%s,key=%d,zip=%s,serializer=%d", alg, enc, k, zip, i), func(t *testing.T) {
+							t.Parallel()
+							err := RoundtripJWE(t, alg, enc, zip, serializer, noCorruption, aads[i], key.enc, key.dec)
+							if err != nil {
+								t.Errorf("RoundtripJWE(): %s", err)
+							}
+						})
 					}
 				}
 			}
@@ -239,14 +260,17 @@ func TestRoundtripsJWECorrupted(t *testing.T) {
 	// Test all different configurations
 	for _, alg := range keyAlgs {
 		for _, enc := range encAlgs {
-			for _, key := range generateTestKeys(alg, enc) {
+			for k, key := range generateTestKeys(alg, enc) {
 				for _, zip := range zipAlgs {
 					for i, serializer := range serializers {
 						for j, corrupter := range corrupters {
-							err := RoundtripJWE(alg, enc, zip, serializer, corrupter, aads[i], key.enc, key.dec)
-							if err == nil {
-								t.Error("failed to detect corrupt data", err, alg, enc, zip, i, j)
-							}
+							t.Run(fmt.Sprintf("alg=%s,enc=%s,key=%d,zip=%s,serializer=%d,corrupter=%d", alg, enc, k, zip, i, j), func(t *testing.T) {
+								t.Parallel()
+								err := RoundtripJWE(t, alg, enc, zip, serializer, corrupter, aads[i], key.enc, key.dec)
+								if err == nil {
+									t.Errorf("RoundtripJWE(): expected error, got none")
+								}
+							})
 						}
 					}
 				}
@@ -309,9 +333,6 @@ func TestEncrypterWithBrokenRand(t *testing.T) {
 	keyAlgs := []KeyAlgorithm{ECDH_ES_A128KW, A128KW, RSA1_5, RSA_OAEP, RSA_OAEP_256, A128GCMKW, PBES2_HS256_A128KW}
 	encAlgs := []ContentEncryption{A128GCM, A192GCM, A256GCM, A128CBC_HS256, A192CBC_HS384, A256CBC_HS512}
 
-	serializer := func(obj *JSONWebEncryption) (string, error) { return obj.CompactSerialize() }
-	corrupter := func(obj *JSONWebEncryption) bool { return false }
-
 	// Break rand reader
 	readers := []func() io.Reader{
 		// Totally broken
@@ -320,17 +341,34 @@ func TestEncrypterWithBrokenRand(t *testing.T) {
 		func() io.Reader { return io.LimitReader(rand.Reader, 20) },
 	}
 
-	defer resetRandReader()
-
-	for _, alg := range keyAlgs {
+	for _, keyAlg := range keyAlgs {
 		for _, enc := range encAlgs {
-			for _, key := range generateTestKeys(alg, enc) {
+			for k, key := range generateTestKeys(keyAlg, enc) {
 				for i, getReader := range readers {
-					RandReader = getReader()
-					err := RoundtripJWE(alg, enc, NONE, serializer, corrupter, nil, key.enc, key.dec)
-					if err == nil {
-						t.Error("encrypter should fail if rand is broken", i)
-					}
+					t.Run(fmt.Sprintf("keyAlg=%s,enc=%s,key=%d,reader=%d", keyAlg, enc, k, i), func(t *testing.T) {
+						RandReader = getReader()
+						defer resetRandReader()
+
+						var rcpt Recipient
+						switch keyAlg {
+						case PBES2_HS256_A128KW, PBES2_HS384_A192KW, PBES2_HS512_A256KW:
+							// use 1k iterations instead of 100k to reduce computational cost
+							rcpt = Recipient{Algorithm: keyAlg, Key: key.enc, PBES2Count: 1000}
+						default:
+							rcpt = Recipient{Algorithm: keyAlg, Key: key.enc}
+						}
+						enc, err := NewEncrypter(enc, rcpt, nil)
+						if err != nil {
+							t.Fatalf("error on new encrypter: %s", err)
+						}
+
+						input := []byte("Lorem ipsum dolor sit amet")
+
+						_, err = enc.Encrypt(input)
+						if err == nil {
+							t.Fatalf("EncryptWithAuthData should fail if rand is broken")
+						}
+					})
 				}
 			}
 		}
