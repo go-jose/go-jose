@@ -22,6 +22,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
+	"github.com/go-jose/go-jose/v3/json"
 	"io"
 	"testing"
 )
@@ -163,6 +164,10 @@ func TestInvalidECDecrypt(t *testing.T) {
 
 	generator := randomKeyGenerator{size: 16}
 
+	recipient := recipientInfo{
+		// decryptKey will error out before the contents here matter
+		encryptedKey: []byte("not used"),
+	}
 	// Missing epk header
 	headers := rawHeader{}
 
@@ -170,17 +175,24 @@ func TestInvalidECDecrypt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := dec.decryptKey(headers, nil, generator); err == nil {
+	want := "go-jose/go-jose: missing epk header"
+	_, err := dec.decryptKey(headers, &recipient, generator)
+	if err == nil {
 		t.Error("ec decrypter accepted object with missing epk header")
+	} else if err.Error() != want {
+		t.Errorf("decryptKey with missing epk header: got %q, want %q", err, want)
 	}
 
 	// Invalid epk header
-	if err := headers.set(headerEPK, &JSONWebKey{}); err == nil {
-		t.Fatal("epk header should be invalid")
-	}
+	invalid := json.RawMessage("invalid")
+	headers["epk"] = &invalid
 
-	if _, err := dec.decryptKey(headers, nil, generator); err == nil {
+	want = "go-jose/go-jose: invalid epk header"
+	_, err = dec.decryptKey(headers, &recipient, generator)
+	if err == nil {
 		t.Error("ec decrypter accepted object with invalid epk header")
+	} else if err.Error() != want {
+		t.Errorf("decryptKey with invalid epk header: got %q, want %q", err, want)
 	}
 }
 
@@ -367,6 +379,12 @@ func TestInvalidECPublicKey(t *testing.T) {
 		D: fromBase64Int("0_NxaRPUMQoAJt50Gz8YiTr8gRTwyEaCumd-MToTmIo"),
 	}
 
+	recipient := recipientInfo{
+		// encryptedKey must be non-empty to pass initial checks, but the actual
+		// bytes don't matter because we'll error out before using them.
+		encryptedKey: []byte("not used"),
+	}
+
 	headers := rawHeader{}
 
 	if err := headers.set(headerAlgorithm, ECDH_ES); err != nil {
@@ -381,8 +399,14 @@ func TestInvalidECPublicKey(t *testing.T) {
 		privateKey: ecTestKey256,
 	}
 
-	if _, err := dec.decryptKey(headers, nil, randomKeyGenerator{size: 16}); err == nil {
+	_, err := dec.decryptKey(headers, &recipient, randomKeyGenerator{size: 16})
+	if err == nil {
 		t.Fatal("decrypter accepted JWS with invalid ECDH public key")
+	}
+
+	want := "go-jose/go-jose: invalid epk header"
+	if err.Error() != want {
+		t.Errorf("decryptKey with invalid ECDH public key: got %q, want %q", err, want)
 	}
 }
 

@@ -191,9 +191,27 @@ func TestRoundtripsJWECorrupted(t *testing.T) {
 		func(obj *JSONWebEncryption) (string, error) { return obj.FullSerialize(), nil },
 	}
 
+	// corrupter functions return true to skip (i.e. no change was made so no error is expected),
+	// or false to do the test and expect an error.
 	bitflip := func(slice []byte) bool {
 		if len(slice) > 0 {
 			slice[0] ^= 0xFF
+			return false
+		}
+		return true
+	}
+
+	shorten := func(slice *[]byte) bool {
+		if len(*slice) > 0 {
+			*slice = (*slice)[:len(*slice)-1]
+			return false
+		}
+		return true
+	}
+
+	empty := func(slice *[]byte) bool {
+		if len(*slice) > 0 {
+			*slice = nil
 			return false
 		}
 		return true
@@ -215,6 +233,14 @@ func TestRoundtripsJWECorrupted(t *testing.T) {
 		func(obj *JSONWebEncryption) bool {
 			// Mess with encrypted key
 			return bitflip(obj.recipients[0].encryptedKey)
+		},
+		func(obj *JSONWebEncryption) bool {
+			// Remove encrypted key
+			return empty(&obj.recipients[0].encryptedKey)
+		},
+		func(obj *JSONWebEncryption) bool {
+			// Shorten encrypted key
+			return shorten(&obj.recipients[0].encryptedKey)
 		},
 		func(obj *JSONWebEncryption) bool {
 			// Mess with GCM-KW auth tag

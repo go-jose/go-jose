@@ -678,3 +678,38 @@ func TestJWEWithNullAlg(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestEmptyEncryptedKey(t *testing.T) {
+	// These inputs use key wrapping with an empty wrapped key.
+	// All fields except the unprotected header are empty; in particular "JWE Encrypted Key" is empty.
+	serializedCompact := `eyJhbGciOiJQQkVTMi1IUzUxMitBMjU2S1ciLCJjdHkiOiJhcHBsaWNhdGlvbi9qd2sranNvbiIsImVuYyI6IkEyNTZHQ00iLCJwMmMiOjIxMDAwMCwicDJzIjoiY000YyJ9....`
+	serializedJSON := `{"unprotected":{"alg":"PBES2-HS512+A256KW","cty":"application/jwk+json","enc":"A256GCM","p2c":210000,"p2s":"cM4c"}}`
+	item, err := ParseEncrypted(serializedCompact)
+	if err != nil {
+		t.Fatalf("ParseEncrypted(%q): %s", serializedCompact, err)
+	}
+
+	secret := []byte("valid-key-used-for-decryption")
+
+	// Note: we check this "want" value to distinguish from other error cases, but future refactorings to give
+	// a more useful error message would be okay.
+	want := "go-jose/go-jose: error in cryptographic primitive"
+	_, err = item.Decrypt(secret)
+	if err == nil {
+		t.Errorf("Decrypt() after ParseEncrypted() with empty encrypted key should fail")
+	} else if err.Error() != want {
+		t.Errorf("Decrypt() after ParseEncrypted() with empty encrypted key: got %q, want %q", err, want)
+	}
+
+	item, err = ParseEncrypted(serializedJSON)
+	if err != nil {
+		t.Fatalf("ParseEncryptedJSON(%q): %s", serializedJSON, err)
+	}
+
+	_, err = item.Decrypt(secret)
+	if err == nil {
+		t.Errorf("Decrypt() after ParseEncryptedJSON() with empty encrypted key should fail")
+	} else if err.Error() != want {
+		t.Errorf("Decrypt() after ParseEncryptedJSON() with empty encrypted key: got %q, want %q", err, want)
+	}
+}
