@@ -12,8 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         GO_VERSION:
-          - "1.23.x"
-          - "1.24.x"
+          - "1.25.x"
+          - "1.26.x"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
       matrix:
         GO_VERSION:
           # Just run govulncheck on the latest Go version.
-          - "1.24.x"
+          - "1.26.x"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
