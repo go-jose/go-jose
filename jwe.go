@@ -128,11 +128,8 @@ func containsContentEncryption(haystack []ContentEncryption, needle ContentEncry
 // https://datatracker.ietf.org/doc/html/rfc7516#section-3.1
 // https://datatracker.ietf.org/doc/html/rfc7516#section-3.2
 //
-// The keyAlgorithms and contentEncryption parameters are used to validate the "alg" and "enc"
-// header parameters respectively. They must be nonempty, and each "alg" or "enc" header in
-// parsed data must contain a value that is present in the corresponding parameter. That
-// includes the protected and unprotected headers as well as all recipients. To accept
-// multiple algorithms, pass a slice of all the algorithms you want to accept.
+// The keyAlgorithms and contentEncryption parameters contain the allowable algorithms in the "alg" and "enc"
+// header parameters respectively. They must be non-empty. Non-matching algorithms cause a parse error.
 func ParseEncrypted(input string,
 	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
@@ -148,6 +145,9 @@ func ParseEncrypted(input string,
 // ParseEncryptedJSON parses a message in JWE JSON Serialization.
 //
 // https://datatracker.ietf.org/doc/html/rfc7516#section-3.2
+//
+// The keyAlgorithms and contentEncryption parameters contain the allowable algorithms in the "alg" and "enc"
+// header parameters respectively. They must be non-empty. Any non-allowed algorithms will cause parsing to fail.
 func ParseEncryptedJSON(
 	input string,
 	keyEncryptionAlgorithms []KeyAlgorithm,
@@ -283,6 +283,9 @@ func validateAlgEnc(headers rawHeader, keyAlgorithms []KeyAlgorithm, contentEncr
 // ParseEncryptedCompact parses a message in JWE Compact Serialization.
 //
 // https://datatracker.ietf.org/doc/html/rfc7516#section-3.1
+//
+// The keyAlgorithms and contentEncryption parameters contain the allowable algorithms in the "alg" and "enc"
+// header parameters respectively. They must be non-empty. Any non-allowed algorithms will cause parsing to fail.
 func ParseEncryptedCompact(
 	input string,
 	keyAlgorithms []KeyAlgorithm,
