@@ -314,13 +314,19 @@ func TestInvalidPaddingOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The AES key is the first half of the CBC-HMAC key
-	block, _ := aes.NewCipher(key[len(key)/2:])
+	// The AES key is the second half of the CBC-HMAC key
+	block, err := aes.NewCipher(key[len(key)/2:])
+	if err != nil {
+		t.Fatal(err)
+	}
 	cbc := cipher.NewCBCEncrypter(block, nonce)
 	buffer := append([]byte{}, plaintext...)
 	cbc.CryptBlocks(buffer, buffer)
 
-	aead, _ := NewCBCHMAC(key, aes.NewCipher)
+	aead, err := NewCBCHMAC(key, aes.NewCipher)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := aead.(*cbcAEAD)
 
 	// Mutated ciphertext, but with correct auth tag
@@ -329,7 +335,7 @@ func TestInvalidPaddingOpen(t *testing.T) {
 	copy(tail, ctx.computeAuthTag(nil, nonce, ciphertext[:size]))
 
 	// Open should fail (b/c of invalid padding, even though tag matches)
-	_, err := aead.Open(nil, nonce, ciphertext, nil)
+	_, err = aead.Open(nil, nonce, ciphertext, nil)
 	if err == nil || !strings.Contains(err.Error(), "invalid padding") {
 		t.Error("no or unexpected error on open with invalid padding:", err)
 	}
