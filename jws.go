@@ -88,6 +88,8 @@ type Signature struct {
 //
 // The signatureAlgorithms parameter contains the allowable algorithms in the "alg" header parameter.
 // It must be non-empty. Non-matching algorithms cause a parse error.
+//
+// Deprecated: call ParseSignedJSON or ParseSignedCompact depending on which serialization you expect.
 func ParseSigned(
 	signature string,
 	signatureAlgorithms []SignatureAlgorithm,

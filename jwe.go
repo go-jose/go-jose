@@ -130,6 +130,8 @@ func containsContentEncryption(haystack []ContentEncryption, needle ContentEncry
 //
 // The keyAlgorithms and contentEncryption parameters contain the allowable algorithms in the "alg" and "enc"
 // header parameters respectively. They must be non-empty. Non-matching algorithms cause a parse error.
+//
+// Deprecated: use ParseEncryptedJSON or ParseEncryptedCompact depending on which serialization you expect.
 func ParseEncrypted(input string,
 	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
