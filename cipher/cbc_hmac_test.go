@@ -314,7 +314,8 @@ func TestInvalidPaddingOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	block, _ := aes.NewCipher(key)
+	// The AES key is the first half of the CBC-HMAC key
+	block, _ := aes.NewCipher(key[len(key)/2:])
 	cbc := cipher.NewCBCEncrypter(block, nonce)
 	buffer := append([]byte{}, plaintext...)
 	cbc.CryptBlocks(buffer, buffer)
