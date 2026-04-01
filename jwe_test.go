@@ -22,10 +22,28 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"math/big"
 	"regexp"
 	"testing"
 )
+
+func TestParseEmptyEncrypted(t *testing.T) {
+	_, err := ParseEncrypted("", []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseEncryptedCompact("", []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseEncryptedJSON("", []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+}
 
 func TestCompactParseJWE(t *testing.T) {
 	// Should parse
