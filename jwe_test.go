@@ -398,13 +398,13 @@ func TestVectorsJWECorrupt(t *testing.T) {
 	msg, _ := ParseEncrypted(corruptCiphertext, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	_, err := msg.Decrypt(priv)
 	if err != ErrCryptoFailure {
-		t.Error("should detect corrupt ciphertext")
+		t.Errorf("Decrypt(): got %q, want %q", err, ErrCryptoFailure)
 	}
 
 	msg, _ = ParseEncrypted(corruptAuthtag, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	_, err = msg.Decrypt(priv)
 	if err != ErrCryptoFailure {
-		t.Error("should detect corrupt auth tag")
+		t.Errorf("Decrypt(): got %q, want %q", err, ErrCryptoFailure)
 	}
 }
 

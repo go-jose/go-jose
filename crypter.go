@@ -258,6 +258,10 @@ func (ctx *genericEncrypter) addRecipient(recipient Recipient) (err error) {
 	}
 
 	recipientInfo, err = makeJWERecipient(recipient.Algorithm, recipient.Key)
+	if err != nil {
+		return err
+	}
+
 	if recipient.KeyID != "" {
 		recipientInfo.keyID = recipient.KeyID
 	}
@@ -270,10 +274,8 @@ func (ctx *genericEncrypter) addRecipient(recipient Recipient) (err error) {
 		}
 	}
 
-	if err == nil {
-		ctx.recipients = append(ctx.recipients, recipientInfo)
-	}
-	return err
+	ctx.recipients = append(ctx.recipients, recipientInfo)
+	return nil
 }
 
 func makeJWERecipient(alg KeyAlgorithm, encryptionKey interface{}) (recipientKeyInfo, error) {
@@ -493,12 +495,13 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 	recipientHeaders := obj.mergedHeaders(&recipient)
 
 	cek, err := decrypter.decryptKey(recipientHeaders, &recipient, generator)
-	if err == nil {
-		// Found a valid CEK -- let's try to decrypt.
-		plaintext, err = cipher.decrypt(cek, authData, parts)
+	if err != nil {
+		return nil, ErrCryptoFailure
 	}
 
-	if plaintext == nil {
+	// Found a valid CEK -- let's try to decrypt.
+	plaintext, err = cipher.decrypt(cek, authData, parts)
+	if err != nil {
 		return nil, ErrCryptoFailure
 	}
 
@@ -562,22 +565,32 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 	var plaintext []byte
 	var headers rawHeader
 
+	if len(obj.recipients) == 0 {
+		return -1, Header{}, nil, errors.New("go-jose/go-jose: no recipients")
+	}
+
+	// Loop sets `err` in the function scope; don't shadow it.
 	for i, recipient := range obj.recipients {
 		recipientHeaders := obj.mergedHeaders(&recipient)
 
-		cek, err := decrypter.decryptKey(recipientHeaders, &recipient, generator)
-		if err == nil {
-			// Found a valid CEK -- let's try to decrypt.
-			plaintext, err = cipher.decrypt(cek, authData, parts)
-			if err == nil {
-				index = i
-				headers = recipientHeaders
-				break
-			}
+		var cek []byte
+		cek, err = decrypter.decryptKey(recipientHeaders, &recipient, generator)
+		if err != nil {
+			continue
 		}
+
+		// Found a valid CEK -- let's try to decrypt.
+		plaintext, err = cipher.decrypt(cek, authData, parts)
+		if err != nil {
+			continue
+		}
+
+		index = i
+		headers = recipientHeaders
+		break
 	}
 
-	if plaintext == nil {
+	if err != nil {
 		return -1, Header{}, nil, ErrCryptoFailure
 	}
 

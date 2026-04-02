@@ -207,21 +207,29 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 	case "EC":
 		if raw.D != nil {
 			key, err = raw.ecPrivateKey()
-			if err == nil {
-				keyPub = key.(*ecdsa.PrivateKey).Public()
+			if err != nil {
+				return err
 			}
+			keyPub = key.(*ecdsa.PrivateKey).Public()
 		} else {
 			key, err = raw.ecPublicKey()
+			if err != nil {
+				return err
+			}
 			keyPub = key
 		}
 	case "RSA":
 		if raw.D != nil {
 			key, err = raw.rsaPrivateKey()
-			if err == nil {
-				keyPub = key.(*rsa.PrivateKey).Public()
+			if err != nil {
+				return err
 			}
+			keyPub = key.(*rsa.PrivateKey).Public()
 		} else {
 			key, err = raw.rsaPublicKey()
+			if err != nil {
+				return err
+			}
 			keyPub = key
 		}
 	case "oct":
@@ -229,25 +237,28 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 			return errors.New("go-jose/go-jose: invalid JWK, found 'oct' (symmetric) key with cert chain")
 		}
 		key, err = raw.symmetricKey()
+		if err != nil {
+			return err
+		}
 	case "OKP":
 		if raw.Crv == "Ed25519" {
 			if raw.D != nil {
 				key, err = raw.edPrivateKey()
-				if err == nil {
-					keyPub = key.(ed25519.PrivateKey).Public()
+				if err != nil {
+					return err
 				}
+				keyPub = key.(ed25519.PrivateKey).Public()
 			} else {
 				key, err = raw.edPublicKey()
+				if err != nil {
+					return err
+				}
 				keyPub = key
 			}
 		}
 	case "":
 		// kty MUST be present
-		err = fmt.Errorf("go-jose/go-jose: missing json web key type")
-	}
-
-	if err != nil {
-		return
+		return fmt.Errorf("go-jose/go-jose: missing json web key type")
 	}
 
 	if key == nil {
