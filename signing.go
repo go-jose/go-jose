@@ -409,6 +409,9 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 		return err
 	}
 
+	if len(obj.Signatures) == 0 {
+		return errors.New("go-jose/go-jose: no signatures in payload")
+	}
 	if len(obj.Signatures) > 1 {
 		return errors.New("go-jose/go-jose: too many signatures in payload; expecting only one")
 	}

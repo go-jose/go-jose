@@ -450,6 +450,9 @@ func (ctx *genericEncrypter) Options() EncrypterOptions {
 func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) {
 	headers := obj.mergedHeaders(nil)
 
+	if len(obj.recipients) == 0 {
+		return nil, errors.New("go-jose/go-jose: no recipients in payload")
+	}
 	if len(obj.recipients) > 1 {
 		return nil, errors.New("go-jose/go-jose: too many recipients in payload; expecting only one")
 	}
