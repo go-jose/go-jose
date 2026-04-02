@@ -131,10 +131,6 @@ func (ctx *cbcAEAD) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	ret, out := resize(dst, uint64(len(dst))+uint64(len(plaintext)))
 	copy(out, plaintext)
 
-	if ret == nil {
-		ret = []byte{}
-	}
-
 	return ret, nil
 }
 

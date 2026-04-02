@@ -264,11 +264,7 @@ func (ctx aeadContentCipher) decrypt(key, aad []byte, parts *aeadParts) ([]byte,
 		return nil, ErrCryptoFailure
 	}
 
-	plaintext, err := aead.Open(nil, parts.iv, append(parts.ciphertext, parts.tag...), aad)
-	if plaintext == nil && err == nil {
-		plaintext = []byte{}
-	}
-	return plaintext, err
+	return aead.Open(nil, parts.iv, append(parts.ciphertext, parts.tag...), aad)
 }
 
 // Encrypt the content encryption key.
