@@ -183,7 +183,7 @@ func TestSignerWithBrokenRand(t *testing.T) {
 	for _, alg := range sigAlgs {
 		signingKey, verificationKey := GenerateSigningTestKey(alg)
 		for i, getReader := range brokenRandReaders {
-			RandReader = getReader()
+			randReader = getReader()
 			err := RoundtripJWS(alg, serializer, corrupter, signingKey, verificationKey, "test_nonce")
 			if err == nil {
 				t.Error("signer should fail if rand is broken", alg, i)
