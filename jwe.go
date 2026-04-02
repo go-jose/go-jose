@@ -367,6 +367,9 @@ func (obj JSONWebEncryption) CompactSerialize() (string, error) {
 
 // FullSerialize serializes an object using the full JSON serialization format.
 func (obj JSONWebEncryption) FullSerialize() string {
+	if len(obj.recipients) == 0 {
+		return ""
+	}
 	raw := rawJSONWebEncryption{
 		Unprotected:  obj.unprotected,
 		Iv:           newBuffer(obj.iv),

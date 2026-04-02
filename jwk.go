@@ -392,6 +392,12 @@ func ecThumbprintInput(curve elliptic.Curve, x, y *big.Int) (string, error) {
 }
 
 func rsaThumbprintInput(n *big.Int, e int) (string, error) {
+	if n == nil || n.BitLen() == 0 {
+		return "", errors.New("go-jose/go-jose: invalid RSA key, missing modulus")
+	}
+	if e == 0 {
+		return "", errors.New("go-jose/go-jose: invalid RSA key, missing exponent")
+	}
 	return fmt.Sprintf(rsaThumbprintTemplate,
 		newBufferFromInt(uint64(e)).base64(),
 		newBuffer(n.Bytes()).base64()), nil
@@ -423,6 +429,9 @@ func (k *JSONWebKey) Thumbprint(hash crypto.Hash) ([]byte, error) {
 	case *rsa.PrivateKey:
 		input, err = rsaThumbprintInput(key.N, key.E)
 	case ed25519.PrivateKey:
+		if len(key) != ed25519.PrivateKeySize {
+			return nil, fmt.Errorf("go-jose/go-jose: invalid ed25519 private key size: %d", len(key))
+		}
 		input, err = edThumbprintInput(ed25519.PublicKey(key[32:]))
 	case OpaqueSigner:
 		return key.Public().Thumbprint(hash)
@@ -505,13 +514,19 @@ func (k *JSONWebKey) Valid() bool {
 }
 
 func (key rawJSONWebKey) rsaPublicKey() (*rsa.PublicKey, error) {
-	if key.N == nil || key.E == nil {
+	if key.N == nil || key.E == nil || len(key.N.bytes()) == 0 || len(key.E.bytes()) == 0 {
 		return nil, fmt.Errorf("go-jose/go-jose: invalid RSA key, missing n/e values")
 	}
 
+	n := key.N.bigInt()
+	e := key.E.toInt()
+	if n.Sign() <= 0 || e <= 0 {
+		return nil, fmt.Errorf("go-jose/go-jose: invalid RSA key, n and e must be positive")
+	}
+
 	return &rsa.PublicKey{
-		N: key.N.bigInt(),
-		E: key.E.toInt(),
+		N: n,
+		E: e,
 	}, nil
 }
 
@@ -680,6 +695,9 @@ func (key rawJSONWebKey) rsaPrivateKey() (*rsa.PrivateKey, error) {
 }
 
 func fromEdPrivateKey(ed ed25519.PrivateKey) (*rawJSONWebKey, error) {
+	if len(ed) != ed25519.PrivateKeySize {
+		return nil, fmt.Errorf("go-jose/go-jose: invalid ed25519 private key size: %d", len(ed))
+	}
 	raw := fromEdPublicKey(ed25519.PublicKey(ed[32:]))
 
 	raw.D = newBuffer(ed[0:32])
@@ -809,7 +827,7 @@ func fromSymmetricKey(key []byte) (*rawJSONWebKey, error) {
 }
 
 func (key rawJSONWebKey) symmetricKey() ([]byte, error) {
-	if key.K == nil {
+	if key.K == nil || len(key.K.bytes()) == 0 {
 		return nil, fmt.Errorf("go-jose/go-jose: invalid OCT (symmetric) key, missing k value")
 	}
 	return key.K.bytes(), nil
