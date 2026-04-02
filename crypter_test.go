@@ -748,6 +748,39 @@ func TestRejectTooHighP2C(t *testing.T) {
 	}
 }
 
+func TestDecryptEmptyPlaintext(t *testing.T) {
+	encAlg := A128GCM
+	keyAlg := DIRECT
+	testKeys := generateTestKeys(DIRECT, encAlg)
+	rcpt := Recipient{Algorithm: keyAlg, Key: testKeys[0].enc}
+	enc, err := NewEncrypter(encAlg, rcpt, nil)
+	if err != nil {
+		t.Fatalf("error on new encrypter: %s", err)
+	}
+
+	var plaintext []byte
+	obj, err := enc.EncryptWithAuthData(plaintext, nil)
+	if err != nil {
+		t.Fatalf("error in encrypt: %s", err)
+	}
+
+	msg := obj.FullSerialize()
+
+	parsed, err := ParseEncryptedJSON(msg, []KeyAlgorithm{keyAlg}, []ContentEncryption{encAlg})
+	if err != nil {
+		t.Fatalf("error in parse: %s, on msg '%s'", err, msg)
+	}
+
+	output, err := parsed.Decrypt(testKeys[0].dec)
+	if err != nil {
+		t.Fatalf("error on decrypt: %s", err)
+	}
+
+	if !bytes.Equal(plaintext, output) {
+		t.Fatalf("Decrypted(): got %q, want %q", output, plaintext)
+	}
+}
+
 type testKey struct {
 	enc, dec interface{}
 }

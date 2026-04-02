@@ -442,11 +442,11 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 	headers := signature.mergedHeaders()
 	alg := headers.getSignatureAlgorithm()
 	err = verifier.verifyPayload(input, signature.Signature, alg)
-	if err == nil {
-		return nil
+	if err != nil {
+		return ErrCryptoFailure
 	}
 
-	return ErrCryptoFailure
+	return nil
 }
 
 // VerifyMulti validates (one of the multiple) signatures on the object and
@@ -486,7 +486,6 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 		return -1, Signature{}, err
 	}
 
-outer:
 	for i, signature := range obj.Signatures {
 		if signature.header != nil {
 			// Per https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.11,
@@ -496,7 +495,7 @@ outer:
 			// Protected Header."
 			err = signature.header.checkNoCritical()
 			if err != nil {
-				continue outer
+				continue
 			}
 		}
 
@@ -504,7 +503,7 @@ outer:
 			// Check for only supported critical headers
 			err = signature.protected.checkSupportedCritical(supportedCritical)
 			if err != nil {
-				continue outer
+				continue
 			}
 		}
 
@@ -516,9 +515,11 @@ outer:
 		headers := signature.mergedHeaders()
 		alg := headers.getSignatureAlgorithm()
 		err = verifier.verifyPayload(input, signature.Signature, alg)
-		if err == nil {
-			return i, signature, nil
+		if err != nil {
+			continue
 		}
+
+		return i, signature, nil
 	}
 
 	return -1, Signature{}, ErrCryptoFailure
