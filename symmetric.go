@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/fips140"
 	"crypto/hmac"
 	"crypto/pbkdf2"
 	"crypto/rand"
@@ -96,26 +95,10 @@ type staticKeyGenerator struct {
 	key []byte
 }
 
-// Create a new content cipher based on AES-GCM
+// Create a new content cipher based on AES-GCM.
+// Uses NewGCMWithRandomNonce so nonces are generated internally,
+// which is required for FIPS 140 compliance.
 func newAESGCM(keySize int) contentCipher {
-	return &aeadContentCipher{
-		keyBytes:     keySize,
-		authtagBytes: 16,
-		getAead: func(key []byte) (cipher.AEAD, error) {
-			aes, err := aes.NewCipher(key)
-			if err != nil {
-				return nil, err
-			}
-
-			return cipher.NewGCM(aes)
-		},
-	}
-}
-
-// newAESGCMRandomNonce creates an AES-GCM content cipher that uses
-// NewGCMWithRandomNonce, where nonces are generated internally.
-// This is required for FIPS 140 compliance.
-func newAESGCMRandomNonce(keySize int) contentCipher {
 	return &aeadContentCipher{
 		keyBytes:     keySize,
 		authtagBytes: 16,
@@ -142,24 +125,15 @@ func newAESCBC(keySize int) contentCipher {
 	}
 }
 
-// getAESGCMCipher returns the appropriate AES-GCM content cipher,
-// using NewGCMWithRandomNonce when FIPS 140 mode is enabled.
-func getAESGCMCipher(keySize int) contentCipher {
-	if fips140.Enabled() {
-		return newAESGCMRandomNonce(keySize)
-	}
-	return newAESGCM(keySize)
-}
-
 // Get an AEAD cipher object for the given content encryption algorithm
 func getContentCipher(alg ContentEncryption) contentCipher {
 	switch alg {
 	case A128GCM:
-		return getAESGCMCipher(16)
+		return newAESGCM(16)
 	case A192GCM:
-		return getAESGCMCipher(24)
+		return newAESGCM(24)
 	case A256GCM:
-		return getAESGCMCipher(32)
+		return newAESGCM(32)
 	case A128CBC_HS256:
 		return newAESCBC(16)
 	case A192CBC_HS384:
@@ -277,10 +251,9 @@ func (ctx aeadContentCipher) encrypt(key, aad, pt []byte) (*aeadParts, error) {
 		// it to the ciphertext. We extract it to fit the JOSE format.
 		out := aead.Seal(nil, nil, pt, aad)
 		// out = nonce (12) || ciphertext || tag (16)
-		iv := out[:gcmNonceSize]
 		offset := len(out) - ctx.authtagBytes
 		return &aeadParts{
-			iv:         iv,
+			iv:         out[:gcmNonceSize],
 			ciphertext: out[gcmNonceSize:offset],
 			tag:        out[offset:],
 		}, nil
@@ -311,7 +284,6 @@ func (ctx aeadContentCipher) decrypt(key, aad []byte, parts *aeadParts) ([]byte,
 	}
 
 	if ctx.randomNonce {
-		// NewGCMWithRandomNonce expects nonce || ciphertext || tag as input.
 		if len(parts.iv) != gcmNonceSize || len(parts.tag) < ctx.authtagBytes {
 			return nil, ErrCryptoFailure
 		}
@@ -335,7 +307,7 @@ func (ctx *symmetricKeyCipher) encryptKey(cek []byte, alg KeyAlgorithm) (recipie
 			header: &rawHeader{},
 		}, nil
 	case A128GCMKW, A192GCMKW, A256GCMKW:
-		aead := getAESGCMCipher(len(ctx.key))
+		aead := newAESGCM(len(ctx.key))
 
 		parts, err := aead.encrypt(ctx.key, []byte{}, cek)
 		if err != nil {
@@ -442,7 +414,7 @@ func (ctx *symmetricKeyCipher) decryptKey(headers rawHeader, recipient *recipien
 
 	switch alg {
 	case A128GCMKW, A192GCMKW, A256GCMKW:
-		aead := getAESGCMCipher(len(ctx.key))
+		aead := newAESGCM(len(ctx.key))
 
 		iv, err := headers.getIV()
 		if err != nil {
