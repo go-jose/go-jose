@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"slices"
 
 	josecipher "github.com/go-jose/go-jose/v4/cipher"
 )
@@ -71,11 +72,17 @@ type aeadParts struct {
 	iv, ciphertext, tag []byte
 }
 
+// gcmNonceSize is the standard GCM nonce size in bytes (96 bits).
+const gcmNonceSize = 12
+
 // A content cipher based on an AEAD construction
 type aeadContentCipher struct {
 	keyBytes     int
 	authtagBytes int
 	getAead      func(key []byte) (cipher.AEAD, error)
+	// randomNonce indicates that the AEAD uses NewGCMWithRandomNonce,
+	// where the nonce is generated internally and prepended to the ciphertext.
+	randomNonce bool
 }
 
 // Random key generator
@@ -88,18 +95,21 @@ type staticKeyGenerator struct {
 	key []byte
 }
 
-// Create a new content cipher based on AES-GCM
+// Create a new content cipher based on AES-GCM.
+// Uses NewGCMWithRandomNonce so nonces are generated internally,
+// which is required for FIPS 140 compliance.
 func newAESGCM(keySize int) contentCipher {
 	return &aeadContentCipher{
 		keyBytes:     keySize,
 		authtagBytes: 16,
+		randomNonce:  true,
 		getAead: func(key []byte) (cipher.AEAD, error) {
 			aes, err := aes.NewCipher(key)
 			if err != nil {
 				return nil, err
 			}
 
-			return cipher.NewGCM(aes)
+			return cipher.NewGCMWithRandomNonce(aes)
 		},
 	}
 }
@@ -236,6 +246,19 @@ func (ctx aeadContentCipher) encrypt(key, aad, pt []byte) (*aeadParts, error) {
 		return nil, err
 	}
 
+	if ctx.randomNonce {
+		// NewGCMWithRandomNonce generates the nonce internally and prepends
+		// it to the ciphertext. We extract it to fit the JOSE format.
+		out := aead.Seal(nil, nil, pt, aad)
+		// out = nonce (12) || ciphertext || tag (16)
+		offset := len(out) - ctx.authtagBytes
+		return &aeadParts{
+			iv:         out[:gcmNonceSize],
+			ciphertext: out[gcmNonceSize:offset],
+			tag:        out[offset:],
+		}, nil
+	}
+
 	// Initialize a new nonce
 	iv := make([]byte, aead.NonceSize())
 	_, err = io.ReadFull(randReader, iv)
@@ -258,6 +281,15 @@ func (ctx aeadContentCipher) decrypt(key, aad []byte, parts *aeadParts) ([]byte,
 	aead, err := ctx.getAead(key)
 	if err != nil {
 		return nil, err
+	}
+
+	if ctx.randomNonce {
+		if len(parts.iv) != gcmNonceSize || len(parts.tag) < ctx.authtagBytes {
+			return nil, ErrCryptoFailure
+		}
+		// NewGCMWithRandomNonce expects nonce || ciphertext || tag as input.
+		joined := slices.Concat(parts.iv, parts.ciphertext, parts.tag)
+		return aead.Open(nil, nil, joined, aad)
 	}
 
 	if len(parts.iv) != aead.NonceSize() || len(parts.tag) < ctx.authtagBytes {
