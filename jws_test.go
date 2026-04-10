@@ -83,6 +83,28 @@ Bz5ykrw/Gg4QWmw6MfwjOX5Fu1oJF9ABoCFD5umvKhpoJkcT8aYM0+E1xiEAx64u
 Wq2b2GCGP4wMEZuqCcE72fiue295ovPkNsbEjTQk/ijWza0=
 -----END CERTIFICATE-----`
 
+func TestParseEmptySigned(t *testing.T) {
+	_, err := ParseSigned("", []SignatureAlgorithm{HS256})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseSignedCompact("", []SignatureAlgorithm{HS256})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseSignedJSON("", []SignatureAlgorithm{HS256})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseDetached("", []byte{}, []SignatureAlgorithm{HS256})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+}
+
 func TestEmbeddedHMAC(t *testing.T) {
 	// protected: {"alg":"HS256", "jwk":{"kty":"oct", "k":"MTEx"}}, aka HMAC key.
 	msg := `{"payload":"TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ","protected":"eyJhbGciOiJIUzI1NiIsICJqd2siOnsia3R5Ijoib2N0IiwgImsiOiJNVEV4In19","signature":"lvo41ZZsuHwQvSh0uJtEXRR3vmuBJ7in6qMoD7p9jyo"}`

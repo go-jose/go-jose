@@ -23,6 +23,47 @@ import (
 	"testing"
 )
 
+func TestKeyUnwrapShort(t *testing.T) {
+	// Test vectors from: http://csrc.nist.gov/groups/ST/toolkit/documents/kms/key-wrap.pdf
+	kek0, _ := hex.DecodeString("000102030405060708090A0B0C0D0E0F")
+	block0, _ := aes.NewCipher(kek0)
+	want := "go-jose/go-jose: JWE Encrypted Key too short"
+	_, err := KeyUnwrap(block0, nil)
+	if err == nil {
+		t.Error("KeyUnwrap(_, nil): got nil, want error")
+	} else if err.Error() != want {
+		t.Errorf("KeyUnwrap(_, nil): got %q, want %q", err, want)
+	}
+
+	input := []byte{}
+	_, err = KeyUnwrap(block0, []byte{})
+	if err == nil {
+		t.Errorf("KeyUnwrap(_, %q): got nil, want error", input)
+	} else if err.Error() != want {
+		t.Errorf("KeyUnwrap(_, %q): got %q, want %q", input, err, want)
+	}
+
+	for n := 0; n < 16; n++ {
+		input := bytes.Repeat([]byte("a"), n)
+		_, err = KeyUnwrap(block0, input)
+		if err == nil {
+			t.Errorf("KeyUnwrap(_, %q): got nil, want error", input)
+		} else if err.Error() != want {
+			t.Errorf("KeyUnwrap(_, nil): got %q, want %q", err, want)
+		}
+	}
+
+	input = bytes.Repeat([]byte("a"), 17)
+	want = "go-jose/go-jose: key wrap input must be 8 byte blocks"
+	_, err = KeyUnwrap(block0, input)
+	if err == nil {
+		t.Errorf("KeyUnwrap(_, %q): got nil, want error", input)
+	} else if err.Error() != want {
+		t.Errorf("KeyUnwrap(_, %q): got %q, want %q", input, err, want)
+	}
+
+}
+
 func TestAesKeyWrap(t *testing.T) {
 	// Test vectors from: http://csrc.nist.gov/groups/ST/toolkit/documents/kms/key-wrap.pdf
 	kek0, _ := hex.DecodeString("000102030405060708090A0B0C0D0E0F")
