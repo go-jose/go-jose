@@ -22,10 +22,28 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"math/big"
 	"regexp"
 	"testing"
 )
+
+func TestParseEmptyEncrypted(t *testing.T) {
+	_, err := ParseEncrypted("", []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseEncryptedCompact("", []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseEncryptedJSON("", []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+}
 
 func TestCompactParseJWE(t *testing.T) {
 	// Should parse
@@ -289,7 +307,7 @@ func TestVectorsJWE(t *testing.T) {
 		"tag":"XFBoMYUZodetZdvTiFvSkQ" }`)
 
 	// Mock random reader
-	RandReader = bytes.NewReader([]byte{
+	randReader = bytes.NewReader([]byte{
 		// Encryption key
 		177, 161, 244, 128, 84, 143, 225, 115, 63, 180, 3, 255, 107, 154,
 		212, 246, 138, 7, 110, 91, 112, 46, 34, 105, 47, 130, 203, 46, 122,
@@ -380,13 +398,13 @@ func TestVectorsJWECorrupt(t *testing.T) {
 	msg, _ := ParseEncrypted(corruptCiphertext, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	_, err := msg.Decrypt(priv)
 	if err != ErrCryptoFailure {
-		t.Error("should detect corrupt ciphertext")
+		t.Errorf("Decrypt(): got %q, want %q", err, ErrCryptoFailure)
 	}
 
 	msg, _ = ParseEncrypted(corruptAuthtag, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	_, err = msg.Decrypt(priv)
 	if err != ErrCryptoFailure {
-		t.Error("should detect corrupt auth tag")
+		t.Errorf("Decrypt(): got %q, want %q", err, ErrCryptoFailure)
 	}
 }
 
@@ -715,6 +733,55 @@ func TestJWEWithNullAlg(t *testing.T) {
 	serialized := `{"protected":"eyJhbGciOm51bGwsImVuYyI6IkExMjhHQ00ifQ"}`
 	if _, err := ParseEncrypted(serialized, []KeyAlgorithm{KeyAlgorithm("null")}, []ContentEncryption{A128GCM}); err == nil {
 		t.Error(err)
+	}
+}
+
+func TestEmptyEncryptedKey(t *testing.T) {
+	// These inputs use key wrapping with an empty wrapped key.
+	// All fields except the unprotected header are empty; in particular "JWE Encrypted Key" is empty.
+	serializedCompact := `eyJhbGciOiJQQkVTMi1IUzUxMitBMjU2S1ciLCJjdHkiOiJhcHBsaWNhdGlvbi9qd2sranNvbiIsImVuYyI6IkEyNTZHQ00iLCJwMmMiOjIxMDAwMCwicDJzIjoiY000YyJ9....`
+	serializedJSON := `{"unprotected":{"alg":"PBES2-HS512+A256KW","cty":"application/jwk+json","enc":"A256GCM","p2c":210000,"p2s":"cM4c"}}`
+	acceptedAlgs := []KeyAlgorithm{PBES2_HS512_A256KW}
+	acceptedContentAlgs := []ContentEncryption{A256GCM}
+	item, err := ParseEncrypted(serializedCompact, acceptedAlgs, acceptedContentAlgs)
+	if err != nil {
+		t.Fatalf("ParseEncrypted(%q): %s", serializedCompact, err)
+	}
+
+	secret := []byte("valid-key-used-for-decryption")
+
+	// Note: we check this "want" value to distinguish from other error cases, but future refactorings to give
+	// a more useful error message would be okay.
+	want := "go-jose/go-jose: error in cryptographic primitive"
+	_, err = item.Decrypt(secret)
+	if err == nil {
+		t.Errorf("Decrypt() after ParseEncrypted() with empty encrypted key should fail")
+	} else if err.Error() != want {
+		t.Errorf("Decrypt() after ParseEncrypted() with empty encrypted key: got %q, want %q", err, want)
+	}
+
+	item, err = ParseEncryptedCompact(serializedCompact, acceptedAlgs, acceptedContentAlgs)
+	if err != nil {
+		t.Fatalf("ParseEncryptedCompact(%q): %s", serializedCompact, err)
+	}
+
+	_, err = item.Decrypt(secret)
+	if err == nil {
+		t.Errorf("Decrypt() after ParseEncryptedCompact() with empty encrypted key should fail")
+	} else if err.Error() != want {
+		t.Errorf("Decrypt() after ParseEncryptedCompact() with empty encrypted key: got %q, want %q", err, want)
+	}
+
+	item, err = ParseEncryptedJSON(serializedJSON, acceptedAlgs, acceptedContentAlgs)
+	if err != nil {
+		t.Fatalf("ParseEncryptedJSON(%q): %s", serializedJSON, err)
+	}
+
+	_, err = item.Decrypt(secret)
+	if err == nil {
+		t.Errorf("Decrypt() after ParseEncryptedJSON() with empty encrypted key should fail")
+	} else if err.Error() != want {
+		t.Errorf("Decrypt() after ParseEncryptedJSON() with empty encrypted key: got %q, want %q", err, want)
 	}
 }
 

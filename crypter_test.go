@@ -191,9 +191,27 @@ func TestRoundtripsJWECorrupted(t *testing.T) {
 		func(obj *JSONWebEncryption) (string, error) { return obj.FullSerialize(), nil },
 	}
 
+	// corrupter functions return true to skip (i.e. no change was made so no error is expected),
+	// or false to do the test and expect an error.
 	bitflip := func(slice []byte) bool {
 		if len(slice) > 0 {
 			slice[0] ^= 0xFF
+			return false
+		}
+		return true
+	}
+
+	shorten := func(slice *[]byte) bool {
+		if len(*slice) > 0 {
+			*slice = (*slice)[:len(*slice)-1]
+			return false
+		}
+		return true
+	}
+
+	empty := func(slice *[]byte) bool {
+		if len(*slice) > 0 {
+			*slice = nil
 			return false
 		}
 		return true
@@ -215,6 +233,14 @@ func TestRoundtripsJWECorrupted(t *testing.T) {
 		func(obj *JSONWebEncryption) bool {
 			// Mess with encrypted key
 			return bitflip(obj.recipients[0].encryptedKey)
+		},
+		func(obj *JSONWebEncryption) bool {
+			// Remove encrypted key
+			return empty(&obj.recipients[0].encryptedKey)
+		},
+		func(obj *JSONWebEncryption) bool {
+			// Shorten encrypted key
+			return shorten(&obj.recipients[0].encryptedKey)
 		},
 		func(obj *JSONWebEncryption) bool {
 			// Mess with GCM-KW auth tag
@@ -326,7 +352,7 @@ func TestEncrypterWithBrokenRand(t *testing.T) {
 		for _, enc := range encAlgs {
 			for _, key := range generateTestKeys(alg, enc) {
 				for i, getReader := range readers {
-					RandReader = getReader()
+					randReader = getReader()
 					err := RoundtripJWE(alg, enc, NONE, serializer, corrupter, nil, key.enc, key.dec)
 					if err == nil {
 						t.Error("encrypter should fail if rand is broken", i)
@@ -719,6 +745,39 @@ func TestRejectTooHighP2C(t *testing.T) {
 				t.Fatal("expected error decrypting expensive PBES2 key, got none")
 			}
 		}
+	}
+}
+
+func TestDecryptEmptyPlaintext(t *testing.T) {
+	encAlg := A128GCM
+	keyAlg := DIRECT
+	testKeys := generateTestKeys(DIRECT, encAlg)
+	rcpt := Recipient{Algorithm: keyAlg, Key: testKeys[0].enc}
+	enc, err := NewEncrypter(encAlg, rcpt, nil)
+	if err != nil {
+		t.Fatalf("error on new encrypter: %s", err)
+	}
+
+	var plaintext []byte
+	obj, err := enc.EncryptWithAuthData(plaintext, nil)
+	if err != nil {
+		t.Fatalf("error in encrypt: %s", err)
+	}
+
+	msg := obj.FullSerialize()
+
+	parsed, err := ParseEncryptedJSON(msg, []KeyAlgorithm{keyAlg}, []ContentEncryption{encAlg})
+	if err != nil {
+		t.Fatalf("error in parse: %s, on msg '%s'", err, msg)
+	}
+
+	output, err := parsed.Decrypt(testKeys[0].dec)
+	if err != nil {
+		t.Fatalf("error on decrypt: %s", err)
+	}
+
+	if !bytes.Equal(plaintext, output) {
+		t.Fatalf("Decrypted(): got %q, want %q", output, plaintext)
 	}
 }
 
