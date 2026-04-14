@@ -377,8 +377,14 @@ func (ctx *genericSigner) Options() SignerOptions {
 //   - HS256: 32 bytes
 //   - HS384: 48 bytes
 //   - HS512: 64 bytes
-func (obj JSONWebSignature) Verify(verificationKey interface{}) ([]byte, error) {
-	err := obj.DetachedVerify(obj.payload, verificationKey)
+//
+// The optional crits argument lists non-standard crit header names that
+// go-jose should treat as known. go-jose will only skip failing with an
+// unsupported-crit error for these names; it does not implement or enforce
+// their semantics. Callers are responsible for understanding and validating
+// the meaning of any such critical headers.
+func (obj JSONWebSignature) Verify(verificationKey interface{}, crits ...string) ([]byte, error) {
+	err := obj.DetachedVerify(obj.payload, verificationKey, crits...)
 	if err != nil {
 		return nil, err
 	}
@@ -392,14 +398,17 @@ func (obj JSONWebSignature) UnsafePayloadWithoutVerification() []byte {
 	return obj.payload
 }
 
-// DetachedVerify validates a detached signature on the given payload. In
-// most cases, you will probably want to use Verify instead. DetachedVerify
-// is only useful if you have a payload and signature that are separated from
-// each other.
+// DetachedVerify validates a detached signature on the given payload. In most
+// cases, you will probably want to use Verify instead. DetachedVerify is only
+// useful if you have a payload and signature that are separated from each
+// other.
 //
 // The verificationKey argument must have one of the types allowed for the
 // verificationKey argument of JSONWebSignature.Verify().
-func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey interface{}) error {
+//
+// The optional crits argument can be used to add non-standard crit headers to
+// the supported list
+func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey interface{}, crits ...string) error {
 	key, err := tryJWKS(verificationKey, obj.headers()...)
 	if err != nil {
 		return err
@@ -428,7 +437,7 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 	}
 
 	if signature.protected != nil {
-		err = signature.protected.checkSupportedCritical(supportedCritical)
+		err = signature.protected.checkSupportedCritical(getSupportedCritical(crits))
 		if err != nil {
 			return err
 		}
@@ -456,8 +465,11 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 //
 // The verificationKey argument must have one of the types allowed for the
 // verificationKey argument of JSONWebSignature.Verify().
-func (obj JSONWebSignature) VerifyMulti(verificationKey interface{}) (int, Signature, []byte, error) {
-	idx, sig, err := obj.DetachedVerifyMulti(obj.payload, verificationKey)
+//
+// The optional crits argument can be used to add non-standard crit headers to
+// the supported list
+func (obj JSONWebSignature) VerifyMulti(verificationKey interface{}, crits ...string) (int, Signature, []byte, error) {
+	idx, sig, err := obj.DetachedVerifyMulti(obj.payload, verificationKey, crits...)
 	if err != nil {
 		return -1, Signature{}, nil, err
 	}
@@ -476,7 +488,10 @@ func (obj JSONWebSignature) VerifyMulti(verificationKey interface{}) (int, Signa
 //
 // The verificationKey argument must have one of the types allowed for the
 // verificationKey argument of JSONWebSignature.Verify().
-func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey interface{}) (int, Signature, error) {
+//
+// The optional crits argument can be used to add non-standard crit headers to
+// the supported list
+func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey interface{}, crits ...string) (int, Signature, error) {
 	key, err := tryJWKS(verificationKey, obj.headers()...)
 	if err != nil {
 		return -1, Signature{}, err
@@ -485,6 +500,8 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 	if err != nil {
 		return -1, Signature{}, err
 	}
+
+	suppCrits := getSupportedCritical(crits)
 
 	for i, signature := range obj.Signatures {
 		if signature.header != nil {
@@ -501,7 +518,7 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 
 		if signature.protected != nil {
 			// Check for only supported critical headers
-			err = signature.protected.checkSupportedCritical(supportedCritical)
+			err = signature.protected.checkSupportedCritical(suppCrits)
 			if err != nil {
 				continue
 			}
@@ -531,4 +548,17 @@ func (obj JSONWebSignature) headers() []Header {
 		headers[i] = sig.Header
 	}
 	return headers
+}
+
+func getSupportedCritical(crits []string) map[string]struct{} {
+
+	sp := make(map[string]struct{})
+	for k, v := range supportedCritical {
+		sp[k] = v
+	}
+
+	for _, c := range crits {
+		sp[c] = struct{}{}
+	}
+	return sp
 }

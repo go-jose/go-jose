@@ -163,6 +163,7 @@ func (b *builder) merge(m map[string]interface{}) builder {
 }
 
 func (b *builder) token(p func(interface{}) ([]byte, error), h []jose.Header) (*JSONWebToken, error) {
+
 	return &JSONWebToken{
 		payload: p,
 		Headers: h,
@@ -187,7 +188,9 @@ func (b *signedBuilder) Token() (*JSONWebToken, error) {
 		h[i] = v.Header
 	}
 
-	return b.builder.token(sig.Verify, h)
+	return b.builder.token(func(verificationKey interface{}) ([]byte, error) {
+		return sig.Verify(verificationKey)
+	}, h)
 }
 
 func (b *signedBuilder) Serialize() (string, error) {
