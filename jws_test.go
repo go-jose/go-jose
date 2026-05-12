@@ -710,6 +710,44 @@ func TestDetachedCompactSerialization(t *testing.T) {
 	}
 }
 
+func TestSerializePreservesParsedProtectedHeader(t *testing.T) {
+	// Protected header here is {"typ":"JWT","alg":"HS256"}, which is not in
+	// alphabetical key order. Re-marshaling the parsed header map would sort
+	// the keys, changing the signed bytes and invalidating the signature.
+	msg := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.HwIsK3apeAFigSjP3j79CA3Pt1rAdb220riTBjMaoWw"
+	key := []byte("0123456789ABCDEF0123456789ABCDEF")
+
+	obj, err := ParseSigned(msg, []SignatureAlgorithm{HS256})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	compact, err := obj.CompactSerialize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if compact != msg {
+		t.Fatalf("CompactSerialize changed token\n got: %s\nwant: %s", compact, msg)
+	}
+
+	full := obj.FullSerialize()
+	parsed, err := ParseSigned(full, []SignatureAlgorithm{HS256})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parsed.Verify(key); err != nil {
+		t.Fatalf("signature invalid after FullSerialize round trip: %v", err)
+	}
+
+	reparsed, err := ParseSigned(compact, []SignatureAlgorithm{HS256})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reparsed.Verify(key); err != nil {
+		t.Fatalf("signature invalid after CompactSerialize round trip: %v", err)
+	}
+}
+
 func TestJWSComputeAuthDataBase64(t *testing.T) {
 	jws := JSONWebSignature{}
 
