@@ -161,6 +161,20 @@ func (sig Signature) mergedHeaders() rawHeader {
 	return out
 }
 
+// serializedProtected returns the protected header bytes to use when
+// serializing a signature. If the signature was parsed from an existing
+// token, the original protected header bytes are reused so that the
+// signature stays valid for the re-serialized output.
+func (sig Signature) serializedProtected() ([]byte, error) {
+	if sig.protected == nil {
+		return nil, nil
+	}
+	if sig.original != nil && sig.original.Protected != nil {
+		return sig.original.Protected.bytes(), nil
+	}
+	return json.Marshal(sig.protected)
+}
+
 // Compute data to be signed
 func (obj JSONWebSignature) computeAuthData(payload []byte, signature *Signature) ([]byte, error) {
 	var authData bytes.Buffer
@@ -451,7 +465,7 @@ func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 		return "", ErrNotSupported
 	}
 
-	serializedProtected, err := json.Marshal(obj.Signatures[0].protected)
+	serializedProtected, err := obj.Signatures[0].serializedProtected()
 	if err != nil {
 		return "", err
 	}
@@ -491,13 +505,11 @@ func (obj JSONWebSignature) FullSerialize() string {
 	}
 
 	if len(obj.Signatures) == 1 {
-		if obj.Signatures[0].protected != nil {
-			serializedProtected, err := json.Marshal(obj.Signatures[0].protected)
-			if err != nil {
-				return ""
-			}
-			raw.Protected = newBuffer(serializedProtected)
+		serializedProtected, err := obj.Signatures[0].serializedProtected()
+		if err != nil {
+			return ""
 		}
+		raw.Protected = newBuffer(serializedProtected)
 		raw.Header = obj.Signatures[0].header
 		raw.Signature = newBuffer(obj.Signatures[0].Signature)
 	} else {
@@ -508,13 +520,11 @@ func (obj JSONWebSignature) FullSerialize() string {
 				Signature: newBuffer(signature.Signature),
 			}
 
-			if signature.protected != nil {
-				serializedProtected, err := json.Marshal(signature.protected)
-				if err != nil {
-					return ""
-				}
-				raw.Signatures[i].Protected = newBuffer(serializedProtected)
+			serializedProtected, err := signature.serializedProtected()
+			if err != nil {
+				return ""
 			}
+			raw.Signatures[i].Protected = newBuffer(serializedProtected)
 		}
 	}
 
