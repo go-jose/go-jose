@@ -423,7 +423,10 @@ func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 		return "", ErrNotSupported
 	}
 
-	serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
+	// Round-tripping a parsed JWS must preserve the original protected
+	// header bytes, otherwise re-marshaling the protected map would
+	// reorder its keys and invalidate the existing signature. See #228.
+	serializedProtected := protectedHeaderBytes(&obj.Signatures[0])
 
 	var payload []byte
 	if !detached {
@@ -435,6 +438,17 @@ func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 		payload,
 		obj.Signatures[0].Signature,
 	), nil
+}
+
+// protectedHeaderBytes returns the byte sequence that should be used
+// when serializing sig's protected header. If sig was parsed from a
+// signed input, the original bytes are returned so the resulting
+// serialization stays signature-compatible with the input.
+func protectedHeaderBytes(sig *Signature) []byte {
+	if sig.original != nil && sig.original.Protected != nil {
+		return sig.original.Protected.bytes()
+	}
+	return mustSerializeJSON(sig.protected)
 }
 
 // CompactSerialize serializes an object using the compact serialization format.
@@ -455,8 +469,7 @@ func (obj JSONWebSignature) FullSerialize() string {
 
 	if len(obj.Signatures) == 1 {
 		if obj.Signatures[0].protected != nil {
-			serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
-			raw.Protected = newBuffer(serializedProtected)
+			raw.Protected = newBuffer(protectedHeaderBytes(&obj.Signatures[0]))
 		}
 		raw.Header = obj.Signatures[0].header
 		raw.Signature = newBuffer(obj.Signatures[0].Signature)
@@ -469,7 +482,7 @@ func (obj JSONWebSignature) FullSerialize() string {
 			}
 
 			if signature.protected != nil {
-				raw.Signatures[i].Protected = newBuffer(mustSerializeJSON(signature.protected))
+				raw.Signatures[i].Protected = newBuffer(protectedHeaderBytes(&obj.Signatures[i]))
 			}
 		}
 	}
