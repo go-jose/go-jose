@@ -477,7 +477,7 @@ func (parsed rawHeader) sanitized() (h Header, err error) {
 			h.ExtraHeaders[k] = v2
 		}
 	}
-	return
+	return h, nil
 }
 
 func parseCertificateChain(chain []string) ([]*x509.Certificate, error) {
