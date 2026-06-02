@@ -25,6 +25,7 @@ import (
 	"io"
 	"math/big"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/go-jose/go-jose/v4/json"
@@ -86,15 +87,29 @@ func decompress(algorithm CompressionAlgorithm, input []byte) ([]byte, error) {
 	}
 }
 
+var flateWriterPool sync.Pool
+
+func newFlateWriter(output io.Writer) *flate.Writer {
+	if v := flateWriterPool.Get(); v != nil {
+		e := v.(*flate.Writer)
+		e.Reset(output)
+		return e
+	}
+	// Writing to byte buffer, err is always nil
+	w, _ := flate.NewWriter(output, 1)
+	return w
+}
+
 // deflate compresses the input.
 func deflate(input []byte) ([]byte, error) {
 	output := new(bytes.Buffer)
 
-	// Writing to byte buffer, err is always nil
-	writer, _ := flate.NewWriter(output, 1)
+	writer := newFlateWriter(output)
 	_, _ = io.Copy(writer, bytes.NewBuffer(input))
 
 	err := writer.Close()
+	flateWriterPool.Put(writer)
+
 	return output.Bytes(), err
 }
 
