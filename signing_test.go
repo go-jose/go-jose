@@ -21,6 +21,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -618,6 +619,107 @@ func TestSignerB64(t *testing.T) {
 
 	if !bytes.Equal(output, input) {
 		t.Errorf("Input/output do not match, got '%s', expected '%s'", output, input)
+	}
+}
+
+// TestVerifyRejectsPrivateKey is a regression test for #171. A private key
+// must never be accepted where a public verification key is expected. If a
+// caller mixes up keys and passes a private key (or a JWK that carries private
+// parameters) to Verify, the verification must fail rather than silently
+// succeed. See https://github.com/go-jose/go-jose/issues/171 and the linked
+// write-up on public/private key confusion in OpenID Connect deployments.
+//
+// Verify already routes through newVerifier, which only recognizes public key
+// types, so a private key falls through to ErrUnsupportedKeyType. This test
+// pins that behavior so a future refactor cannot regress it.
+func TestVerifyRejectsPrivateKey(t *testing.T) {
+	rsaPriv := rsaTestKey
+	ecPriv := ecTestKey256
+
+	cases := []struct {
+		name   string
+		alg    SignatureAlgorithm
+		sign   interface{}
+		verify interface{}
+	}{
+		{"RSA raw private key", RS256, rsaPriv, rsaPriv},
+		{"RSA private JWK", RS256, rsaPriv, &JSONWebKey{Key: rsaPriv, KeyID: "rsa", Algorithm: string(RS256)}},
+		{"ECDSA raw private key", ES256, ecPriv, ecPriv},
+		{"ECDSA private JWK", ES256, ecPriv, &JSONWebKey{Key: ecPriv, KeyID: "ec", Algorithm: string(ES256)}},
+		{"Ed25519 raw private key", EdDSA, ed25519PrivateKey, ed25519PrivateKey},
+		{"Ed25519 private JWK", EdDSA, ed25519PrivateKey, &JSONWebKey{Key: ed25519PrivateKey, KeyID: "ed", Algorithm: string(EdDSA)}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			signer, err := NewSigner(SigningKey{Algorithm: tc.alg, Key: tc.sign}, nil)
+			if err != nil {
+				t.Fatalf("NewSigner: %v", err)
+			}
+			signed, err := signer.Sign([]byte("test payload"))
+			if err != nil {
+				t.Fatalf("Sign: %v", err)
+			}
+			serialized, err := signed.CompactSerialize()
+			if err != nil {
+				t.Fatalf("CompactSerialize: %v", err)
+			}
+			parsed, err := ParseSigned(serialized, []SignatureAlgorithm{tc.alg})
+			if err != nil {
+				t.Fatalf("ParseSigned: %v", err)
+			}
+
+			if _, err := parsed.Verify(tc.verify); !errors.Is(err, ErrUnsupportedKeyType) {
+				t.Errorf("Verify with private key: got err %v, want ErrUnsupportedKeyType", err)
+			}
+		})
+	}
+}
+
+// TestVerifyRejectsParsedPrivateJWK covers the exact scenario from #171: a JWK
+// that carries private key parameters is parsed from JSON and then handed to
+// Verify. Parsing such a JWK yields a private key (IsPublic is false), so
+// verification must be refused. The matching public key is asserted to verify
+// so the test also guards against over-broad rejection.
+func TestVerifyRejectsParsedPrivateJWK(t *testing.T) {
+	privJWK := &JSONWebKey{Key: rsaTestKey, KeyID: "rsa", Algorithm: string(RS256)}
+	jwkJSON, err := json.Marshal(privJWK)
+	if err != nil {
+		t.Fatalf("Marshal private JWK: %v", err)
+	}
+
+	var parsedKey JSONWebKey
+	if err := json.Unmarshal(jwkJSON, &parsedKey); err != nil {
+		t.Fatalf("Unmarshal private JWK: %v", err)
+	}
+	if parsedKey.IsPublic() {
+		t.Fatal("parsed JWK should carry a private key, but IsPublic() is true")
+	}
+
+	signer, err := NewSigner(SigningKey{Algorithm: RS256, Key: rsaTestKey}, nil)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	signed, err := signer.Sign([]byte("test payload"))
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+	serialized, err := signed.CompactSerialize()
+	if err != nil {
+		t.Fatalf("CompactSerialize: %v", err)
+	}
+	parsed, err := ParseSigned(serialized, []SignatureAlgorithm{RS256})
+	if err != nil {
+		t.Fatalf("ParseSigned: %v", err)
+	}
+
+	if _, err := parsed.Verify(&parsedKey); !errors.Is(err, ErrUnsupportedKeyType) {
+		t.Errorf("Verify with parsed private JWK: got err %v, want ErrUnsupportedKeyType", err)
+	}
+
+	pubKey := parsedKey.Public()
+	if _, err := parsed.Verify(&pubKey); err != nil {
+		t.Errorf("Verify with corresponding public key should succeed, got: %v", err)
 	}
 }
 
