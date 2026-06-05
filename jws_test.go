@@ -17,6 +17,7 @@
 package jose
 
 import (
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
@@ -674,6 +675,109 @@ func TestJWSWithCertificateChain(t *testing.T) {
 		if !testCase.success && (len(chains) != 0 && err == nil) {
 			t.Fatalf("incorrectly verified certificate chain for test case %d (should fail)", i)
 		}
+	}
+}
+
+func TestVerifyRejectsProtectedKIDMismatchForDirectJWK(t *testing.T) {
+	payload := []byte("protected kid mismatch")
+	signer, err := NewSigner(
+		SigningKey{Algorithm: RS256, Key: rsaTestKey},
+		(&SignerOptions{}).WithHeader(headerKeyID, "victim"),
+	)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	signed, err := signer.Sign(payload)
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+	parsed, err := ParseSigned(signed.FullSerialize(), []SignatureAlgorithm{RS256})
+	if err != nil {
+		t.Fatalf("ParseSigned: %v", err)
+	}
+
+	verifier := JSONWebKey{
+		Key:   &rsaTestKey.PublicKey,
+		KeyID: "attacker",
+	}
+	_, err = parsed.Verify(verifier)
+	if err == nil {
+		t.Fatal("Verify accepted a protected kid that differs from the verifier JWK kid")
+	}
+}
+
+func TestVerifyRejectsProtectedJWKMismatch(t *testing.T) {
+	victimKey, ok := testCertificates[0].PublicKey.(*rsa.PublicKey)
+	if !ok {
+		t.Fatalf("test certificate key type = %T, want *rsa.PublicKey", testCertificates[0].PublicKey)
+	}
+
+	payload := []byte("protected jwk mismatch")
+	signer, err := NewSigner(
+		SigningKey{Algorithm: RS256, Key: rsaTestKey},
+		(&SignerOptions{}).WithHeader(headerJWK, JSONWebKey{Key: victimKey}),
+	)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	signed, err := signer.Sign(payload)
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+	parsed, err := ParseSigned(signed.FullSerialize(), []SignatureAlgorithm{RS256})
+	if err != nil {
+		t.Fatalf("ParseSigned: %v", err)
+	}
+	_, err = parsed.Verify(&rsaTestKey.PublicKey)
+	if err == nil {
+		t.Fatal("Verify accepted protected JWK that differs from the verifier key")
+	}
+
+	signer, err = NewSigner(
+		SigningKey{Algorithm: RS256, Key: rsaTestKey},
+		(&SignerOptions{}).WithHeader(headerJWK, JSONWebKey{Key: &rsaTestKey.PublicKey}),
+	)
+	if err != nil {
+		t.Fatalf("NewSigner matching JWK: %v", err)
+	}
+	signed, err = signer.Sign(payload)
+	if err != nil {
+		t.Fatalf("Sign matching JWK: %v", err)
+	}
+	parsed, err = ParseSigned(signed.FullSerialize(), []SignatureAlgorithm{RS256})
+	if err != nil {
+		t.Fatalf("ParseSigned matching JWK: %v", err)
+	}
+	verified, err := parsed.Verify(&rsaTestKey.PublicKey)
+	if err != nil {
+		t.Fatalf("Verify rejected matching protected JWK: %v", err)
+	}
+	if string(verified) != string(payload) {
+		t.Fatalf("verified payload = %q, want %q", verified, payload)
+	}
+}
+
+func TestVerifyRejectsProtectedX5CMismatch(t *testing.T) {
+	payload := []byte("protected x5c mismatch")
+	chain := []string{base64.StdEncoding.EncodeToString(testCertificates[0].Raw)}
+	signer, err := NewSigner(
+		SigningKey{Algorithm: RS256, Key: rsaTestKey},
+		(&SignerOptions{}).WithHeader(headerX5c, chain),
+	)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	signed, err := signer.Sign(payload)
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+	parsed, err := ParseSigned(signed.FullSerialize(), []SignatureAlgorithm{RS256})
+	if err != nil {
+		t.Fatalf("ParseSigned: %v", err)
+	}
+	_, err = parsed.Verify(&rsaTestKey.PublicKey)
+	if err == nil {
+		t.Fatal("Verify accepted protected x5c that differs from the verifier key")
 	}
 }
 

@@ -214,6 +214,82 @@ func newVerifier(verificationKey interface{}) (payloadVerifier, error) {
 	}
 }
 
+func validateVerifiedSignatureIdentity(verificationKey interface{}, signature Signature) error {
+	keyID := verificationKeyID(verificationKey)
+	if keyID != "" && signature.Protected.KeyID != "" && keyID != signature.Protected.KeyID {
+		return fmt.Errorf("go-jose/go-jose: protected kid does not match verification key")
+	}
+
+	hasProtectedJWK := signature.Protected.JSONWebKey != nil
+	hasProtectedX5c := len(signature.Protected.certificates) > 0
+	if !hasProtectedJWK && !hasProtectedX5c {
+		return nil
+	}
+
+	verifiedKey, ok := publicKeyForVerificationKey(verificationKey)
+	if !ok {
+		return fmt.Errorf("go-jose/go-jose: protected key identity cannot be bound to verification key")
+	}
+
+	if hasProtectedJWK && !publicKeysEqual(verifiedKey, signature.Protected.JSONWebKey.Key) {
+		return fmt.Errorf("go-jose/go-jose: protected jwk does not match verification key")
+	}
+	if hasProtectedX5c && !publicKeysEqual(verifiedKey, signature.Protected.certificates[0].PublicKey) {
+		return fmt.Errorf("go-jose/go-jose: protected x5c leaf does not match verification key")
+	}
+	return nil
+}
+
+func verificationKeyID(verificationKey interface{}) string {
+	switch key := verificationKey.(type) {
+	case JSONWebKey:
+		return key.KeyID
+	case *JSONWebKey:
+		if key == nil {
+			return ""
+		}
+		return key.KeyID
+	default:
+		return ""
+	}
+}
+
+func publicKeyForVerificationKey(verificationKey interface{}) (interface{}, bool) {
+	switch key := verificationKey.(type) {
+	case JSONWebKey:
+		return publicKeyForVerificationKey(key.Key)
+	case *JSONWebKey:
+		if key == nil {
+			return nil, false
+		}
+		return publicKeyForVerificationKey(key.Key)
+	case ed25519.PublicKey:
+		return key, true
+	case *rsa.PublicKey:
+		return key, true
+	case *ecdsa.PublicKey:
+		return key, true
+	default:
+		return nil, false
+	}
+}
+
+func publicKeysEqual(left interface{}, right interface{}) bool {
+	switch key := left.(type) {
+	case ed25519.PublicKey:
+		other, ok := right.(ed25519.PublicKey)
+		return ok && bytes.Equal(key, other)
+	case *rsa.PublicKey:
+		other, ok := right.(*rsa.PublicKey)
+		return ok && key.Equal(other)
+	case *ecdsa.PublicKey:
+		other, ok := right.(*ecdsa.PublicKey)
+		return ok && key.Equal(other)
+	default:
+		return false
+	}
+}
+
 func (ctx *genericSigner) addRecipient(alg SignatureAlgorithm, signingKey interface{}) error {
 	recipient, err := makeJWSRecipient(alg, signingKey)
 	if err != nil {
@@ -445,6 +521,10 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 	if err != nil {
 		return ErrCryptoFailure
 	}
+	err = validateVerifiedSignatureIdentity(key, signature)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -477,15 +557,6 @@ func (obj JSONWebSignature) VerifyMulti(verificationKey interface{}) (int, Signa
 // The verificationKey argument must have one of the types allowed for the
 // verificationKey argument of JSONWebSignature.Verify().
 func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey interface{}) (int, Signature, error) {
-	key, err := tryJWKS(verificationKey, obj.headers()...)
-	if err != nil {
-		return -1, Signature{}, err
-	}
-	verifier, err := newVerifier(key)
-	if err != nil {
-		return -1, Signature{}, err
-	}
-
 	for i, signature := range obj.Signatures {
 		if signature.header != nil {
 			// Per https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.11,
@@ -493,7 +564,7 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 			// "When used, this Header Parameter MUST be integrity
 			// protected; therefore, it MUST occur only within the JWS
 			// Protected Header."
-			err = signature.header.checkNoCritical()
+			err := signature.header.checkNoCritical()
 			if err != nil {
 				continue
 			}
@@ -501,7 +572,7 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 
 		if signature.protected != nil {
 			// Check for only supported critical headers
-			err = signature.protected.checkSupportedCritical(supportedCritical)
+			err := signature.protected.checkSupportedCritical(supportedCritical)
 			if err != nil {
 				continue
 			}
@@ -514,7 +585,19 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 
 		headers := signature.mergedHeaders()
 		alg := headers.getSignatureAlgorithm()
+		key, err := tryJWKS(verificationKey, signature.Header)
+		if err != nil {
+			continue
+		}
+		verifier, err := newVerifier(key)
+		if err != nil {
+			continue
+		}
 		err = verifier.verifyPayload(input, signature.Signature, alg)
+		if err != nil {
+			continue
+		}
+		err = validateVerifiedSignatureIdentity(key, signature)
 		if err != nil {
 			continue
 		}
