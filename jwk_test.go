@@ -22,12 +22,15 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
@@ -839,6 +842,98 @@ func TestEd25519Serialization(t *testing.T) {
 	assert.EqualSlice(t,
 		jwk.Key.(ed25519.PrivateKey).Public().(ed25519.PublicKey),
 		jwk2.Key.(ed25519.PrivateKey).Public().(ed25519.PublicKey))
+}
+
+func TestEd25519RejectsMalformedPublicJWK(t *testing.T) {
+	overlongX := append(ed25519.PublicKey(nil), ed25519PublicKey...)
+	overlongX = append(overlongX, 0x42)
+
+	testCases := []struct {
+		name string
+		x    []byte
+	}{
+		{name: "short x", x: []byte{0x01}},
+		{name: "overlong x", x: overlongX},
+	}
+	for i, excluded := range excludedEd25519PublicKeys {
+		x := append([]byte(nil), excluded[:]...)
+		testCases = append(testCases, struct {
+			name string
+			x    []byte
+		}{
+			name: fmt.Sprintf("excluded public key %d", i),
+			x:    x,
+		})
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := rawEd25519JWK(t, tc.x, nil)
+			var jwk JSONWebKey
+			err := json.Unmarshal(raw, &jwk)
+			if err == nil {
+				t.Fatalf("accepted malformed Ed25519 public JWK %s", raw)
+			}
+		})
+	}
+}
+
+func TestEd25519RejectsMalformedPrivateJWK(t *testing.T) {
+	_, otherPrivateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+
+	testCases := []struct {
+		name string
+		x    []byte
+		d    []byte
+	}{
+		{
+			name: "short d",
+			x:    ed25519PublicKey,
+			d:    ed25519PrivateKey.Seed()[:ed25519.SeedSize-1],
+		},
+		{
+			name: "short x",
+			x:    []byte{0x01},
+			d:    ed25519PrivateKey.Seed(),
+		},
+		{
+			name: "mismatched x",
+			x:    otherPrivateKey.Public().(ed25519.PublicKey),
+			d:    ed25519PrivateKey.Seed(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := rawEd25519JWK(t, tc.x, tc.d)
+			var jwk JSONWebKey
+			err := json.Unmarshal(raw, &jwk)
+			if err == nil {
+				t.Fatalf("accepted malformed Ed25519 private JWK %s", raw)
+			}
+		})
+	}
+}
+
+func rawEd25519JWK(t *testing.T, x []byte, d []byte) []byte {
+	t.Helper()
+
+	raw := map[string]string{
+		"kty": "OKP",
+		"crv": "Ed25519",
+		"x":   base64.RawURLEncoding.EncodeToString(x),
+	}
+	if d != nil {
+		raw["d"] = base64.RawURLEncoding.EncodeToString(d)
+	}
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	return out
 }
 
 type fakeOpaqueSigner struct {

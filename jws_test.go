@@ -116,6 +116,24 @@ func TestEmbeddedHMAC(t *testing.T) {
 	}
 }
 
+func TestEmbeddedMalformedEd25519JWK(t *testing.T) {
+	protected := []byte(`{"alg":"EdDSA","jwk":{"kty":"OKP","crv":"Ed25519","x":"AQ"}}`)
+	payload := []byte("forged payload")
+	signature := make([]byte, 64)
+	signature[0] = 1
+
+	msg := strings.Join([]string{
+		base64.RawURLEncoding.EncodeToString(protected),
+		base64.RawURLEncoding.EncodeToString(payload),
+		base64.RawURLEncoding.EncodeToString(signature),
+	}, ".")
+
+	_, err := ParseSigned(msg, []SignatureAlgorithm{EdDSA})
+	if err == nil {
+		t.Error("should not allow parsing JWS with malformed Ed25519 embedded JWK")
+	}
+}
+
 func TestCompactParseJWS(t *testing.T) {
 	// Should parse
 	msg := "eyJhbGciOiJYWVoifQ.cGF5bG9hZA.c2lnbmF0dXJl"
