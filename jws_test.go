@@ -19,6 +19,7 @@ package jose
 import (
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -229,6 +230,54 @@ func TestRejectUnprotectedJWSNonce(t *testing.T) {
 		t.Error("JWS with an unprotected nonce parsed as valid.")
 	} else if err != ErrUnprotectedNonce {
 		t.Errorf("Improper error for unprotected nonce: %v", err)
+	}
+}
+
+func TestParseSignedJSONDoesNotRewriteMemberNames(t *testing.T) {
+	payload := []byte(`{"resource":"newAccount"}`)
+	protected := rawHeader{}
+	err := protected.set(headerAlgorithm, RS256)
+	if err != nil {
+		t.Fatalf("set alg: %v", err)
+	}
+	protectedJSON := mustSerializeJSON(protected)
+	protectedB64 := newBuffer(protectedJSON).base64()
+	payloadB64 := newBuffer(payload).base64()
+	signingInput := []byte(protectedB64 + "." + payloadB64)
+	signature, err := rsaDecrypterSigner{privateKey: rsaTestKey}.signPayload(signingInput, RS256)
+	if err != nil {
+		t.Fatalf("sign payload: %v", err)
+	}
+
+	jwkJSON, err := json.Marshal(JSONWebKey{Key: &rsaTestKey.PublicKey})
+	if err != nil {
+		t.Fatalf("marshal jwk: %v", err)
+	}
+	raw := `{"payload":"` + payloadB64 +
+		`","protected":"` + protectedB64 +
+		`","hea der":{"jwk":` + string(jwkJSON) +
+		`,"url":"https://example.test/acme/new-account"}` +
+		`,"signature":"` + newBuffer(signature.Signature).base64() + `"}`
+
+	parsed, err := ParseSigned(raw, []SignatureAlgorithm{RS256})
+	if err != nil {
+		t.Fatalf("ParseSigned: %v", err)
+	}
+	header := parsed.Signatures[0].Header
+	if header.JSONWebKey != nil {
+		t.Fatal("ParseSigned exposed a JWK from a whitespace-mutated member name")
+	}
+	_, ok := header.ExtraHeaders[HeaderKey("url")]
+	if ok {
+		t.Fatal("ParseSigned exposed a header from a whitespace-mutated member name")
+	}
+
+	verified, err := parsed.Verify(&rsaTestKey.PublicKey)
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	if string(verified) != string(payload) {
+		t.Fatalf("verified payload = %q, want %q", verified, payload)
 	}
 }
 
@@ -517,15 +566,11 @@ func TestErrorUnexpectedSignatureAlgorithmInSignatures(t *testing.T) {
 // Test that a null value in the header doesn't panic
 func TestNullHeaderValue(t *testing.T) {
 	msg := `{
-   "payload":
-    "eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGF
-     tcGxlLmNvbS9pc19yb290Ijp0cnVlfQ",
+   "payload": "eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ",
    "protected":"eyJhbGciOiJFUzI1NiIsIm5vbmNlIjpudWxsfQ",
    "header":
     {"kid":"e9bc097a-ce51-4036-9562-d2ade882db0d"},
-   "signature":
-    "DtEhU3ljbEg8L38VWAfUAqOyKAM6-Xx-F4GawxaepmXFCgfTjDxw5djxLa8IS
-     lSApmWQxfKTUJqPP3-Kg6NU1Q"
+   "signature": "DtEhU3ljbEg8L38VWAfUAqOyKAM6-Xx-F4GawxaepmXFCgfTjDxw5djxLa8ISlSApmWQxfKTUJqPP3-Kg6NU1Q"
   }`
 
 	defer func() {
