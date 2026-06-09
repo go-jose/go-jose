@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/go-jose/go-jose/v4/json"
 )
@@ -89,12 +90,12 @@ func ParseSigned(
 	signature string,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
-	signature = stripWhitespace(signature)
-	if strings.HasPrefix(signature, "{") {
+	trimmed := strings.TrimLeftFunc(signature, unicode.IsSpace)
+	if strings.HasPrefix(trimmed, "{") {
 		return ParseSignedJSON(signature, signatureAlgorithms)
 	}
 
-	return parseSignedCompact(signature, nil, signatureAlgorithms)
+	return parseSignedCompact(stripWhitespace(signature), nil, signatureAlgorithms)
 }
 
 // ParseSignedCompact parses a message in JWS Compact Serialization. Validation fails if the JWS is
