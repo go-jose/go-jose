@@ -502,7 +502,7 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 		return nil, ErrCryptoFailure
 	}
 
-	plaintext, err = obj.decompressProtected(plaintext)
+	plaintext, err = obj.decompress(plaintext)
 	if err != nil {
 		return nil, err
 	}
@@ -588,7 +588,7 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 		return -1, Header{}, nil, ErrCryptoFailure
 	}
 
-	plaintext, err = obj.decompressProtected(plaintext)
+	plaintext, err = obj.decompress(plaintext)
 	if err != nil {
 		return -1, Header{}, nil, err
 	}
@@ -601,7 +601,9 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 	return index, sanitized, plaintext, err
 }
 
-func (obj JSONWebEncryption) decompressProtected(plaintext []byte) ([]byte, error) {
+// decompress decompresses plaintext using the protected "zip" header, if present.
+// It returns plaintext unchanged when there is no protected header or "zip" value.
+func (obj JSONWebEncryption) decompress(plaintext []byte) ([]byte, error) {
 	if obj.protected == nil {
 		return plaintext, nil
 	}
