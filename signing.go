@@ -499,17 +499,14 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 		}
 
 		// If the verification key is a JWK Set, pick a key based on this signature's
-		// "kid" header. On error, return immediately so we can provide ErrJWSKidNotFound
-		// instead of the more generic ErrCryptoFailure. This means we error on
-		// the first ErrJWSKidNotFound, even if a subsequent signature might succeed,
-		// which is not ideal but requires a little refactoring to fix.
+		// "kid" header. If no match, skip this signature.
 		key, err := tryJWKS(verificationKey, signature.Header)
 		if err != nil {
-			return -1, Signature{}, err
+			continue
 		}
 		verifier, err := newVerifier(key)
 		if err != nil {
-			return -1, Signature{}, err
+			continue
 		}
 
 		input, err := obj.computeAuthData(payload, &signature)
