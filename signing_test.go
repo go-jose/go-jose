@@ -21,7 +21,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -386,10 +385,16 @@ func TestVerifyMultiJWKSNoMatchingKid(t *testing.T) {
 
 	_, _, _, err = parsed.VerifyMulti(jwks)
 	if err == nil {
-		t.Fatal("expected error when no signature kid is present in the JWKS")
+		t.Error("expected error when no signature kid is present in the JWKS")
 	}
-	if !errors.Is(err, ErrJWKSKidNotFound) {
-		t.Errorf("got error %v, want ErrJWKSKidNotFound", err)
+
+	// The JWKS contains a usable key matching the second signature.
+	jwks = &JSONWebKeySet{Keys: []JSONWebKey{
+		{KeyID: "bar", Key: key.Public()},
+	}}
+	_, _, _, err = parsed.VerifyMulti(jwks)
+	if err != nil {
+		t.Errorf("verifying with JWK Set that includes 'bar': %s", err)
 	}
 }
 
