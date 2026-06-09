@@ -821,7 +821,7 @@ var (
 	ErrJWKSKidNotFound = errors.New("go-jose/go-jose: JWK with matching kid not found in JWK Set")
 )
 
-func tryJWKS(key interface{}, headers ...Header) (interface{}, error) {
+func tryJWKS(key interface{}, header Header) (interface{}, error) {
 	var jwks JSONWebKeySet
 
 	switch jwksType := key.(type) {
@@ -834,16 +834,8 @@ func tryJWKS(key interface{}, headers ...Header) (interface{}, error) {
 		return key, nil
 	}
 
-	// Determine the KID to search for from the headers.
-	var kid string
-	for _, header := range headers {
-		if header.KeyID != "" {
-			kid = header.KeyID
-			break
-		}
-	}
-
-	// If no KID is specified in the headers, reject.
+	// If no KID is specified in the header, reject.
+	kid := header.KeyID
 	if kid == "" {
 		return nil, ErrJWKSKidNotFound
 	}

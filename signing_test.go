@@ -21,6 +21,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -296,6 +297,99 @@ func TestMultiRecipientJWS(t *testing.T) {
 
 	if !bytes.Equal(output, input) {
 		t.Fatal("input/output do not match", output, input)
+	}
+}
+
+// TestVerifyMultiJWKSPerSignatureKid checks that VerifyMulti honors different "kid"
+// headers on different signatures. It creates a JWS that validates only if the "kid"
+// from the second of the two signatures is used.
+func TestVerifyMultiJWKSPerSignatureKid(t *testing.T) {
+	payload := []byte("Lorem ipsum dolor sit amet")
+
+	keyBar, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyFoo, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader) // only its public key goes in the JWKS
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Both signatures are produced by keyBar. The "foo" signature is therefore
+	// invalid relative to the JWKS, whose "foo" entry is the unrelated keyFoo.
+	signer, err := NewMultiSigner([]SigningKey{
+		{Algorithm: ES256, Key: &JSONWebKey{KeyID: "foo", Key: keyBar}},
+		{Algorithm: ES256, Key: &JSONWebKey{KeyID: "bar", Key: keyBar}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err := signer.Sign(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSigned(obj.FullSerialize(), []SignatureAlgorithm{ES256})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jwks := &JSONWebKeySet{Keys: []JSONWebKey{
+		{KeyID: "foo", Key: keyFoo.Public()},
+		{KeyID: "bar", Key: keyBar.Public()},
+	}}
+
+	idx, sig, out, err := parsed.VerifyMulti(jwks)
+	if err != nil {
+		t.Fatalf("VerifyMulti failed: %v", err)
+	}
+	if idx != 1 {
+		t.Errorf("verified signature index = %d, want 1", idx)
+	}
+	if sig.Header.KeyID != "bar" {
+		t.Errorf("verified kid = %q, want \"bar\"", sig.Header.KeyID)
+	}
+	if !bytes.Equal(out, payload) {
+		t.Error("payload mismatch")
+	}
+}
+
+// TestVerifyMultiJWKSNoMatchingKid checks that VerifyMulti against a JWK Set fails
+// with ErrJWKSKidNotFound when there's no key matching the "kid" headers of the
+// signatures.
+func TestVerifyMultiJWKSNoMatchingKid(t *testing.T) {
+	payload := []byte("Lorem ipsum dolor sit amet")
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := NewMultiSigner([]SigningKey{
+		{Algorithm: ES256, Key: &JSONWebKey{KeyID: "foo", Key: key}},
+		{Algorithm: ES256, Key: &JSONWebKey{KeyID: "bar", Key: key}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err := signer.Sign(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSigned(obj.FullSerialize(), []SignatureAlgorithm{ES256})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The JWKS contains a usable key, but under a kid that matches no signature.
+	jwks := &JSONWebKeySet{Keys: []JSONWebKey{
+		{KeyID: "other", Key: key.Public()},
+	}}
+
+	_, _, _, err = parsed.VerifyMulti(jwks)
+	if err == nil {
+		t.Fatal("expected error when no signature kid is present in the JWKS")
+	}
+	if !errors.Is(err, ErrJWKSKidNotFound) {
+		t.Errorf("got error %v, want ErrJWKSKidNotFound", err)
 	}
 }
 
