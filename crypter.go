@@ -502,12 +502,9 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 		return nil, ErrCryptoFailure
 	}
 
-	// The "zip" header parameter may only be present in the protected header.
-	if comp := obj.protected.getCompression(); comp != "" {
-		plaintext, err = decompress(comp, plaintext)
-		if err != nil {
-			return nil, fmt.Errorf("go-jose/go-jose: failed to decompress plaintext: %v", err)
-		}
+	plaintext, err = obj.decompress(plaintext)
+	if err != nil {
+		return nil, err
 	}
 
 	return plaintext, nil
@@ -591,12 +588,9 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 		return -1, Header{}, nil, ErrCryptoFailure
 	}
 
-	// The "zip" header parameter may only be present in the protected header.
-	if comp := obj.protected.getCompression(); comp != "" {
-		plaintext, err = decompress(comp, plaintext)
-		if err != nil {
-			return -1, Header{}, nil, fmt.Errorf("go-jose/go-jose: failed to decompress plaintext: %v", err)
-		}
+	plaintext, err = obj.decompress(plaintext)
+	if err != nil {
+		return -1, Header{}, nil, err
 	}
 
 	sanitized, err := headers.sanitized()
@@ -605,4 +599,23 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 	}
 
 	return index, sanitized, plaintext, err
+}
+
+// decompress decompresses plaintext using the protected "zip" header, if present.
+// It returns plaintext unchanged when there is no protected header or "zip" value.
+func (obj JSONWebEncryption) decompress(plaintext []byte) ([]byte, error) {
+	if obj.protected == nil {
+		return plaintext, nil
+	}
+
+	comp := obj.protected.getCompression()
+	if comp == "" {
+		return plaintext, nil
+	}
+
+	plaintext, err := decompress(comp, plaintext)
+	if err != nil {
+		return nil, fmt.Errorf("go-jose/go-jose: failed to decompress plaintext: %v", err)
+	}
+	return plaintext, nil
 }

@@ -352,6 +352,68 @@ func TestJWENilProtected(t *testing.T) {
 	}
 }
 
+func TestJWEDecryptWithoutProtectedHeader(t *testing.T) {
+	key := []byte("0123456789abcdef")
+	plaintext := []byte("secret")
+	token := jweJSONWithoutProtectedHeader(t, key, plaintext)
+
+	parsed, err := ParseEncryptedJSON(
+		token,
+		[]KeyAlgorithm{DIRECT},
+		[]ContentEncryption{A128GCM},
+	)
+	if err != nil {
+		t.Fatalf("ParseEncryptedJSON: %v", err)
+	}
+
+	decrypted, err := parsed.Decrypt(key)
+	if err != nil {
+		t.Fatalf("Decrypt: %v", err)
+	}
+	if !bytes.Equal(decrypted, plaintext) {
+		t.Fatalf("Decrypt plaintext = %q, want %q", decrypted, plaintext)
+	}
+
+	index, _, decrypted, err := parsed.DecryptMulti(key)
+	if err != nil {
+		t.Fatalf("DecryptMulti: %v", err)
+	}
+	if index != 0 {
+		t.Fatalf("DecryptMulti index = %d, want 0", index)
+	}
+	if !bytes.Equal(decrypted, plaintext) {
+		t.Fatalf("DecryptMulti plaintext = %q, want %q", decrypted, plaintext)
+	}
+}
+
+func jweJSONWithoutProtectedHeader(t *testing.T, key []byte, plaintext []byte) string {
+	t.Helper()
+
+	cipher := newAESGCM(16)
+	parts, err := cipher.encrypt(key, []byte{}, plaintext)
+	if err != nil {
+		t.Fatalf("encrypt content: %v", err)
+	}
+
+	unprotected := rawHeader{}
+	err = unprotected.set(headerAlgorithm, DIRECT)
+	if err != nil {
+		t.Fatalf("set alg: %v", err)
+	}
+	err = unprotected.set(headerEncryption, A128GCM)
+	if err != nil {
+		t.Fatalf("set enc: %v", err)
+	}
+
+	raw := rawJSONWebEncryption{
+		Unprotected: &unprotected,
+		Iv:          newBuffer(parts.iv),
+		Ciphertext:  newBuffer(parts.ciphertext),
+		Tag:         newBuffer(parts.tag),
+	}
+	return string(mustSerializeJSON(raw))
+}
+
 func TestVectorsJWECorrupt(t *testing.T) {
 	priv := &rsa.PrivateKey{
 		PublicKey: rsa.PublicKey{
