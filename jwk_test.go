@@ -30,7 +30,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
@@ -852,18 +851,50 @@ func TestEd25519RejectsMalformedPublicJWK(t *testing.T) {
 		name string
 		x    []byte
 	}{
-		{name: "short x", x: []byte{0x01}},
-		{name: "overlong x", x: overlongX},
-	}
-	for i, excluded := range excludedEd25519PublicKeys {
-		x := append([]byte(nil), excluded[:]...)
-		testCases = append(testCases, struct {
-			name string
-			x    []byte
-		}{
-			name: fmt.Sprintf("excluded public key %d", i),
-			x:    x,
-		})
+		{
+			name: "short x",
+			x:    []byte{0x01},
+		},
+		{
+			name: "overlong x",
+			x:    overlongX,
+		},
+		{
+			name: "identity point",
+			x: fromHexBytes(`
+				01000000000000000000000000000000
+				00000000000000000000000000000000`),
+		},
+		{
+			name: "identity point sign-bit alias",
+			x: fromHexBytes(`
+				01000000000000000000000000000000
+				00000000000000000000000000000080`),
+		},
+		{
+			name: "low-order point",
+			x: fromHexBytes(`
+				26e8958fc2b227b045c3f489f2ef98f0
+				d5dfac05d3c63339b13802886d53fc05`),
+		},
+		{
+			name: "low-order point sign-bit variant",
+			x: fromHexBytes(`
+				26e8958fc2b227b045c3f489f2ef98f0
+				d5dfac05d3c63339b13802886d53fc85`),
+		},
+		{
+			name: "non-canonical low-order point",
+			x: fromHexBytes(`
+				edffffffffffffffffffffffffffffff
+				ffffffffffffffffffffffffffffff7f`),
+		},
+		{
+			name: "non-canonical low-order sign-bit variant",
+			x: fromHexBytes(`
+				edffffffffffffffffffffffffffffff
+				ffffffffffffffffffffffffffffffff`),
+		},
 	}
 
 	for _, tc := range testCases {
