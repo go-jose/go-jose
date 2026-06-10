@@ -122,7 +122,7 @@ func FuzzJWSParse(f *testing.F) {
 	})
 }
 
-// FuzzJWSParseDetached has a different signature so gets its own test from FuzzJWSParse, but doesn't have much extra
+// FuzzJWSParseDetached is like FuzzJWSParse but calls ParseDetached, which takes two separate args.
 func FuzzJWSParseDetached(f *testing.F) {
 	f.Add("", []byte("test"))
 	f.Add("a.b", []byte("test"))
