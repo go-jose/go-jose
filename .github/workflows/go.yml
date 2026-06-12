@@ -29,13 +29,34 @@ jobs:
         # setup-go can't install tip itself, so bootstrap with stable
         go-version: "${{ matrix.GO_VERSION == 'gotip' && 'stable' || matrix.GO_VERSION }}"
 
-    - name: Set up gotip
+    - name: Get gotip cache key
       if: matrix.GO_VERSION == 'gotip'
+      id: gotip-month
+      # Rotate the cache key monthly
+      run: echo "month=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache gotip toolchain
+      if: matrix.GO_VERSION == 'gotip'
+      id: cache-gotip
+      uses: actions/cache@v4
+      with:
+        # Cache the built sdk, but not the .git repo
+        path: |
+          ~/sdk/gotip
+          !~/sdk/gotip/.git
+        key: gotip-${{ runner.os }}-${{ steps.gotip-month.outputs.month }}
+
+    - name: Set up gotip
+      if: matrix.GO_VERSION == 'gotip' && steps.cache-gotip.outputs.cache-hit != 'true'
       run: |
         go install golang.org/dl/gotip@latest
         gotip download
-        echo "GOROOT=$(gotip env GOROOT)" >> "$GITHUB_ENV"
-        echo "$(gotip env GOROOT)/bin" >> "$GITHUB_PATH"
+
+    - name: Use gotip
+      if: matrix.GO_VERSION == 'gotip'
+      run: |
+        echo "GOROOT=$HOME/sdk/gotip" >> "$GITHUB_ENV"
+        echo "$HOME/sdk/gotip/bin" >> "$GITHUB_PATH"
 
     - run: go version
 
