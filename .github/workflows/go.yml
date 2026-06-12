@@ -5,6 +5,8 @@ on:
     branches: [ '**' ]
   pull_request:
     branches: [ '**' ]
+  schedule:
+    - cron: '17 3 1 * *'
 
 jobs:
   build:
@@ -12,8 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         GO_VERSION:
-          - "1.24.x"
           - "1.25.x"
+          - "1.26.x"
+          - "gotip"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -23,7 +26,39 @@ jobs:
     - name: Set up Go ${{ matrix.GO_VERSION }}
       uses: actions/setup-go@v6
       with:
-        go-version: "${{ matrix.GO_VERSION }}"
+        # setup-go can't install tip itself, so bootstrap with stable
+        go-version: "${{ matrix.GO_VERSION == 'gotip' && 'stable' || matrix.GO_VERSION }}"
+
+    - name: Get gotip cache key
+      if: matrix.GO_VERSION == 'gotip'
+      id: gotip-month
+      # Rotate the cache key monthly
+      run: echo "month=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache gotip toolchain
+      if: matrix.GO_VERSION == 'gotip'
+      id: cache-gotip
+      uses: actions/cache@v4
+      with:
+        # Cache the built sdk, but not the .git repo
+        path: |
+          ~/sdk/gotip
+          !~/sdk/gotip/.git
+        key: gotip-${{ runner.os }}-${{ steps.gotip-month.outputs.month }}
+
+    - name: Set up gotip
+      if: matrix.GO_VERSION == 'gotip' && steps.cache-gotip.outputs.cache-hit != 'true'
+      run: |
+        go install golang.org/dl/gotip@latest
+        gotip download
+
+    - name: Use gotip
+      if: matrix.GO_VERSION == 'gotip'
+      run: |
+        echo "GOROOT=$HOME/sdk/gotip" >> "$GITHUB_ENV"
+        echo "$HOME/sdk/gotip/bin" >> "$GITHUB_PATH"
+
+    - run: go version
 
     - name: Build
       run: go build -v ./...
@@ -36,7 +71,7 @@ jobs:
       matrix:
         GO_VERSION:
           # We only need to test vulns on one version
-          - "1.25.x"
+          - "1.26.x"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
