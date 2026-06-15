@@ -17,6 +17,7 @@
 package jose
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 )
@@ -266,6 +267,50 @@ func TestOpaqueSignerKeyRotation(t *testing.T) {
 			jws2 = rtSerialize(t, serializer, jws2, vw, alg)
 			if kid := jws2.Signatures[0].Protected.KeyID; kid != "next" {
 				t.Errorf("expected kid %q but got %q", "next", kid)
+			}
+		}
+	}
+}
+
+func TestRoundtripsJWEOpaque(t *testing.T) {
+	// Exercises the opaque key-encrypter and key-decrypter paths
+	// (newOpaqueKeyEncrypter, opaqueKeyEncrypter.encryptKey,
+	// opaqueKeyDecrypter.decryptKey) using the wrappers above, which were
+	// previously defined but unused.
+	keyAlgs := []KeyAlgorithm{RSA1_5, RSA_OAEP, RSA_OAEP_256}
+	encs := []ContentEncryption{A128GCM, A256GCM, A128CBC_HS256, A256CBC_HS512}
+
+	serializers := []func(*JSONWebEncryption) (string, error){
+		func(obj *JSONWebEncryption) (string, error) { return obj.CompactSerialize() },
+		func(obj *JSONWebEncryption) (string, error) { return obj.FullSerialize(), nil },
+	}
+
+	for _, alg := range keyAlgs {
+		for _, enc := range encs {
+			for i, serializer := range serializers {
+				ke := makeOpaqueKeyEncrypter(t, &rsaTestKey.PublicKey, alg, "test-kid")
+				kd := makeOpaqueKeyDecrypter(t, rsaTestKey, alg)
+
+				encrypter, err := NewEncrypter(enc, Recipient{Algorithm: alg, Key: ke}, nil)
+				if err != nil {
+					t.Fatal(err, alg, enc, i)
+				}
+
+				plaintext := []byte("foo bar baz")
+				jwe, err := encrypter.Encrypt(plaintext)
+				if err != nil {
+					t.Fatal(err, alg, enc, i)
+				}
+
+				jwe = jweSerialize(t, serializer, jwe, kd, alg, enc)
+
+				decrypted, err := jwe.Decrypt(kd)
+				if err != nil {
+					t.Fatal(err, alg, enc, i)
+				}
+				if !bytes.Equal(decrypted, plaintext) {
+					t.Errorf("alg %s enc %s serializer %d: got %q, want %q", alg, enc, i, decrypted, plaintext)
+				}
 			}
 		}
 	}
