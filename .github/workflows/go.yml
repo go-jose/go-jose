@@ -38,7 +38,7 @@ jobs:
     - name: Cache gotip toolchain
       if: matrix.GO_VERSION == 'gotip'
       id: cache-gotip
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         # Cache the built sdk, but not the .git repo
         path: |
