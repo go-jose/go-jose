@@ -18,6 +18,10 @@ package jose
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -346,4 +350,33 @@ func jweSerialize(t *testing.T,
 		t.Fatal(err)
 	}
 	return jwe
+}
+
+type badSigner struct {
+	*ecdsa.PrivateKey
+}
+
+func (bs badSigner) Algs() []SignatureAlgorithm {
+	return []SignatureAlgorithm{ES256}
+}
+
+func (bs badSigner) SignPayload([]byte, SignatureAlgorithm) ([]byte, error) {
+	panic("Shouldn't be called in this test")
+}
+
+func (bs badSigner) Public() *JSONWebKey {
+	return &JSONWebKey{
+		Key:   bs.PrivateKey,
+		KeyID: "BS",
+	}
+}
+
+// TestOpaqueSignerNonPublic ensures a private key returned in Public() doesn't end up in an embedded JWK
+func TestOpaqueSignerNonPublic(t *testing.T) {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	var os OpaqueSigner = badSigner{key}
+	_, err := NewSigner(SigningKey{Algorithm: ES256, Key: os}, &SignerOptions{EmbedJWK: true})
+	if !errors.Is(err, ErrNotPublic) {
+		t.Fatal("Expected ErrNotPublic when using BadSigner")
+	}
 }
