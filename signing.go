@@ -253,7 +253,7 @@ func newJWKSigner(alg SignatureAlgorithm, signingKey JSONWebKey) (recipientSigIn
 	if recipientPubKey := recipient.getPublicKey(); recipientPubKey != nil {
 		// This should be impossible, but let's check anyway.
 		if !recipientPubKey.IsPublic() {
-			return recipientSigInfo{}, errors.New("go-jose/go-jose: public key was unexpectedly not public")
+			return recipientSigInfo{}, ErrNotPublic
 		}
 
 		// recipient.publicKey is a JWK synthesized for embedding when recipientSigInfo

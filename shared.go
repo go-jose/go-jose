@@ -83,6 +83,8 @@ var (
 
 	// errEmptyInput is returned when go-jose was asked to parse an empty string.
 	errEmptyInput = errors.New("go-jose/go-jose: empty input")
+
+	ErrNotPublic = errors.New("go-jose/go-jose: public key was unexpectedly not public")
 )
 
 // Key management algorithms

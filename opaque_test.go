@@ -180,7 +180,7 @@ func makeOpaqueSigner(t *testing.T, signingKey interface{}, alg SignatureAlgorit
 	return &signWrapper{
 		wrapped: ri.signer,
 		algs:    []SignatureAlgorithm{alg},
-		pk:      &JSONWebKey{Key: ri.publicKey()},
+		pk:      ri.publicKey(),
 	}
 }
 
