@@ -141,7 +141,10 @@ func newECDHRecipient(keyAlg KeyAlgorithm, publicKey *ecdsa.PublicKey) (recipien
 		return recipientKeyInfo{}, ErrUnsupportedAlgorithm
 	}
 
-	if publicKey == nil || !publicKey.Curve.IsOnCurve(publicKey.X, publicKey.Y) {
+	if publicKey == nil {
+		return recipientKeyInfo{}, errors.New("invalid public key")
+	}
+	if _, err := publicKey.ECDH(); err != nil {
 		return recipientKeyInfo{}, errors.New("invalid public key")
 	}
 
@@ -430,7 +433,10 @@ func (ctx ecDecrypterSigner) decryptKey(headers rawHeader, recipient *recipientI
 		return nil, errors.New("go-jose/go-jose: invalid epk header")
 	}
 
-	if !ctx.privateKey.Curve.IsOnCurve(publicKey.X, publicKey.Y) {
+	if publicKey.Curve != ctx.privateKey.Curve {
+		return nil, errors.New("go-jose/go-jose: invalid public key in epk header")
+	}
+	if _, err := publicKey.ECDH(); err != nil {
 		return nil, errors.New("go-jose/go-jose: invalid public key in epk header")
 	}
 

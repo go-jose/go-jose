@@ -562,15 +562,17 @@ func (key rawJSONWebKey) ecPublicKey() (*ecdsa.PublicKey, error) {
 	x := key.X.bigInt()
 	y := key.Y.bigInt()
 
-	if !curve.IsOnCurve(x, y) {
-		return nil, errors.New("go-jose/go-jose: invalid EC key, X/Y are not on declared curve")
-	}
-
-	return &ecdsa.PublicKey{
+	pub := &ecdsa.PublicKey{
 		Curve: curve,
 		X:     x,
 		Y:     y,
-	}, nil
+	}
+
+	if _, err := pub.ECDH(); err != nil {
+		return nil, errors.New("go-jose/go-jose: invalid EC key, X/Y are not on declared curve")
+	}
+
+	return pub, nil
 }
 
 func fromEcPublicKey(pub *ecdsa.PublicKey) (*rawJSONWebKey, error) {
@@ -757,18 +759,20 @@ func (key rawJSONWebKey) ecPrivateKey() (*ecdsa.PrivateKey, error) {
 	x := key.X.bigInt()
 	y := key.Y.bigInt()
 
-	if !curve.IsOnCurve(x, y) {
-		return nil, errors.New("go-jose/go-jose: invalid EC key, X/Y are not on declared curve")
-	}
-
-	return &ecdsa.PrivateKey{
+	priv := &ecdsa.PrivateKey{
 		PublicKey: ecdsa.PublicKey{
 			Curve: curve,
 			X:     x,
 			Y:     y,
 		},
 		D: key.D.bigInt(),
-	}, nil
+	}
+
+	if _, err := priv.ECDH(); err != nil {
+		return nil, errors.New("go-jose/go-jose: invalid EC key, X/Y are not on declared curve")
+	}
+
+	return priv, nil
 }
 
 func fromEcPrivateKey(ec *ecdsa.PrivateKey) (*rawJSONWebKey, error) {
