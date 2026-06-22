@@ -83,6 +83,42 @@ func (obj JSONWebEncryption) mergedHeaders(recipient *recipientInfo) rawHeader {
 	return out
 }
 
+// publicHeaders returns caller-visible header values without unprotected JWE identity.
+func (obj JSONWebEncryption) publicHeaders(recipient *recipientInfo) rawHeader {
+	out := rawHeader{}
+	out.merge(obj.protected)
+	mergePublicJWEHeaders(out, obj.unprotected)
+
+	if recipient != nil {
+		mergePublicJWEHeaders(out, recipient.header)
+	}
+
+	return out
+}
+
+func mergePublicJWEHeaders(dst rawHeader, src *rawHeader) {
+	if src == nil {
+		return
+	}
+
+	for k, v := range *src {
+		if isJWEIdentityHeader(k) || dst.isSet(k) {
+			continue
+		}
+
+		dst[k] = v
+	}
+}
+
+func isJWEIdentityHeader(k HeaderKey) bool {
+	switch k {
+	case headerKeyID, headerJWK, headerX5c:
+		return true
+	default:
+		return false
+	}
+}
+
 // Get the additional authenticated data from a JWE object.
 func (obj JSONWebEncryption) computeAuthData() []byte {
 	var protected string
@@ -205,10 +241,10 @@ func (parsed *rawJSONWebEncryption) sanitized(
 	// Note: this must be called _after_ we parse the protected header,
 	// otherwise fields from the protected header will not get picked up.
 	var err error
-	mergedHeaders := obj.mergedHeaders(nil)
-	obj.Header, err = mergedHeaders.sanitized()
+	publicHeaders := obj.publicHeaders(nil)
+	obj.Header, err = publicHeaders.sanitized()
 	if err != nil {
-		return nil, fmt.Errorf("go-jose/go-jose: cannot sanitize merged headers: %v (%v)", err, mergedHeaders)
+		return nil, fmt.Errorf("go-jose/go-jose: cannot sanitize headers: %v (%v)", err, publicHeaders)
 	}
 
 	if len(parsed.Recipients) == 0 {
