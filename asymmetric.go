@@ -144,8 +144,9 @@ func newECDHRecipient(keyAlg KeyAlgorithm, publicKey *ecdsa.PublicKey) (recipien
 	if publicKey == nil {
 		return recipientKeyInfo{}, errors.New("invalid public key")
 	}
-	if _, err := publicKey.ECDH(); err != nil {
-		return recipientKeyInfo{}, errors.New("invalid public key")
+	_, err := publicKey.ECDH()
+	if err != nil {
+		return recipientKeyInfo{}, fmt.Errorf("invalid public key: %w", err)
 	}
 
 	return recipientKeyInfo{

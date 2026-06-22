@@ -768,8 +768,9 @@ func (key rawJSONWebKey) ecPrivateKey() (*ecdsa.PrivateKey, error) {
 		D: key.D.bigInt(),
 	}
 
-	if _, err := priv.ECDH(); err != nil {
-		return nil, errors.New("go-jose/go-jose: invalid EC key, X/Y are not on declared curve")
+	_, err := priv.ECDH()
+	if err != nil {
+		return nil, fmt.Errorf("go-jose/go-jose: invalid EC key: %w", err)
 	}
 
 	return priv, nil
