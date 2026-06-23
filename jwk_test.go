@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/fips140"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -251,24 +252,14 @@ func TestRoundtripEcPrivate(t *testing.T) {
 }
 
 func TestRoundtripX509(t *testing.T) {
-	x5tSHA1 := sha1.Sum(testCertificates[0].Raw)
 	x5tSHA256 := sha256.Sum256(testCertificates[0].Raw)
 
-	cases := []struct {
+	type testCase struct {
 		name string
 		jwk  JSONWebKey
-	}{
-		{
-			name: "all fields",
-			jwk: JSONWebKey{
-				Key:                         testCertificates[0].PublicKey,
-				KeyID:                       "bar",
-				Algorithm:                   "foo",
-				Certificates:                testCertificates,
-				CertificateThumbprintSHA1:   x5tSHA1[:],
-				CertificateThumbprintSHA256: x5tSHA256[:],
-			},
-		},
+	}
+
+	cases := []testCase{
 		{
 			name: "no optional x5ts",
 			jwk: JSONWebKey{
@@ -288,16 +279,33 @@ func TestRoundtripX509(t *testing.T) {
 				CertificateThumbprintSHA256: x5tSHA256[:],
 			},
 		},
-		{
-			name: "no x5t#S256",
-			jwk: JSONWebKey{
-				Key:                       testCertificates[0].PublicKey,
-				KeyID:                     "bar",
-				Algorithm:                 "foo",
-				Certificates:              testCertificates,
-				CertificateThumbprintSHA1: x5tSHA1[:],
+	}
+
+	if !fips140.Enabled() {
+		x5tSHA1 := sha1.Sum(testCertificates[0].Raw)
+		cases = append(cases,
+			testCase{
+				name: "all fields",
+				jwk: JSONWebKey{
+					Key:                         testCertificates[0].PublicKey,
+					KeyID:                       "bar",
+					Algorithm:                   "foo",
+					Certificates:                testCertificates,
+					CertificateThumbprintSHA1:   x5tSHA1[:],
+					CertificateThumbprintSHA256: x5tSHA256[:],
+				},
 			},
-		},
+			testCase{
+				name: "no x5t#S256",
+				jwk: JSONWebKey{
+					Key:                       testCertificates[0].PublicKey,
+					KeyID:                     "bar",
+					Algorithm:                 "foo",
+					Certificates:              testCertificates,
+					CertificateThumbprintSHA1: x5tSHA1[:],
+				},
+			},
+		)
 	}
 
 	for _, c := range cases {
@@ -326,6 +334,9 @@ func TestRoundtripX509(t *testing.T) {
 }
 
 func TestRoundtripX509Hex(t *testing.T) {
+	if fips140.Enabled() {
+		t.Skip("x5t (SHA-1 thumbprint) is not allowed in FIPS mode")
+	}
 	var hexJWK = `{
    "kty":"RSA",
    "kid":"bar",
@@ -402,7 +413,7 @@ func TestCertificatesURL(t *testing.T) {
 }
 
 func TestInvalidThumbprintsX509(t *testing.T) {
-	// Too short
+	// Too short SHA-1 thumbprint — in FIPS mode, rejected as "not allowed" before size check
 	jwk := JSONWebKey{
 		Key:                         rsaTestKey,
 		KeyID:                       "bar",
@@ -417,18 +428,20 @@ func TestInvalidThumbprintsX509(t *testing.T) {
 		t.Error("should not marshal JWK with too short thumbprints")
 	}
 
-	// Mismatched (leaf has different sum)
-	sha1sum := sha1.Sum(nil)
-	jwk.CertificateThumbprintSHA1 = sha1sum[:]
-	sha256sum := sha256.Sum256(nil)
-	jwk.CertificateThumbprintSHA256 = sha256sum[:]
+	if !fips140.Enabled() {
+		// Mismatched (leaf has different sum) — requires sha1.Sum which panics in FIPS mode
+		sha1sum := sha1.Sum(nil)
+		jwk.CertificateThumbprintSHA1 = sha1sum[:]
+		sha256sum := sha256.Sum256(nil)
+		jwk.CertificateThumbprintSHA256 = sha256sum[:]
 
-	_, err = jwk.MarshalJSON()
-	if err == nil {
-		t.Error("should not marshal JWK with mismatched thumbprints")
+		_, err = jwk.MarshalJSON()
+		if err == nil {
+			t.Error("should not marshal JWK with mismatched thumbprints")
+		}
 	}
 
-	// Too short
+	// Too short (JSON unmarshal) — x5t present, so in FIPS mode rejected as "not allowed"
 	shortThumbprints := []byte(`{
   "kty": "RSA",
   "kid": "bar",
@@ -481,15 +494,18 @@ func TestInvalidThumbprintsX509(t *testing.T) {
 }
 
 func TestKeyMismatchX509(t *testing.T) {
-	x5tSHA1 := sha1.Sum(testCertificates[0].Raw)
 	x5tSHA256 := sha256.Sum256(testCertificates[0].Raw)
 
 	jwk := JSONWebKey{
 		KeyID:                       "bar",
 		Algorithm:                   "foo",
 		Certificates:                testCertificates,
-		CertificateThumbprintSHA1:   x5tSHA1[:],
 		CertificateThumbprintSHA256: x5tSHA256[:],
+	}
+
+	if !fips140.Enabled() {
+		x5tSHA1 := sha1.Sum(testCertificates[0].Raw)
+		jwk.CertificateThumbprintSHA1 = x5tSHA1[:]
 	}
 
 	for _, key := range []interface{}{
