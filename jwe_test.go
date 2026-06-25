@@ -785,6 +785,211 @@ func TestEmptyEncryptedKey(t *testing.T) {
 	}
 }
 
+func TestJWERejectsShortGCMCEKForDeclaredContentEncryption(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      []byte
+		declared ContentEncryption
+		actual   ContentEncryption
+	}{
+		{
+			name:     "A256GCM with A128GCM key",
+			key:      []byte("0123456789abcdef"),
+			declared: A256GCM,
+			actual:   A128GCM,
+		},
+		{
+			name:     "A192GCM with A128GCM key",
+			key:      []byte("0123456789abcdef"),
+			declared: A192GCM,
+			actual:   A128GCM,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			plaintext := []byte("content encrypted under a shorter CEK")
+			token := jweJSONWithMismatchedCEK(
+				t,
+				test.key,
+				plaintext,
+				test.declared,
+				test.actual,
+			)
+
+			parsed, err := ParseEncryptedJSON(
+				token,
+				[]KeyAlgorithm{DIRECT},
+				[]ContentEncryption{test.declared},
+			)
+			if err != nil {
+				t.Fatalf("ParseEncryptedJSON: %v", err)
+			}
+
+			_, err = parsed.Decrypt(test.key)
+			if err == nil {
+				t.Fatal("Decrypt accepted content encrypted under a shorter CEK")
+			}
+
+			_, _, _, err = parsed.DecryptMulti(test.key)
+			if err == nil {
+				t.Fatal("DecryptMulti accepted content encrypted under a shorter CEK")
+			}
+		})
+	}
+}
+
+func TestJWERejectsShortCBCHMACCEKForDeclaredContentEncryption(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      []byte
+		declared ContentEncryption
+	}{
+		{
+			name:     "A256CBC-HS512 with A128CBC-HS256 key",
+			key:      []byte("0123456789abcdef0123456789abcdef"),
+			declared: A256CBC_HS512,
+		},
+		{
+			name:     "A192CBC-HS384 with A128CBC-HS256 key",
+			key:      []byte("0123456789abcdef0123456789abcdef"),
+			declared: A192CBC_HS384,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			plaintext := []byte("content encrypted under a shorter CEK")
+			token := jweJSONWithMismatchedCBCHMACCEK(t, test.key, plaintext, test.declared)
+
+			parsed, err := ParseEncryptedJSON(
+				token,
+				[]KeyAlgorithm{DIRECT},
+				[]ContentEncryption{test.declared},
+			)
+			if err != nil {
+				t.Fatalf("ParseEncryptedJSON: %v", err)
+			}
+
+			_, err = parsed.Decrypt(test.key)
+			if err == nil {
+				t.Fatal("Decrypt accepted content encrypted under a shorter CEK")
+			}
+
+			_, _, _, err = parsed.DecryptMulti(test.key)
+			if err == nil {
+				t.Fatal("DecryptMulti accepted content encrypted under a shorter CEK")
+			}
+		})
+	}
+}
+
+func jweJSONWithMismatchedCEK(
+	t *testing.T,
+	key []byte,
+	plaintext []byte,
+	declared ContentEncryption,
+	actual ContentEncryption,
+) string {
+	t.Helper()
+
+	protected := rawHeader{}
+	err := protected.set(headerAlgorithm, DIRECT)
+	if err != nil {
+		t.Fatalf("set alg: %v", err)
+	}
+	err = protected.set(headerEncryption, declared)
+	if err != nil {
+		t.Fatalf("set enc: %v", err)
+	}
+
+	protectedJSON := mustSerializeJSON(protected)
+	protectedB64 := newBuffer(protectedJSON).base64()
+	cipher := getContentCipher(actual)
+	parts, err := cipher.encrypt(key, []byte(protectedB64), plaintext)
+	if err != nil {
+		t.Fatalf("encrypt content: %v", err)
+	}
+
+	raw := rawJSONWebEncryption{
+		Protected:  newBuffer(protectedJSON),
+		Iv:         newBuffer(parts.iv),
+		Ciphertext: newBuffer(parts.ciphertext),
+		Tag:        newBuffer(parts.tag),
+	}
+	return string(mustSerializeJSON(raw))
+}
+
+func jweJSONWithMismatchedCBCHMACCEK(
+	t *testing.T,
+	key []byte,
+	plaintext []byte,
+	declared ContentEncryption,
+) string {
+	t.Helper()
+
+	protected := rawHeader{}
+	err := protected.set(headerAlgorithm, DIRECT)
+	if err != nil {
+		t.Fatalf("set alg: %v", err)
+	}
+	err = protected.set(headerEncryption, declared)
+	if err != nil {
+		t.Fatalf("set enc: %v", err)
+	}
+
+	protectedJSON := mustSerializeJSON(protected)
+	protectedB64 := newBuffer(protectedJSON).base64()
+	cipher := getContentCipher(A128CBC_HS256)
+	parts, err := cipher.encrypt(key, []byte(protectedB64), plaintext)
+	if err != nil {
+		t.Fatalf("encrypt content: %v", err)
+	}
+
+	actualTagLen := len(parts.tag)
+	declaredTagLen := cbcTagLength(t, declared)
+	if declaredTagLen < actualTagLen {
+		t.Fatalf("declared tag length %d is shorter than actual tag length %d",
+			declaredTagLen, actualTagLen)
+	}
+
+	prefixLen := declaredTagLen - actualTagLen
+	if len(parts.ciphertext) < prefixLen {
+		t.Fatalf("ciphertext length %d is shorter than tag prefix length %d",
+			len(parts.ciphertext), prefixLen)
+	}
+
+	// Move ciphertext bytes into the tag field so the outer declared-tag length check
+	// passes while the inner A128CBC-HS256 AEAD still sees its original tag.
+	ciphertextPart := parts.ciphertext[:len(parts.ciphertext)-prefixLen]
+	tagPart := append([]byte{}, parts.ciphertext[len(parts.ciphertext)-prefixLen:]...)
+	tagPart = append(tagPart, parts.tag...)
+
+	raw := rawJSONWebEncryption{
+		Protected:  newBuffer(protectedJSON),
+		Iv:         newBuffer(parts.iv),
+		Ciphertext: newBuffer(ciphertextPart),
+		Tag:        newBuffer(tagPart),
+	}
+	return string(mustSerializeJSON(raw))
+}
+
+func cbcTagLength(t *testing.T, enc ContentEncryption) int {
+	t.Helper()
+
+	switch enc {
+	case A128CBC_HS256:
+		return 16
+	case A192CBC_HS384:
+		return 24
+	case A256CBC_HS512:
+		return 32
+	default:
+		t.Fatalf("unsupported CBC enc %q", enc)
+		return 0
+	}
+}
+
 func BenchmarkParseEncryptedCompat(b *testing.B) {
 	msg := "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkExMjhHQ00ifQ.dGVzdA.dGVzdA.dGVzdA.dGVzdA"
 	for range b.N {
