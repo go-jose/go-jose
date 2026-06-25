@@ -21,9 +21,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/base64"
 	"errors"
 	"github.com/go-jose/go-jose/v4/json"
 	"io"
+	"math/big"
 	"testing"
 )
 
@@ -63,6 +67,173 @@ func TestEd25519(t *testing.T) {
 	if err == nil {
 		t.Error("should not error trying to verify payload")
 	}
+}
+
+func TestECDSAVerifyRejectsWrongCurveForAlgorithm(t *testing.T) {
+	testCases := []struct {
+		name      string
+		curve     elliptic.Curve
+		tokenAlg  SignatureAlgorithm
+		hashInput func([]byte) []byte
+		width     int
+	}{
+		{
+			name:     "ES384 with P-256 key",
+			curve:    elliptic.P256(),
+			tokenAlg: ES384,
+			hashInput: func(input []byte) []byte {
+				sum := sha512.Sum384(input)
+				return sum[:]
+			},
+			width: 48,
+		},
+		{
+			name:     "ES512 with P-256 key",
+			curve:    elliptic.P256(),
+			tokenAlg: ES512,
+			hashInput: func(input []byte) []byte {
+				sum := sha512.Sum512(input)
+				return sum[:]
+			},
+			width: 66,
+		},
+		{
+			name:     "ES512 with P-384 key",
+			curve:    elliptic.P384(),
+			tokenAlg: ES512,
+			hashInput: func(input []byte) []byte {
+				sum := sha512.Sum512(input)
+				return sum[:]
+			},
+			width: 66,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			key, err := ecdsa.GenerateKey(tc.curve, rand.Reader)
+			if err != nil {
+				t.Fatalf("generate test key: %v", err)
+			}
+			payload := []byte(`{"sub":"attacker","admin":true}`)
+			protected := []byte(`{"alg":"` + string(tc.tokenAlg) + `","kid":"ecdsa-key"}`)
+			protectedB64 := base64.RawURLEncoding.EncodeToString(protected)
+			payloadB64 := base64.RawURLEncoding.EncodeToString(payload)
+			authData := []byte(protectedB64 + "." + payloadB64)
+			digest := tc.hashInput(authData)
+
+			r, s, err := ecdsa.Sign(rand.Reader, key, digest)
+			if err != nil {
+				t.Fatalf("sign payload: %v", err)
+			}
+			signature := ecdsaSignature(t, r, s, tc.width)
+			compact := protectedB64 + "." + payloadB64 + "." +
+				base64.RawURLEncoding.EncodeToString(signature)
+
+			jws, err := ParseSigned(compact, []SignatureAlgorithm{tc.tokenAlg})
+			if err != nil {
+				t.Fatalf("ParseSigned: %v", err)
+			}
+			jwks := JSONWebKeySet{Keys: []JSONWebKey{{
+				Key:       &key.PublicKey,
+				KeyID:     "ecdsa-key",
+				Algorithm: string(tc.tokenAlg),
+			}}}
+			verified, err := jws.Verify(jwks)
+			if err == nil {
+				t.Fatalf("Verify accepted wrong-curve payload %q", verified)
+			}
+		})
+	}
+}
+
+func TestECDSAVerifyRejectsNonJWACurve(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate P-256 key: %v", err)
+	}
+	payload := []byte(`{"sub":"attacker","admin":true}`)
+	protected := []byte(`{"alg":"ES256","kid":"ecdsa-key"}`)
+	protectedB64 := base64.RawURLEncoding.EncodeToString(protected)
+	payloadB64 := base64.RawURLEncoding.EncodeToString(payload)
+	authData := []byte(protectedB64 + "." + payloadB64)
+	digest := sha256.Sum256(authData)
+
+	r, s, err := ecdsa.Sign(rand.Reader, key, digest[:])
+	if err != nil {
+		t.Fatalf("sign payload: %v", err)
+	}
+	signature := ecdsaSignature(t, r, s, 32)
+	compact := protectedB64 + "." + payloadB64 + "." +
+		base64.RawURLEncoding.EncodeToString(signature)
+
+	jws, err := ParseSigned(compact, []SignatureAlgorithm{ES256})
+	if err != nil {
+		t.Fatalf("ParseSigned: %v", err)
+	}
+	publicKey := key.PublicKey
+	publicKey.Curve = wrappedCurve{Curve: key.Curve}
+	jwks := JSONWebKeySet{Keys: []JSONWebKey{{
+		Key:       &publicKey,
+		KeyID:     "ecdsa-key",
+		Algorithm: string(ES256),
+	}}}
+	verified, err := jws.Verify(jwks)
+	if err == nil {
+		t.Fatalf("Verify accepted a non-JWA curve for ES256 payload %q", verified)
+	}
+}
+
+func TestECDSAVerifyRejectsWrongDigestForSameCurveConfusion(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate P-384 key: %v", err)
+	}
+	payload := []byte(`{"sub":"attacker","admin":true}`)
+	protected := []byte(`{"alg":"ES384","kid":"ecdsa-key"}`)
+	protectedB64 := base64.RawURLEncoding.EncodeToString(protected)
+	payloadB64 := base64.RawURLEncoding.EncodeToString(payload)
+	authData := []byte(protectedB64 + "." + payloadB64)
+	digest := sha256.Sum256(authData)
+
+	r, s, err := ecdsa.Sign(rand.Reader, key, digest[:])
+	if err != nil {
+		t.Fatalf("sign payload with SHA-256 control digest: %v", err)
+	}
+	signature := ecdsaSignature(t, r, s, 48)
+	compact := protectedB64 + "." + payloadB64 + "." +
+		base64.RawURLEncoding.EncodeToString(signature)
+
+	jws, err := ParseSigned(compact, []SignatureAlgorithm{ES384})
+	if err != nil {
+		t.Fatalf("ParseSigned: %v", err)
+	}
+	jwks := JSONWebKeySet{Keys: []JSONWebKey{{
+		Key:   &key.PublicKey,
+		KeyID: "ecdsa-key",
+	}}}
+	_, err = jws.Verify(jwks)
+	if err == nil {
+		t.Fatal("ES384 token verified even though signature used SHA-256")
+	}
+}
+
+func ecdsaSignature(t *testing.T, r *big.Int, s *big.Int, size int) []byte {
+	t.Helper()
+
+	out := make([]byte, 2*size)
+	rBytes := r.Bytes()
+	sBytes := s.Bytes()
+	if len(rBytes) > size || len(sBytes) > size {
+		t.Fatalf("signature integer does not fit requested width")
+	}
+	copy(out[size-len(rBytes):size], rBytes)
+	copy(out[2*size-len(sBytes):], sBytes)
+	return out
+}
+
+type wrappedCurve struct {
+	elliptic.Curve
 }
 
 func TestInvalidAlgorithmsRSA(t *testing.T) {
