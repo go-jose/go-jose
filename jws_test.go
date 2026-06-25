@@ -17,6 +17,8 @@
 package jose
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -818,6 +820,46 @@ func TestInvalidHMACKeySize(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = s.Sign([]byte("Lorem ipsum dolor sit amet"))
 	assert.ErrorIs(t, err, ErrInvalidKeySize)
+}
+
+// Regression for #228. CompactSerialize used to re-marshal the
+// protected header map, which sorts keys alphabetically and produced
+// a serialization whose protected-header bytes no longer matched the
+// signed bytes. Round-tripping a parsed JWS must preserve the
+// original protected-header bytes so the signature stays valid.
+func TestRoundTripPreservesProtectedHeaderBytes(t *testing.T) {
+	algs := []SignatureAlgorithm{HS256}
+	key := []byte("super-secret-key-thats-long-enough")
+
+	// Craft a JWS whose protected header is NOT in alphabetical order
+	// so the re-marshal path would visibly reorder it. Sign and serialize
+	// once so we have a token to round-trip.
+	const headerJSON = `{"typ":"JWT","alg":"HS256"}`
+	const payload = `{"sub":"123"}`
+	const protectedB64 = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9"
+	if got := base64.RawURLEncoding.EncodeToString([]byte(headerJSON)); got != protectedB64 {
+		t.Fatalf("test setup mismatch, expected %q, got %q", protectedB64, got)
+	}
+	payloadB64 := base64.RawURLEncoding.EncodeToString([]byte(payload))
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(protectedB64 + "." + payloadB64))
+	sigB64 := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	raw := protectedB64 + "." + payloadB64 + "." + sigB64
+
+	parsed, err := ParseSigned(raw, algs)
+	assert.NoError(t, err)
+
+	got, err := parsed.CompactSerialize()
+	assert.NoError(t, err)
+	if got != raw {
+		t.Fatalf("CompactSerialize round-trip changed bytes:\nwant %s\n got %s", raw, got)
+	}
+
+	reparsed, err := ParseSigned(got, algs)
+	assert.NoError(t, err)
+	if _, err := reparsed.Verify(key); err != nil {
+		t.Fatalf("re-parsed JWS no longer verifies: %v", err)
+	}
 }
 
 func BenchmarkParseSignedCompat(b *testing.B) {
