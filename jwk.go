@@ -620,19 +620,20 @@ func (key rawJSONWebKey) edPrivateKey() (ed25519.PrivateKey, error) {
 		return nil, fmt.Errorf("go-jose/go-jose: invalid Ed25519 private key, missing %s value(s)", strings.Join(missing, ", "))
 	}
 
-	seed := key.D.bytes()
-	if len(seed) != ed25519.SeedSize {
-		return nil, fmt.Errorf("go-jose/go-jose: invalid Ed25519 private key, wrong length for d")
-	}
-
 	publicKey := key.X.bytes()
 	err := validateEd25519PublicKey(publicKey)
 	if err != nil {
 		return nil, err
 	}
 
+	seed := key.D.bytes()
+	if len(seed) != ed25519.SeedSize {
+		return nil, fmt.Errorf("go-jose/go-jose: invalid Ed25519 private key, wrong length for d")
+	}
+
 	privateKey := ed25519.NewKeyFromSeed(seed)
-	if !bytes.Equal(privateKey[ed25519.SeedSize:], publicKey) {
+	derivedPublicKey := privateKey.Public().(ed25519.PublicKey)
+	if !bytes.Equal(derivedPublicKey, publicKey) {
 		return nil, errors.New("go-jose/go-jose: invalid Ed25519 private key, x does not match d")
 	}
 
@@ -648,7 +649,7 @@ func (key rawJSONWebKey) edPublicKey() (ed25519.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append(ed25519.PublicKey(nil), publicKey...), nil
+	return ed25519.PublicKey(bytes.Clone(publicKey)), nil
 }
 
 func (key rawJSONWebKey) rsaPrivateKey() (*rsa.PrivateKey, error) {
@@ -703,12 +704,13 @@ func fromEdPrivateKey(ed ed25519.PrivateKey) (*rawJSONWebKey, error) {
 		return nil, errors.New("go-jose/go-jose: invalid Ed25519 private key length")
 	}
 
-	raw, err := fromEdPublicKey(ed25519.PublicKey(ed[ed25519.SeedSize:]))
+	publicKey := ed.Public().(ed25519.PublicKey)
+	raw, err := fromEdPublicKey(publicKey)
 	if err != nil {
 		return nil, err
 	}
 
-	raw.D = newBuffer(ed[:ed25519.SeedSize])
+	raw.D = newBuffer(ed.Seed())
 	return raw, nil
 }
 
