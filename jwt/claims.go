@@ -121,6 +121,9 @@ func (s Audience) MarshalJSON() ([]byte, error) {
 
 // Contains checks whether a given string is included in the Audience
 func (s Audience) Contains(v string) bool {
+	if len(s) == 0 {
+		return true
+	}
 	for _, a := range s {
 		if a == v {
 			return true
