@@ -26,13 +26,13 @@ import (
 
 // Claims represents public claim values (as specified in RFC 7519).
 type Claims struct {
-	Issuer    string       `json:"iss,omitempty"`
-	Subject   string       `json:"sub,omitempty"`
-	Audience  Audience     `json:"aud,omitempty"`
-	Expiry    *NumericDate `json:"exp,omitempty"`
-	NotBefore *NumericDate `json:"nbf,omitempty"`
-	IssuedAt  *NumericDate `json:"iat,omitempty"`
-	ID        string       `json:"jti,omitempty"`
+	Issuer    string       `json:"iss,omitempty" yaml:"iss,omitempty"`
+	Subject   string       `json:"sub,omitempty" yaml:"sub,omitempty"`
+	Audience  Audience     `json:"aud,omitempty" yaml:"aud,omitempty"`
+	Expiry    *NumericDate `json:"exp,omitempty" yaml:"exp,omitempty"`
+	NotBefore *NumericDate `json:"nbf,omitempty" yaml:"nbf,omitempty"`
+	IssuedAt  *NumericDate `json:"iat,omitempty" yaml:"iat,omitempty"`
+	ID        string       `json:"jti,omitempty" yaml:"jti,omitempty"`
 }
 
 // NumericDate represents date and time as the number of seconds since the

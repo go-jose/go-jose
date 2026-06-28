@@ -40,31 +40,31 @@ import (
 
 // rawJSONWebKey represents a public or private key in JWK format, used for parsing/serializing.
 type rawJSONWebKey struct {
-	Use string      `json:"use,omitempty"`
-	Kty string      `json:"kty,omitempty"`
-	Kid string      `json:"kid,omitempty"`
-	Crv string      `json:"crv,omitempty"`
-	Alg string      `json:"alg,omitempty"`
-	K   *byteBuffer `json:"k,omitempty"`
-	X   *byteBuffer `json:"x,omitempty"`
-	Y   *byteBuffer `json:"y,omitempty"`
-	N   *byteBuffer `json:"n,omitempty"`
-	E   *byteBuffer `json:"e,omitempty"`
+	Use string      `json:"use,omitempty" yaml:"use,omitempty"`
+	Kty string      `json:"kty,omitempty" yaml:"kty,omitempty"`
+	Kid string      `json:"kid,omitempty" yaml:"kid,omitempty"`
+	Crv string      `json:"crv,omitempty" yaml:"crv,omitempty"`
+	Alg string      `json:"alg,omitempty" yaml:"alg,omitempty"`
+	K   *byteBuffer `json:"k,omitempty"   yaml:"k,omitempty"`
+	X   *byteBuffer `json:"x,omitempty"   yaml:"x,omitempty"`
+	Y   *byteBuffer `json:"y,omitempty"   yaml:"y,omitempty"`
+	N   *byteBuffer `json:"n,omitempty"   yaml:"n,omitempty"`
+	E   *byteBuffer `json:"e,omitempty"   yaml:"e,omitempty"`
 	// -- Following fields are only used for private keys --
 	// RSA uses D, P and Q, while ECDSA uses only D. Fields Dp, Dq, and Qi are
 	// completely optional. Therefore for RSA/ECDSA, D != nil is a contract that
 	// we have a private key whereas D == nil means we have only a public key.
-	D  *byteBuffer `json:"d,omitempty"`
-	P  *byteBuffer `json:"p,omitempty"`
-	Q  *byteBuffer `json:"q,omitempty"`
-	Dp *byteBuffer `json:"dp,omitempty"`
-	Dq *byteBuffer `json:"dq,omitempty"`
-	Qi *byteBuffer `json:"qi,omitempty"`
+	D  *byteBuffer `json:"d,omitempty"  yaml:"d,omitempty"`
+	P  *byteBuffer `json:"p,omitempty"  yaml:"p,omitempty"`
+	Q  *byteBuffer `json:"q,omitempty"  yaml:"q,omitempty"`
+	Dp *byteBuffer `json:"dp,omitempty" yaml:"dp,omitempty"`
+	Dq *byteBuffer `json:"dq,omitempty" yaml:"dq,omitempty"`
+	Qi *byteBuffer `json:"qi,omitempty" yaml:"qi,omitempty"`
 	// Certificates
-	X5c       []string `json:"x5c,omitempty"`
-	X5u       string   `json:"x5u,omitempty"`
-	X5tSHA1   string   `json:"x5t,omitempty"`
-	X5tSHA256 string   `json:"x5t#S256,omitempty"`
+	X5c       []string `json:"x5c,omitempty"      yaml:"x5c,omitempty"`
+	X5u       string   `json:"x5u,omitempty"      yaml:"x5u,omitempty"`
+	X5tSHA1   string   `json:"x5t,omitempty"      yaml:"x5t,omitempty"`
+	X5tSHA256 string   `json:"x5t#S256,omitempty" yaml:"x5t#S256,omitempty"`
 }
 
 // JSONWebKey represents a public or private key in JWK format. It can be
@@ -353,7 +353,7 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 
 // JSONWebKeySet represents a JWK Set object.
 type JSONWebKeySet struct {
-	Keys []JSONWebKey `json:"keys"`
+	Keys []JSONWebKey `json:"keys" yaml:"keys"`
 }
 
 // Key convenience method returns keys by key ID. Specification states
