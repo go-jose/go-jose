@@ -829,3 +829,26 @@ func BenchmarkParseSignedCompat(b *testing.B) {
 		}
 	}
 }
+
+func TestParseSignedDoesNotStripCompactWhitespace(t *testing.T) {
+	key := []byte("0123456789ABCDEF0123456789ABCDEF")
+	signer, err := NewSigner(SigningKey{Algorithm: HS256, Key: key}, nil)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	obj, err := signer.Sign([]byte("payload"))
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+	compact, err := obj.CompactSerialize()
+	if err != nil {
+		t.Fatalf("CompactSerialize: %v", err)
+	}
+	spaced := strings.Replace(compact, ".", " . ", 1)
+	if _, err := ParseSigned(spaced, []SignatureAlgorithm{HS256}); err == nil {
+		t.Fatal("ParseSigned accepted compact serialization with internal whitespace")
+	}
+	if _, err := ParseSignedCompact(spaced, []SignatureAlgorithm{HS256}); err == nil {
+		t.Fatal("ParseSignedCompact accepted compact serialization with internal whitespace")
+	}
+}

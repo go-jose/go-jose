@@ -95,7 +95,7 @@ func ParseSigned(
 		return ParseSignedJSON(signature, signatureAlgorithms)
 	}
 
-	return parseSignedCompact(stripWhitespace(signature), nil, signatureAlgorithms)
+	return parseSignedCompact(signature, nil, signatureAlgorithms)
 }
 
 // ParseSignedCompact parses a message in JWS Compact Serialization. Validation fails if the JWS is
@@ -133,7 +133,7 @@ func ParseDetached(
 	if payload == nil {
 		return nil, errors.New("go-jose/go-jose: nil payload")
 	}
-	return parseSignedCompact(stripWhitespace(signature), payload, signatureAlgorithms)
+	return parseSignedCompact(signature, payload, signatureAlgorithms)
 }
 
 // Get a header value
