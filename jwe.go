@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/go-jose/go-jose/v4/json"
 )
@@ -138,12 +137,12 @@ func ParseEncrypted(input string,
 	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
 ) (*JSONWebEncryption, error) {
-	trimmed := strings.TrimLeftFunc(input, unicode.IsSpace)
+	trimmed := strings.TrimSpace(input)
 	if strings.HasPrefix(trimmed, "{") {
-		return ParseEncryptedJSON(input, keyEncryptionAlgorithms, contentEncryption)
+		return ParseEncryptedJSON(trimmed, keyEncryptionAlgorithms, contentEncryption)
 	}
 
-	return ParseEncryptedCompact(input, keyEncryptionAlgorithms, contentEncryption)
+	return ParseEncryptedCompact(trimmed, keyEncryptionAlgorithms, contentEncryption)
 }
 
 // ParseEncryptedJSON parses a message in JWE JSON Serialization.
