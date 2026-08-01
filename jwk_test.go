@@ -688,6 +688,22 @@ func TestJWKUnsupported(t *testing.T) {
 	}
 }
 
+// TestJWKUnsupportedEllipticCurve checks that an unknown EC curve returns
+// ErrUnsupportedEllipticCurve (via errors.Is), for both public and private JWKs.
+func TestJWKUnsupportedEllipticCurve(t *testing.T) {
+	cases := []string{
+		`{"kty":"EC","crv":"secp256k1","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","y":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}`,
+		`{"kty":"EC","crv":"secp256k1","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","y":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","d":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}`,
+	}
+	for _, raw := range cases {
+		var jwk JSONWebKey
+		err := jwk.UnmarshalJSON([]byte(raw))
+		if !errors.Is(err, ErrUnsupportedEllipticCurve) {
+			t.Errorf("expected ErrUnsupportedEllipticCurve, got: %v", err)
+		}
+	}
+}
+
 // Test vectors from RFC 7520
 var cookbookJWKs = []string{
 	// EC Public
