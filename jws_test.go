@@ -852,3 +852,26 @@ func TestParseSignedDoesNotStripCompactWhitespace(t *testing.T) {
 		t.Fatal("ParseSignedCompact accepted compact serialization with internal whitespace")
 	}
 }
+
+func TestParseSignedTrimsOuterWhitespace(t *testing.T) {
+	key := []byte("0123456789ABCDEF0123456789ABCDEF")
+	signer, err := NewSigner(SigningKey{Algorithm: HS256, Key: key}, nil)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	obj, err := signer.Sign([]byte("payload"))
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+	compact, err := obj.CompactSerialize()
+	if err != nil {
+		t.Fatalf("CompactSerialize: %v", err)
+	}
+	// Leading/trailing whitespace (e.g. a trailing newline from a file or env var) is
+	// common and doesn't create the JSON-member-smuggling risk internal stripping did
+	// (go-jose/go-jose#237), so ParseSigned should still tolerate it.
+	padded := "\n  " + compact + "  \n"
+	if _, err := ParseSigned(padded, []SignatureAlgorithm{HS256}); err != nil {
+		t.Fatalf("ParseSigned rejected compact serialization with outer whitespace: %v", err)
+	}
+}
