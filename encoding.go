@@ -24,8 +24,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"strings"
-	"unicode"
 
 	"github.com/go-jose/go-jose/v4/json"
 )
@@ -52,18 +50,6 @@ func mustSerializeJSON(value interface{}) []byte {
 		panic("Tried to serialize a nil pointer.")
 	}
 	return out
-}
-
-// Strip all newlines and whitespace
-func stripWhitespace(data string) string {
-	buf := strings.Builder{}
-	buf.Grow(len(data))
-	for _, r := range data {
-		if !unicode.IsSpace(r) {
-			buf.WriteRune(r)
-		}
-	}
-	return buf.String()
 }
 
 // Perform compression based on algorithm
