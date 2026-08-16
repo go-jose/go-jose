@@ -16,7 +16,7 @@ jobs:
         GO_VERSION:
           - "1.25.x"
           - "1.26.x"
-          - "1.27.0-rc.1"
+          - "1.27.0-rc.3"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7

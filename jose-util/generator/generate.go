@@ -79,6 +79,9 @@ func NewSigningKey(alg jose.SignatureAlgorithm, bits int) (crypto.PublicKey, cry
 		}
 		return key.Public(), key, err
 	default:
+		if pub, priv, ok, err := newMLDSASigningKey(alg); ok {
+			return pub, priv, err
+		}
 		return nil, nil, fmt.Errorf("unknown algorithm %s for signing key", alg)
 	}
 }

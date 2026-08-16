@@ -69,6 +69,9 @@ func (s *cryptoSigner) Algs() []jose.SignatureAlgorithm {
 	case *rsa.PublicKey:
 		return []jose.SignatureAlgorithm{jose.RS256, jose.RS384, jose.RS512, jose.PS256, jose.PS384, jose.PS512}
 	default:
+		if algs, ok := mldsaAlgs(s.signer.Public()); ok {
+			return algs
+		}
 		return nil
 	}
 }
@@ -76,7 +79,8 @@ func (s *cryptoSigner) Algs() []jose.SignatureAlgorithm {
 func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) ([]byte, error) {
 	var hash crypto.Hash
 	switch alg {
-	case jose.EdDSA:
+	case jose.EdDSA, jose.ML_DSA_44, jose.ML_DSA_65, jose.ML_DSA_87:
+		// No pre-hashing; the payload is signed directly.
 	case jose.RS256, jose.PS256, jose.ES256:
 		hash = crypto.SHA256
 	case jose.RS384, jose.PS384, jose.ES384:
@@ -102,6 +106,12 @@ func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) 
 	)
 	switch alg {
 	case jose.EdDSA:
+		out, err = s.signer.Sign(s.rand, payload, crypto.Hash(0))
+	case jose.ML_DSA_44, jose.ML_DSA_65, jose.ML_DSA_87:
+		algs, ok := mldsaAlgs(s.signer.Public())
+		if !ok || len(algs) != 1 || algs[0] != alg {
+			return nil, jose.ErrUnsupportedAlgorithm
+		}
 		out, err = s.signer.Sign(s.rand, payload, crypto.Hash(0))
 	case jose.ES256, jose.ES384, jose.ES512:
 		var byteLen int
