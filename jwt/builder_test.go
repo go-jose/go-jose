@@ -314,7 +314,7 @@ func TestBuilderHeadersEncrypter(t *testing.T) {
 
 	wantKeyID := keyID
 	recipient := jose.Recipient{
-		Algorithm: jose.RSA1_5,
+		Algorithm: jose.RSA_OAEP_256,
 		Key:       key.Public(),
 		KeyID:     keyID,
 	}
@@ -326,14 +326,14 @@ func TestBuilderHeadersEncrypter(t *testing.T) {
 	token, err := Encrypted(encrypter).Claims(claims).Serialize()
 	require.NoError(t, err, "failed to create token")
 
-	jwe, err := jose.ParseEncrypted(token, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
+	jwe, err := jose.ParseEncrypted(token, []jose.KeyAlgorithm{jose.RSA_OAEP_256}, []jose.ContentEncryption{jose.A128CBC_HS256})
 	if assert.NoError(t, err, "error parsing encrypted token") {
 		expected := jose.Header{
 			ExtraHeaders: map[jose.HeaderKey]interface{}{
 				jose.HeaderType: string(wantType),
 				"enc":           "A128CBC-HS256",
 			},
-			Algorithm: string(jose.RSA1_5),
+			Algorithm: string(jose.RSA_OAEP_256),
 			KeyID:     wantKeyID,
 		}
 		if !reflect.DeepEqual(jwe.Header, expected) {

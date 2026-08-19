@@ -21,6 +21,7 @@ import (
 	"crypto/aes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/fips140"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -197,6 +198,9 @@ func (ctx rsaEncrypterVerifier) encrypt(cek []byte, alg KeyAlgorithm) ([]byte, e
 	case RSA1_5:
 		return rsa.EncryptPKCS1v15(randReader, ctx.publicKey, cek)
 	case RSA_OAEP:
+		if fips140.Enabled() {
+			return nil, errors.New("go-jose/go-jose: RSA-OAEP with SHA-1 is not allowed in FIPS 140 mode, use RSA-OAEP-256 instead")
+		}
 		return rsa.EncryptOAEP(sha1.New(), randReader, ctx.publicKey, cek, []byte{})
 	case RSA_OAEP_256:
 		return rsa.EncryptOAEP(sha256.New(), randReader, ctx.publicKey, cek, []byte{})
@@ -249,6 +253,9 @@ func (ctx rsaDecrypterSigner) decrypt(jek []byte, alg KeyAlgorithm, generator ke
 
 		return cek, nil
 	case RSA_OAEP:
+		if fips140.Enabled() {
+			return nil, errors.New("go-jose/go-jose: RSA-OAEP with SHA-1 is not allowed in FIPS 140 mode, use RSA-OAEP-256 instead")
+		}
 		// Use rand.Reader for RSA blinding
 		return rsa.DecryptOAEP(sha1.New(), rand.Reader, ctx.privateKey, jek, []byte{})
 	case RSA_OAEP_256:
