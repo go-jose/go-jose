@@ -56,6 +56,16 @@ func TestNewMLDSASigningKey(t *testing.T) {
 	}
 }
 
+func TestNewMLDSASigningKeyRejectsKeySize(t *testing.T) {
+	for _, alg := range []jose.SignatureAlgorithm{jose.ML_DSA_44, jose.ML_DSA_65, jose.ML_DSA_87} {
+		t.Run(string(alg), func(t *testing.T) {
+			if _, _, err := NewSigningKey(alg, 4096); err == nil {
+				t.Error("NewSigningKey accepted a key size for an ML-DSA algorithm")
+			}
+		})
+	}
+}
+
 func TestNewSigningKeyStillRejectsUnknown(t *testing.T) {
 	if _, _, err := NewSigningKey(jose.SignatureAlgorithm("bogus"), 0); err == nil {
 		t.Error("NewSigningKey accepted an unknown algorithm")

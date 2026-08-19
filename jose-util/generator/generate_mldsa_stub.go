@@ -26,6 +26,6 @@ import (
 
 // newMLDSASigningKey generates no keys on toolchains without crypto/mldsa, which
 // was added in Go 1.27.
-func newMLDSASigningKey(_ jose.SignatureAlgorithm) (crypto.PublicKey, crypto.PrivateKey, bool, error) {
+func newMLDSASigningKey(_ jose.SignatureAlgorithm, _ int) (crypto.PublicKey, crypto.PrivateKey, bool, error) {
 	return nil, nil, false, nil
 }

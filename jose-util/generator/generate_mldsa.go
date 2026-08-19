@@ -21,14 +21,15 @@ package generator
 import (
 	"crypto"
 	"crypto/mldsa"
+	"errors"
 
 	"github.com/go-jose/go-jose/v4"
 )
 
 // newMLDSASigningKey generates an ML-DSA key pair for alg. The parameter set is
-// fixed by alg, so no key size argument is meaningful. The third return value
-// reports whether alg named an ML-DSA algorithm at all.
-func newMLDSASigningKey(alg jose.SignatureAlgorithm) (crypto.PublicKey, crypto.PrivateKey, bool, error) {
+// fixed by alg, so bits must be zero. The third return value reports whether alg
+// named an ML-DSA algorithm at all.
+func newMLDSASigningKey(alg jose.SignatureAlgorithm, bits int) (crypto.PublicKey, crypto.PrivateKey, bool, error) {
 	var params mldsa.Parameters
 
 	switch alg {
@@ -40,6 +41,10 @@ func newMLDSASigningKey(alg jose.SignatureAlgorithm) (crypto.PublicKey, crypto.P
 		params = mldsa.MLDSA87()
 	default:
 		return nil, nil, false, nil
+	}
+
+	if bits != 0 {
+		return nil, nil, true, errors.New("invalid key size for ML-DSA key, the parameter set is fixed by the algorithm")
 	}
 
 	key, err := mldsa.GenerateKey(params)
