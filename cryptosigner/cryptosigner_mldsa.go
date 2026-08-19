@@ -1,7 +1,7 @@
 //go:build go1.27
 
 /*-
- * Copyright 2018 Square Inc.
+ * Copyright 2026 The Go JOSE Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
