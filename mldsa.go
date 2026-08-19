@@ -220,13 +220,17 @@ func mldsaParseJWK(raw *rawJSONWebKey, certPub interface{}) (interface{}, error)
 		return nil, ErrUnsupportedKeyType
 	}
 
+	// RFC 9964 makes "pub" REQUIRED on every AKP JWK.
+	if raw.Pub == nil {
+		return nil, ErrUnsupportedKeyType
+	}
+
 	var (
 		key interface{}
 		pub *mldsa.PublicKey
 	)
 
-	switch {
-	case raw.Priv != nil:
+	if raw.Priv != nil {
 		// RFC 9964: priv MUST be the seed, and MUST be 32 bytes. NewPrivateKey
 		// enforces the length.
 		privateKey, err := mldsa.NewPrivateKey(params, raw.Priv.bytes())
@@ -234,11 +238,11 @@ func mldsaParseJWK(raw *rawJSONWebKey, certPub interface{}) (interface{}, error)
 			return nil, fmt.Errorf("go-jose/go-jose: invalid AKP private key: %w", err)
 		}
 		pub = privateKey.PublicKey()
-		if raw.Pub != nil && !bytes.Equal(raw.Pub.bytes(), pub.Bytes()) {
+		if !bytes.Equal(raw.Pub.bytes(), pub.Bytes()) {
 			return nil, errors.New("go-jose/go-jose: invalid AKP key, pub does not match the public key derived from priv")
 		}
 		key = privateKey
-	case raw.Pub != nil:
+	} else {
 		// NewPublicKey rejects an encoding whose length disagrees with params,
 		// which is what catches an alg/pub mismatch.
 		publicKey, err := mldsa.NewPublicKey(params, raw.Pub.bytes())
@@ -247,8 +251,6 @@ func mldsaParseJWK(raw *rawJSONWebKey, certPub interface{}) (interface{}, error)
 		}
 		pub = publicKey
 		key = publicKey
-	default:
-		return nil, ErrUnsupportedKeyType
 	}
 
 	if certPub != nil && !pub.Equal(certPub) {

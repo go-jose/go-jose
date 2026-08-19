@@ -543,6 +543,7 @@ func TestMLDSAParseJWKRejects(t *testing.T) {
 	priv := mldsaTestKey(t, ML_DSA_44)
 	pub := base64.RawURLEncoding.EncodeToString(priv.PublicKey().Bytes())
 	pub65 := base64.RawURLEncoding.EncodeToString(mldsaTestKey(t, ML_DSA_65).PublicKey().Bytes())
+	seed := base64.RawURLEncoding.EncodeToString(priv.Bytes())
 	otherSeed := base64.RawURLEncoding.EncodeToString(mldsaTestKey(t, ML_DSA_44).Bytes())
 
 	for _, tc := range []struct {
@@ -571,7 +572,11 @@ func TestMLDSAParseJWKRejects(t *testing.T) {
 		},
 		{
 			"priv is not 32 bytes",
-			fmt.Sprintf(`{"kty":"AKP","alg":"ML-DSA-44","priv":%q}`, pub),
+			fmt.Sprintf(`{"kty":"AKP","alg":"ML-DSA-44","pub":%q,"priv":%q}`, pub, pub),
+		},
+		{
+			"priv without pub",
+			fmt.Sprintf(`{"kty":"AKP","alg":"ML-DSA-44","priv":%q}`, seed),
 		},
 		{
 			"pub disagrees with priv",
