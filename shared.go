@@ -364,8 +364,21 @@ func (parsed rawHeader) checkNoCritical() error {
 	return nil
 }
 
+// checkNoB64 verifies there is no "b64" header parameter present.
+// RFC 7797 section 3 requires "b64" to occur only in the JWS Protected Header.
+func (parsed rawHeader) checkNoB64() error {
+	if _, ok := parsed[headerB64]; ok {
+		return ErrUnsupportedCriticalHeader
+	}
+
+	return nil
+}
+
 // checkSupportedCritical verifies there are no unsupported critical headers.
-// Supported headers are passed in as a set: map of names to empty structs
+// Supported headers are passed in as a set: map of names to empty structs.
+// Each listed name must also occur in this same header; RFC 7515 section 4.1.11
+// forbids crit entries that do not name a Header Parameter in the JOSE Header,
+// and RFC 7797 requires "b64" itself to be integrity protected.
 func (parsed rawHeader) checkSupportedCritical(supported map[string]struct{}) error {
 	crit, err := parsed.getCritical()
 	if err != nil {
@@ -374,6 +387,9 @@ func (parsed rawHeader) checkSupportedCritical(supported map[string]struct{}) er
 
 	for _, name := range crit {
 		if _, ok := supported[name]; !ok {
+			return ErrUnsupportedCriticalHeader
+		}
+		if v, ok := parsed[HeaderKey(name)]; !ok || v == nil {
 			return ErrUnsupportedCriticalHeader
 		}
 	}

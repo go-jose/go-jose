@@ -720,6 +720,99 @@ func TestSignerB64(t *testing.T) {
 	}
 }
 
+func TestRejectUnprotectedB64(t *testing.T) {
+	key := []byte("01234567890123456789012345678901")
+
+	verifyJSON := func(t *testing.T, serialized string) {
+		t.Helper()
+		jws, err := ParseSigned(serialized, []SignatureAlgorithm{HS256})
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		if _, err := jws.Verify(key); err == nil {
+			t.Error("Verify accepted JWS")
+		}
+		if _, _, _, err := jws.VerifyMulti(key); err == nil {
+			t.Error("VerifyMulti accepted JWS")
+		}
+	}
+
+	t.Run("flattened protected crit names unprotected b64", func(t *testing.T) {
+		// protected = {"alg":"HS256","crit":["b64"]}; HMAC is over the
+		// default b64=true signing input. b64=false is only unprotected.
+		const serialized = `{"payload":"YWJj","protected":"eyJhbGciOiJIUzI1NiIsImNyaXQiOlsiYjY0Il19","header":{"b64":false},"signature":"8_HaHJcOMPyCVqAMv0VFLsmmCIK_XWWJyHTyjKAaAZI"}`
+		verifyJSON(t, serialized)
+	})
+
+	t.Run("general protected crit names unprotected b64", func(t *testing.T) {
+		const serialized = `{"payload":"YWJj","signatures":[{"protected":"eyJhbGciOiJIUzI1NiIsImNyaXQiOlsiYjY0Il19","header":{"b64":false},"signature":"8_HaHJcOMPyCVqAMv0VFLsmmCIK_XWWJyHTyjKAaAZI"}]}`
+		verifyJSON(t, serialized)
+	})
+
+	signer, err := NewSigner(SigningKey{Algorithm: HS256, Key: key}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err := signer.Sign([]byte("abc"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj.Signatures[0].header = &rawHeader{}
+	if err := obj.Signatures[0].header.set(headerB64, false); err != nil {
+		t.Fatal(err)
+	}
+	flattenedUnprotectedB64 := obj.FullSerialize()
+
+	t.Run("flattened unprotected b64 without crit", func(t *testing.T) {
+		verifyJSON(t, flattenedUnprotectedB64)
+	})
+
+	t.Run("general unprotected b64 without crit", func(t *testing.T) {
+		verifyJSON(t, flattenedToGeneralJSON(t, flattenedUnprotectedB64))
+	})
+
+	t.Run("protected b64 with crit still verifies", func(t *testing.T) {
+		opts := new(SignerOptions)
+		opts.WithBase64(false)
+		b64Signer, err := NewSigner(SigningKey{Algorithm: HS256, Key: key}, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		signed, err := b64Signer.Sign([]byte("abc"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		jws, err := ParseSigned(signed.FullSerialize(), []SignatureAlgorithm{HS256})
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		if _, err := jws.Verify(key); err != nil {
+			t.Errorf("Verify rejected protected b64: %v", err)
+		}
+	})
+}
+
+func flattenedToGeneralJSON(t *testing.T, flattened string) string {
+	t.Helper()
+	var raw rawJSONWebSignature
+	if err := json.Unmarshal([]byte(flattened), &raw); err != nil {
+		t.Fatal(err)
+	}
+	raw.Signatures = []rawSignatureInfo{{
+		Protected: raw.Protected,
+		Header:    raw.Header,
+		Signature: raw.Signature,
+	}}
+	raw.Protected = nil
+	raw.Header = nil
+	raw.Signature = nil
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
+}
+
 func BenchmarkParseSigned(b *testing.B) {
 	msg := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c`
 	for i := 0; i < b.N; i++ {
