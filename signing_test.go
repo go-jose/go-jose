@@ -19,8 +19,10 @@ package jose
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"io"
 	"reflect"
@@ -230,6 +232,37 @@ func TestJWSInvalidKey(t *testing.T) {
 	_, err = obj.Verify("")
 	if err == nil {
 		t.Error("verification should fail with incorrect key")
+	}
+}
+
+func TestJWSNilVerificationKey(t *testing.T) {
+	tests := []struct {
+		name            string
+		algorithm       SignatureAlgorithm
+		verificationKey interface{}
+	}{
+		{name: "Ed25519", algorithm: EdDSA, verificationKey: ed25519.PublicKey(nil)},
+		{name: "ECDSA", algorithm: ES256, verificationKey: (*ecdsa.PublicKey)(nil)},
+		{name: "RSA", algorithm: RS256, verificationKey: (*rsa.PublicKey)(nil)},
+		{name: "JWK", algorithm: RS256, verificationKey: (*JSONWebKey)(nil)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			signingKey, _ := GenerateSigningTestKey(test.algorithm)
+			signer, err := NewSigner(SigningKey{Algorithm: test.algorithm, Key: signingKey}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			obj, err := signer.Sign([]byte("payload"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := obj.Verify(test.verificationKey); err != errInvalidVerificationKey {
+				t.Fatalf("Verify() error = %v, want %v", err, errInvalidVerificationKey)
+			}
+		})
 	}
 }
 
