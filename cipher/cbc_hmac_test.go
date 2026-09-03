@@ -259,10 +259,13 @@ func TestPadding(t *testing.T) {
 }
 
 func TestInvalidKey(t *testing.T) {
-	key := make([]byte, 30)
-	_, err := NewCBCHMAC(key, aes.NewCipher)
-	if err == nil {
-		t.Error("should not be able to instantiate CBC-HMAC with invalid key")
+	// These key sizes product an invalid hash size (key size / 2)
+	for _, n := range []int{31, 47, 63} {
+		key := make([]byte, n)
+		_, err := NewCBCHMAC(key, aes.NewCipher)
+		if err == nil {
+			t.Error("should not be able to instantiate CBC-HMAC with invalid key")
+		}
 	}
 }
 

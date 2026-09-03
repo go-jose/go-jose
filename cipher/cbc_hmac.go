@@ -51,6 +51,8 @@ func NewCBCHMAC(key []byte, newBlockCipher func([]byte) (cipher.Block, error)) (
 		hash = sha512.New384
 	case 32:
 		hash = sha512.New
+	default:
+		return nil, errors.New("go-jose/go-jose: invalid key size for CBC-HMAC")
 	}
 
 	return &cbcAEAD{
