@@ -76,6 +76,23 @@ func TestInvalidInputs(t *testing.T) {
 	}
 }
 
+// TestOpenEmptyCiphertextContent tests that decryption of an empty ciphertext errors but
+// does not panic. Empty ciphertext in CBC-HMAC is invalid. If the plaintext was empty,
+// the ciphertext will be padded out to a single block.
+func TestOpenEmptyCiphertextContent(t *testing.T) {
+	key := make([]byte, 32)
+	aead, _ := NewCBCHMAC(key, aes.NewCipher)
+	ctx := aead.(*cbcAEAD)
+	nonce := make([]byte, 16)
+	aad := []byte("aad")
+
+	// Compute a valid auth tag so that we don't hit an early exit on that.
+	tag := ctx.computeAuthTag(aad, nonce, nil /*empty ciphertext*/)
+	if _, err := aead.Open(nil, nonce, tag /* tag || empty ciphertext */, aad); err == nil {
+		t.Error("expected error for empty ciphertext content, got nil")
+	}
+}
+
 func TestVectorsAESCBC128(t *testing.T) {
 	// Source: http://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-29#appendix-A.2
 	plaintext := []byte{
@@ -255,6 +272,13 @@ func TestPadding(t *testing.T) {
 			t.Error("failed to unpad slice properly", i)
 			return
 		}
+	}
+}
+
+func TestUnpadEmpty(t *testing.T) {
+	_, err := unpadBuffer(nil, 16)
+	if err == nil || !strings.Contains(err.Error(), "padding") {
+		t.Errorf("expected padding-related error unpadding empty buffer, got %v", err)
 	}
 }
 
