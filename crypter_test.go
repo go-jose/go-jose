@@ -23,7 +23,10 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
@@ -329,6 +332,142 @@ func TestEncrypterWithJWKAndKeyIDByValue(t *testing.T) {
 	if parsed2.Header.KeyID != "test-id-value" {
 		t.Errorf("expected message to have key id from JWK by value, but found '%s' instead", parsed2.Header.KeyID)
 	}
+}
+
+func TestJWEUnprotectedIdentityHeadersAreNotExposed(t *testing.T) {
+	encrypter, err := NewEncrypter(A128GCM, Recipient{
+		Algorithm: RSA_OAEP,
+		Key:       &rsaTestKey.PublicKey,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ciphertext, err := encrypter.Encrypt([]byte("Lorem ipsum dolor sit amet"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	header := map[string]interface{}{
+		"kid":    "attacker",
+		"jwk":    JSONWebKey{Key: &ecTestKey256.PublicKey, KeyID: "attacker"},
+		"x5c":    []string{base64.StdEncoding.EncodeToString(testCertificates[0].Raw)},
+		"custom": "preserved",
+	}
+	serialized := injectJWEHeader(t, ciphertext.FullSerialize(), "unprotected", header)
+
+	parsed, err := ParseEncrypted(serialized, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plaintext, err := parsed.Decrypt(rsaTestKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(plaintext) != "Lorem ipsum dolor sit amet" {
+		t.Fatalf("plaintext = %q", plaintext)
+	}
+
+	keySet := JSONWebKeySet{
+		Keys: []JSONWebKey{{Key: rsaTestKey, KeyID: "attacker"}},
+	}
+	plaintext, err = parsed.Decrypt(keySet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(plaintext) != "Lorem ipsum dolor sit amet" {
+		t.Fatalf("JWKS plaintext = %q", plaintext)
+	}
+
+	if parsed.Header.KeyID != "" {
+		t.Fatalf("unprotected kid was exposed as %q", parsed.Header.KeyID)
+	}
+	if parsed.Header.JSONWebKey != nil {
+		t.Fatal("unprotected JWK was exposed")
+	}
+	_, err = parsed.Header.Certificates(x509.VerifyOptions{})
+	if err != ErrMissingX5cHeader {
+		t.Fatalf("unprotected x5c error = %v, want %v", err, ErrMissingX5cHeader)
+	}
+	if parsed.Header.ExtraHeaders[HeaderKey("custom")] != "preserved" {
+		t.Fatalf("custom header = %v", parsed.Header.ExtraHeaders[HeaderKey("custom")])
+	}
+}
+
+func TestJWERecipientUnprotectedIdentityHeadersAreNotExposed(t *testing.T) {
+	encrypter, err := NewEncrypter(A128GCM, Recipient{
+		Algorithm: RSA_OAEP,
+		Key:       &rsaTestKey.PublicKey,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ciphertext, err := encrypter.Encrypt([]byte("Lorem ipsum dolor sit amet"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	header := map[string]interface{}{
+		"kid":    "attacker",
+		"jwk":    JSONWebKey{Key: &ecTestKey256.PublicKey, KeyID: "attacker"},
+		"x5c":    []string{base64.StdEncoding.EncodeToString(testCertificates[0].Raw)},
+		"custom": "preserved",
+	}
+	serialized := injectJWEHeader(t, ciphertext.FullSerialize(), "header", header)
+
+	parsed, err := ParseEncrypted(serialized, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	index, headerOut, plaintext, err := parsed.DecryptMulti(rsaTestKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if index != 0 {
+		t.Fatalf("recipient index = %d, want 0", index)
+	}
+	if string(plaintext) != "Lorem ipsum dolor sit amet" {
+		t.Fatalf("plaintext = %q", plaintext)
+	}
+	if headerOut.KeyID != "" {
+		t.Fatalf("unprotected kid was exposed as %q", headerOut.KeyID)
+	}
+	if headerOut.JSONWebKey != nil {
+		t.Fatal("unprotected JWK was exposed")
+	}
+	_, err = headerOut.Certificates(x509.VerifyOptions{})
+	if err != ErrMissingX5cHeader {
+		t.Fatalf("unprotected x5c error = %v, want %v", err, ErrMissingX5cHeader)
+	}
+	if headerOut.ExtraHeaders[HeaderKey("custom")] != "preserved" {
+		t.Fatalf("custom header = %v", headerOut.ExtraHeaders[HeaderKey("custom")])
+	}
+}
+
+func injectJWEHeader(
+	t *testing.T,
+	serialized string,
+	field string,
+	header map[string]interface{},
+) string {
+	t.Helper()
+
+	var raw map[string]interface{}
+	err := json.Unmarshal([]byte(serialized), &raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	raw[field] = header
+
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
 }
 
 func TestEncrypterWithBrokenRand(t *testing.T) {
