@@ -1310,3 +1310,18 @@ func TestJWKPaddingY(t *testing.T) {
 		t.Errorf("Expected key to be invalid, but it was valid.")
 	}
 }
+
+func TestJSONWebKeySetIgnoresUnknownKeyType(t *testing.T) {
+	// RFC 7517 Section 5: an unrecognised "kty" in a set is ignored, not fatal.
+	mixed := []byte(`{"keys":[{"kty":"AKP","alg":"ML-DSA-65","pub":"AAAA"},{"kty":"oct","k":"c2VjcmV0","kid":"classical"}]}`)
+	var set JSONWebKeySet
+	if err := set.UnmarshalJSON(mixed); err != nil {
+		t.Fatalf("a set containing an unknown kty should not fail: %v", err)
+	}
+	if len(set.Keys) != 1 {
+		t.Fatalf("expected 1 surviving key, got %d", len(set.Keys))
+	}
+	if len(set.Key("classical")) != 1 {
+		t.Fatal("the classical key must survive alongside an unknown one")
+	}
+}

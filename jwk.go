@@ -371,6 +371,30 @@ func (s *JSONWebKeySet) Key(kid string) []JSONWebKey {
 	return keys
 }
 
+// UnmarshalJSON reads a key set, skipping any member whose key type it does not
+// understand rather than failing the whole set. This follows RFC 7517, Section 5:
+// "Implementations SHOULD ignore JWKs within a JWK Set that use "kty" (key type)
+// values that are not understood by them". It matters as new algorithms (for
+// example post-quantum keys) begin appearing in published key sets alongside
+// classical keys.
+func (s *JSONWebKeySet) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Keys []json.RawMessage `json:"keys"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	s.Keys = make([]JSONWebKey, 0, len(raw.Keys))
+	for _, rawKey := range raw.Keys {
+		var key JSONWebKey
+		if err := key.UnmarshalJSON(rawKey); err != nil {
+			continue
+		}
+		s.Keys = append(s.Keys, key)
+	}
+	return nil
+}
+
 const rsaThumbprintTemplate = `{"e":"%s","kty":"RSA","n":"%s"}`
 const ecThumbprintTemplate = `{"crv":"%s","kty":"EC","x":"%s","y":"%s"}`
 const edThumbprintTemplate = `{"crv":"%s","kty":"OKP","x":"%s"}`
