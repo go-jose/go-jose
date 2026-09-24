@@ -1433,7 +1433,7 @@ var invalidUnmarshalTextTests = []struct {
 	{nil, "json: Unmarshal(nil)"},
 	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
 	{(*int)(nil), "json: Unmarshal(nil *int)"},
-	{new(net.IP), "json: cannot unmarshal string into Go value of type *net.IP"},
+	{new(net.IP), "json: cannot unmarshal number into Go value of type *net.IP"},
 }
 
 func TestInvalidUnmarshalText(t *testing.T) {
@@ -1446,6 +1446,36 @@ func TestInvalidUnmarshalText(t *testing.T) {
 		}
 		if got := err.Error(); got != tt.want {
 			t.Errorf("Unmarshal = %q; want %q", got, tt.want)
+		}
+	}
+}
+
+// TestUnmarshalTextTypeMismatch verifies that when a non-string JSON value is
+// decoded into a TextUnmarshaler, the resulting UnmarshalTypeError reports the
+// actual JSON kind rather than always saying "string". Regression for #217.
+func TestUnmarshalTextTypeMismatch(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{`123`, "number"},
+		{`-1.5`, "number"},
+		{`true`, "bool"},
+		{`false`, "bool"},
+		{`null`, "null"},
+		{`[1,2]`, "array"},
+		{`{"a":1}`, "object"},
+	}
+	for _, tc := range cases {
+		var ip net.IP
+		err := Unmarshal([]byte(tc.in), &ip)
+		ute, ok := err.(*UnmarshalTypeError)
+		if !ok {
+			t.Errorf("Unmarshal(%s) = %v (%T); want *UnmarshalTypeError", tc.in, err, err)
+			continue
+		}
+		if ute.Value != tc.want {
+			t.Errorf("Unmarshal(%s) Value = %q; want %q", tc.in, ute.Value, tc.want)
 		}
 	}
 }
