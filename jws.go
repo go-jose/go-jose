@@ -144,6 +144,20 @@ func (sig Signature) mergedHeaders() rawHeader {
 	return out
 }
 
+// serializedProtected returns the protected header bytes to use when
+// serializing a signature. If the signature was parsed from an existing
+// token, the original protected header bytes are reused so that the
+// signature stays valid for the re-serialized output.
+func (sig Signature) serializedProtected() []byte {
+	if sig.original != nil && sig.original.Protected != nil {
+		return sig.original.Protected.bytes()
+	}
+	if sig.protected != nil {
+		return mustSerializeJSON(sig.protected)
+	}
+	return nil
+}
+
 // Compute data to be signed
 func (obj JSONWebSignature) computeAuthData(payload []byte, signature *Signature) ([]byte, error) {
 	var authData bytes.Buffer
@@ -424,7 +438,7 @@ func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 		return "", ErrNotSupported
 	}
 
-	serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
+	serializedProtected := obj.Signatures[0].serializedProtected()
 
 	var payload []byte
 	if !detached {
@@ -455,8 +469,7 @@ func (obj JSONWebSignature) FullSerialize() string {
 	}
 
 	if len(obj.Signatures) == 1 {
-		if obj.Signatures[0].protected != nil {
-			serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
+		if serializedProtected := obj.Signatures[0].serializedProtected(); serializedProtected != nil {
 			raw.Protected = newBuffer(serializedProtected)
 		}
 		raw.Header = obj.Signatures[0].header
@@ -469,8 +482,8 @@ func (obj JSONWebSignature) FullSerialize() string {
 				Signature: newBuffer(signature.Signature),
 			}
 
-			if signature.protected != nil {
-				raw.Signatures[i].Protected = newBuffer(mustSerializeJSON(signature.protected))
+			if serializedProtected := signature.serializedProtected(); serializedProtected != nil {
+				raw.Signatures[i].Protected = newBuffer(serializedProtected)
 			}
 		}
 	}
