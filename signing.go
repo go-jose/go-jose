@@ -283,6 +283,11 @@ func newJWKSigner(alg SignatureAlgorithm, signingKey JSONWebKey) (recipientSigIn
 		publicKey := signingKey
 		publicKey.Key = recipientPubKey.Key
 		recipient.publicKey = staticPublicKey(&publicKey)
+	} else if signingKey.KeyID != "" {
+		// Symmetric JWKs have no public component, so makeJWSRecipient leaves
+		// publicKey nil. Still surface KeyID as "kid". Do not attach the shared
+		// secret as Key — EmbedJWK must not serialize it.
+		recipient.publicKey = staticPublicKey(&JSONWebKey{KeyID: signingKey.KeyID})
 	}
 	return recipient, nil
 }
@@ -306,7 +311,7 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 			// the other to avoid this confusion.
 			//
 			// See https://github.com/square/go-jose/issues/157 for more context.
-			if ctx.embedJWK {
+			if ctx.embedJWK && recipientPubKey.IsPublic() {
 				// MarshalJSON can fail for a semantically inconsistent key (an AKP
 				// key whose Algorithm contradicts its parameter set). Surface that
 				// as an error rather than letting mustSerializeJSON panic below.
