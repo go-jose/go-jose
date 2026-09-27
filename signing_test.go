@@ -762,3 +762,40 @@ func BenchmarkParseSigned(b *testing.B) {
 		}
 	}
 }
+
+func TestHMACJWKIncludesKeyID(t *testing.T) {
+	key := []byte("0123456789abcdef0123456789abcdef")
+	signer, err := NewSigner(SigningKey{
+		Algorithm: HS256,
+		Key:       &JSONWebKey{Key: key, KeyID: "k1"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err := signer.Sign([]byte("hi"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := obj.Signatures[0].Protected.KeyID; got != "k1" {
+		t.Fatalf("protected kid = %q, want %q", got, "k1")
+	}
+
+	// EmbedJWK must not serialize the shared secret; kid still appears.
+	signer, err = NewSigner(SigningKey{
+		Algorithm: HS256,
+		Key:       &JSONWebKey{Key: key, KeyID: "k2"},
+	}, &SignerOptions{EmbedJWK: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err = signer.Sign([]byte("hi"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if obj.Signatures[0].Protected.JSONWebKey != nil {
+		t.Fatal("EmbedJWK must not embed an HMAC shared secret")
+	}
+	if got := obj.Signatures[0].Protected.KeyID; got != "k2" {
+		t.Fatalf("protected kid = %q, want %q", got, "k2")
+	}
+}
