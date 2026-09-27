@@ -23,6 +23,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"reflect"
@@ -776,8 +777,16 @@ func TestHMACJWKIncludesKeyID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := obj.Signatures[0].Protected.KeyID; got != "k1" {
-		t.Fatalf("protected kid = %q, want %q", got, "k1")
+	compact, err := obj.CompactSerialize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hdrJSON, err := base64.RawURLEncoding.DecodeString(strings.SplitN(compact, ".", 2)[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(hdrJSON), `"kid":"k1"`) {
+		t.Fatalf("protected header missing kid: %s", hdrJSON)
 	}
 
 	// EmbedJWK must not serialize the shared secret; kid still appears.
@@ -792,10 +801,18 @@ func TestHMACJWKIncludesKeyID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if obj.Signatures[0].Protected.JSONWebKey != nil {
-		t.Fatal("EmbedJWK must not embed an HMAC shared secret")
+	compact, err = obj.CompactSerialize()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := obj.Signatures[0].Protected.KeyID; got != "k2" {
-		t.Fatalf("protected kid = %q, want %q", got, "k2")
+	hdrJSON, err = base64.RawURLEncoding.DecodeString(strings.SplitN(compact, ".", 2)[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(hdrJSON), `"jwk"`) {
+		t.Fatalf("EmbedJWK must not embed an HMAC shared secret: %s", hdrJSON)
+	}
+	if !strings.Contains(string(hdrJSON), `"kid":"k2"`) {
+		t.Fatalf("protected header missing kid: %s", hdrJSON)
 	}
 }
