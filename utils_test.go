@@ -22,7 +22,22 @@ import (
 	"encoding/hex"
 	"math/big"
 	"regexp"
+	"strings"
+	"unicode"
 )
+
+// stripWhitespace is a test helper for formatting multi-line RFC vectors.
+// Production parsers no longer strip whitespace (see #244).
+func stripWhitespace(data string) string {
+	var buf strings.Builder
+	buf.Grow(len(data))
+	for _, r := range data {
+		if !unicode.IsSpace(r) {
+			buf.WriteRune(r)
+		}
+	}
+	return buf.String()
+}
 
 // Reset random reader to original value
 func resetRandReader() {
