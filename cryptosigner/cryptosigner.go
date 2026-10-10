@@ -87,22 +87,13 @@ func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) 
 		return nil, jose.ErrUnsupportedAlgorithm
 	}
 
-	var hashed []byte
-	if hash != crypto.Hash(0) {
-		hasher := hash.New()
-		if _, err := hasher.Write(payload); err != nil {
-			return nil, err
-		}
-		hashed = hasher.Sum(nil)
-	}
-
 	var (
 		out []byte
 		err error
 	)
 	switch alg {
 	case jose.EdDSA:
-		out, err = s.signer.Sign(s.rand, payload, crypto.Hash(0))
+		out, err = crypto.SignMessage(s.signer, s.rand, payload, crypto.Hash(0))
 	case jose.ES256, jose.ES384, jose.ES512:
 		var byteLen int
 		switch alg {
@@ -114,7 +105,7 @@ func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) 
 			byteLen = 66
 		}
 		var b []byte
-		b, err = s.signer.Sign(s.rand, hashed, hash)
+		b, err = crypto.SignMessage(s.signer, s.rand, payload, hash)
 		if err != nil {
 			return nil, err
 		}
@@ -136,9 +127,9 @@ func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) 
 
 		out = append(out, sBytesPadded...)
 	case jose.RS256, jose.RS384, jose.RS512:
-		out, err = s.signer.Sign(s.rand, hashed, hash)
+		out, err = crypto.SignMessage(s.signer, s.rand, payload, hash)
 	case jose.PS256, jose.PS384, jose.PS512:
-		out, err = s.signer.Sign(s.rand, hashed, &rsa.PSSOptions{
+		out, err = crypto.SignMessage(s.signer, s.rand, payload, &rsa.PSSOptions{
 			SaltLength: rsa.PSSSaltLengthAuto,
 			Hash:       hash,
 		})

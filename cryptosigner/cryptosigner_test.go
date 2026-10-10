@@ -45,7 +45,7 @@ func TestRoundtripsJWSCryptoSigner(t *testing.T) {
 		signingKey, verificationKey := generateSigningTestKey(alg)
 
 		for i, serializer := range serializers {
-			err := roundtripJWS(alg, serializer, Opaque(signingKey.(crypto.Signer)), verificationKey)
+			err := roundtripJWS(alg, serializer, Opaque(signingKey), verificationKey)
 			if err != nil {
 				t.Error(err, alg, i)
 			}
@@ -113,7 +113,20 @@ func roundtripJWS(sigAlg jose.SignatureAlgorithm, serializer func(*jose.JSONWebS
 	return nil
 }
 
-func generateSigningTestKey(sigAlg jose.SignatureAlgorithm) (sig, ver interface{}) {
+// messageSigner is a wrapper around crypto.Signer that errors out if Sign is inadvertently preferred over SignMessage.
+type messageSigner struct {
+	crypto.Signer
+}
+
+func (m messageSigner) SignMessage(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
+	return crypto.SignMessage(m.Signer, rand, msg, opts)
+}
+
+func (m messageSigner) Sign(io.Reader, []byte, crypto.SignerOpts) ([]byte, error) {
+	return nil, errors.New("not using SignMessage")
+}
+
+func generateSigningTestKey(sigAlg jose.SignatureAlgorithm) (sig crypto.Signer, ver interface{}) {
 	switch sigAlg {
 	case jose.EdDSA:
 		ver, sig, _ = ed25519.GenerateKey(rand.Reader)
@@ -136,6 +149,7 @@ func generateSigningTestKey(sigAlg jose.SignatureAlgorithm) (sig, ver interface{
 	default:
 		panic("Must update test case")
 	}
+	sig = messageSigner{sig}
 	return
 }
 
