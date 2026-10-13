@@ -797,7 +797,20 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			if fromQuoted {
 				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 			} else {
-				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
+				var val string
+				switch item[0] {
+				case 'n':
+					val = "null"
+				case 't', 'f':
+					val = "bool"
+				case '[':
+					val = "array"
+				case '{':
+					val = "object"
+				default:
+					val = "number"
+				}
+				d.saveError(&UnmarshalTypeError{val, v.Type(), int64(d.off)})
 			}
 			return
 		}
