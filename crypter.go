@@ -468,7 +468,7 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 		return nil, err
 	}
 
-	key, err := tryJWKS(decryptionKey, obj.Header)
+	key, err := tryJWKS(decryptionKey, Header{KeyID: headers.getString(headerKeyID)})
 	if err != nil {
 		return nil, err
 	}
@@ -523,8 +523,8 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 
 // DecryptMulti decrypts and validates the object and returns the plaintexts,
 // with support for multiple recipients. It returns the index of the recipient
-// for which the decryption was successful, the merged headers for that recipient,
-// and the plaintext.
+// for which the decryption was successful, the caller-visible headers for that
+// recipient, and the plaintext.
 //
 // The decryptionKey argument must have one of the types allowed for the
 // decryptionKey argument of Decrypt().
@@ -539,7 +539,7 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 		return -1, Header{}, nil, err
 	}
 
-	key, err := tryJWKS(decryptionKey, obj.Header)
+	key, err := tryJWKS(decryptionKey, Header{KeyID: globalHeaders.getString(headerKeyID)})
 	if err != nil {
 		return -1, Header{}, nil, err
 	}
@@ -595,7 +595,7 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 		}
 
 		index = i
-		headers = recipientHeaders
+		headers = obj.publicHeaders(&obj.recipients[i])
 		break
 	}
 
