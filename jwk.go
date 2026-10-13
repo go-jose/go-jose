@@ -546,7 +546,7 @@ func (key rawJSONWebKey) ecPublicKey() (*ecdsa.PublicKey, error) {
 	case "P-521":
 		curve = elliptic.P521()
 	default:
-		return nil, fmt.Errorf("go-jose/go-jose: unsupported elliptic curve '%s'", key.Crv)
+		return nil, fmt.Errorf("go-jose/go-jose: %w '%s'", ErrUnsupportedEllipticCurve, key.Crv)
 	}
 
 	if key.X == nil || key.Y == nil {
@@ -748,7 +748,7 @@ func (key rawJSONWebKey) ecPrivateKey() (*ecdsa.PrivateKey, error) {
 	case "P-521":
 		curve = elliptic.P521()
 	default:
-		return nil, fmt.Errorf("go-jose/go-jose: unsupported elliptic curve '%s'", key.Crv)
+		return nil, fmt.Errorf("go-jose/go-jose: %w '%s'", ErrUnsupportedEllipticCurve, key.Crv)
 	}
 
 	var missing []string
