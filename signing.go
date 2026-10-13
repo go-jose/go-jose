@@ -439,6 +439,12 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 		if err != nil {
 			return err
 		}
+		// Per https://www.rfc-editor.org/rfc/rfc7797.html#section-3,
+		// "b64" MUST occur only within the JWS Protected Header.
+		err = signature.header.checkNoB64()
+		if err != nil {
+			return err
+		}
 	}
 
 	if signature.protected != nil {
@@ -499,6 +505,12 @@ func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey 
 			// protected; therefore, it MUST occur only within the JWS
 			// Protected Header."
 			err := signature.header.checkNoCritical()
+			if err != nil {
+				continue
+			}
+			// Per https://www.rfc-editor.org/rfc/rfc7797.html#section-3,
+			// "b64" MUST occur only within the JWS Protected Header.
+			err = signature.header.checkNoB64()
 			if err != nil {
 				continue
 			}
