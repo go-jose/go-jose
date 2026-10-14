@@ -3,6 +3,8 @@ package jose
 import (
 	"reflect"
 	"testing"
+
+	"github.com/go-jose/go-jose/v4/json"
 )
 
 func TestHeaderEqual(t *testing.T) {
@@ -35,4 +37,18 @@ func TestHeaderNotEqual(t *testing.T) {
 	if reflect.DeepEqual(header1, header2) {
 		t.Fatalf("header1 and header2 are equal, expected not equal")
 	}
+}
+
+// getJWK extracts parsed "jwk" from the raw JSON.
+func (parsed rawHeader) getJWK() (*JSONWebKey, error) {
+	v := parsed[headerJWK]
+	if v == nil {
+		return nil, nil
+	}
+	var jwk *JSONWebKey
+	err := json.Unmarshal(*v, &jwk)
+	if err != nil {
+		return nil, err
+	}
+	return jwk, nil
 }
