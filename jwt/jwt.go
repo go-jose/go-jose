@@ -39,7 +39,17 @@ type NestedJSONWebToken struct {
 	allowedSignatureAlgorithms []jose.SignatureAlgorithm
 }
 
-// Claims deserializes a JSONWebToken into dest using the provided key.
+// Claims verifies the token signature (or decrypts a JWE) with the provided
+// key and deserializes the payload into dest.
+//
+// It does not validate registered claims such as exp, nbf, iat, iss, aud, or
+// sub. Call Claims.Validate (or ValidateWithLeeway) on a jwt.Claims value after
+// Claims returns, or an expired token will be accepted. Libraries that combine
+// verify+validate in one call (e.g. PyJWT, jjwt) behave differently by default.
+//
+// When dest is a map[string]interface{} (or another type that unmarshals JSON
+// numbers as float64), integers above 2^53 are not exact. Use a typed claims
+// struct with json.Number or similar if you need exact large integers.
 func (t *JSONWebToken) Claims(key interface{}, dest ...interface{}) error {
 	b, err := t.payload(key)
 	if err != nil {
