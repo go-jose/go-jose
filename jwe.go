@@ -137,12 +137,12 @@ func ParseEncrypted(input string,
 	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
 ) (*JSONWebEncryption, error) {
-	input = stripWhitespace(input)
-	if strings.HasPrefix(input, "{") {
-		return ParseEncryptedJSON(input, keyEncryptionAlgorithms, contentEncryption)
+	trimmed := strings.TrimSpace(input)
+	if strings.HasPrefix(trimmed, "{") {
+		return ParseEncryptedJSON(trimmed, keyEncryptionAlgorithms, contentEncryption)
 	}
 
-	return ParseEncryptedCompact(input, keyEncryptionAlgorithms, contentEncryption)
+	return ParseEncryptedCompact(trimmed, keyEncryptionAlgorithms, contentEncryption)
 }
 
 // ParseEncryptedJSON parses a message in JWE JSON Serialization.
