@@ -154,3 +154,13 @@ func TestFixedSizeBufferTooLarge(t *testing.T) {
 
 	newFixedSizeBuffer(make([]byte, 2), 1)
 }
+
+func BenchmarkDeflate(b *testing.B) {
+	input := []byte(`{"sub":"1234567890","name":"John Doe","iat":1516239022}`)
+	for b.Loop() {
+		if _, err := deflate(input); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+}
