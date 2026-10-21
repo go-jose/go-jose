@@ -18,6 +18,7 @@ package jose
 
 import (
 	"crypto/elliptic"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
@@ -210,11 +211,18 @@ type Header struct {
 
 // Certificates verifies & returns the certificate chain present
 // in the x5c header field of a message, if one was present. Returns
-// an error if there was no x5c header present or the chain could
+// an error if there was no x5c header present, any certificate in the
+// chain has an RSA key larger than [MaxRSAModulusBits], or the chain could
 // not be validated with the given verify options.
 func (h Header) Certificates(opts x509.VerifyOptions) ([][]*x509.Certificate, error) {
 	if len(h.certificates) == 0 {
 		return nil, ErrMissingX5cHeader
+	}
+
+	for _, cert := range h.certificates {
+		if pub, ok := cert.PublicKey.(*rsa.PublicKey); ok && pub.N.BitLen() > MaxRSAModulusBits {
+			return nil, fmt.Errorf("go-jose/go-jose: invalid RSA key in x5c certificate, modulus too large")
+		}
 	}
 
 	leaf := h.certificates[0]
