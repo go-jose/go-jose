@@ -279,7 +279,10 @@ func TestParseSignedJSONDoesNotRewriteMemberNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("set alg: %v", err)
 	}
-	protectedJSON := mustSerializeJSON(protected)
+	protectedJSON, err := json.Marshal(protected)
+	if err != nil {
+		t.Fatalf("marshal protected: %v", err)
+	}
 	protectedB64 := newBuffer(protectedJSON).base64()
 	payloadB64 := newBuffer(payload).base64()
 	signingInput := []byte(protectedB64 + "." + payloadB64)
