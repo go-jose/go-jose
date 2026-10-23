@@ -762,3 +762,13 @@ func BenchmarkParseSigned(b *testing.B) {
 		}
 	}
 }
+
+func TestSignUnmarshalableExtraHeader(t *testing.T) {
+	signer, err := NewSigner(SigningKey{Algorithm: RS256, Key: rsaTestKey}, (&SignerOptions{}).WithHeader("x", make(chan int)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := signer.Sign([]byte("payload")); err == nil {
+		t.Error("expected error signing with unmarshalable extra header")
+	}
+}

@@ -408,7 +408,10 @@ func (ctx *genericEncrypter) EncryptWithAuthData(plaintext, aad []byte) (*JSONWe
 		(*obj.protected)[k] = makeRawMessage(b)
 	}
 
-	authData := obj.computeAuthData()
+	authData, err := obj.computeAuthData()
+	if err != nil {
+		return nil, err
+	}
 	parts, err := ctx.cipher.encrypt(cek, authData, plaintext)
 	if err != nil {
 		return nil, err
@@ -492,7 +495,10 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 		tag:        obj.tag,
 	}
 
-	authData := obj.computeAuthData()
+	authData, err := obj.computeAuthData()
+	if err != nil {
+		return nil, err
+	}
 
 	var plaintext []byte
 	recipient := obj.recipients[0]
@@ -564,7 +570,10 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 		tag:        obj.tag,
 	}
 
-	authData := obj.computeAuthData()
+	authData, err := obj.computeAuthData()
+	if err != nil {
+		return -1, Header{}, nil, err
+	}
 
 	index := -1
 	var plaintext []byte

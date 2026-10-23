@@ -434,7 +434,11 @@ func jweJSONWithoutProtectedHeader(t *testing.T, key []byte, plaintext []byte) s
 		Ciphertext:  newBuffer(parts.ciphertext),
 		Tag:         newBuffer(parts.tag),
 	}
-	return string(mustSerializeJSON(raw))
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatalf("marshal JWE: %v", err)
+	}
+	return string(out)
 }
 
 func TestVectorsJWECorrupt(t *testing.T) {
@@ -988,7 +992,10 @@ func jweJSONWithMismatchedCEK(
 		t.Fatalf("set enc: %v", err)
 	}
 
-	protectedJSON := mustSerializeJSON(protected)
+	protectedJSON, err := json.Marshal(protected)
+	if err != nil {
+		t.Fatalf("marshal protected: %v", err)
+	}
 	protectedB64 := newBuffer(protectedJSON).base64()
 	cipher := getContentCipher(actual)
 	parts, err := cipher.encrypt(key, []byte(protectedB64), plaintext)
@@ -1002,7 +1009,11 @@ func jweJSONWithMismatchedCEK(
 		Ciphertext: newBuffer(parts.ciphertext),
 		Tag:        newBuffer(parts.tag),
 	}
-	return string(mustSerializeJSON(raw))
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatalf("marshal JWE: %v", err)
+	}
+	return string(out)
 }
 
 func jweJSONWithMismatchedCBCHMACCEK(
@@ -1023,7 +1034,10 @@ func jweJSONWithMismatchedCBCHMACCEK(
 		t.Fatalf("set enc: %v", err)
 	}
 
-	protectedJSON := mustSerializeJSON(protected)
+	protectedJSON, err := json.Marshal(protected)
+	if err != nil {
+		t.Fatalf("marshal protected: %v", err)
+	}
 	protectedB64 := newBuffer(protectedJSON).base64()
 	cipher := getContentCipher(A128CBC_HS256)
 	parts, err := cipher.encrypt(key, []byte(protectedB64), plaintext)
@@ -1056,7 +1070,11 @@ func jweJSONWithMismatchedCBCHMACCEK(
 		Ciphertext: newBuffer(ciphertextPart),
 		Tag:        newBuffer(tagPart),
 	}
-	return string(mustSerializeJSON(raw))
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatalf("marshal JWE: %v", err)
+	}
+	return string(out)
 }
 
 func cbcTagLength(t *testing.T, enc ContentEncryption) int {
@@ -1089,5 +1107,11 @@ func TestPrivateEPKRejected(t *testing.T) {
 	headers := rawHeader{headerEPK: &epk}
 	if _, err := headers.getEPK(); err == nil || !strings.Contains(err.Error(), "JWK contains private parameters") {
 		t.Errorf("expected private parameters error, got %v", err)
+	}
+}
+
+func TestFullSerializeNoRecipients(t *testing.T) {
+	if out := (JSONWebEncryption{}).FullSerialize(); out != "" {
+		t.Errorf("expected empty string, got %q", out)
 	}
 }

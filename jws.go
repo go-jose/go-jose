@@ -157,7 +157,11 @@ func (obj JSONWebSignature) computeAuthData(payload []byte, signature *Signature
 		authData.WriteString(signature.original.Protected.base64())
 	} else if signature.protected != nil {
 		protectedHeader = signature.protected
-		authData.WriteString(base64.RawURLEncoding.EncodeToString(mustSerializeJSON(protectedHeader)))
+		serializedProtected, err := json.Marshal(protectedHeader)
+		if err != nil {
+			return nil, err
+		}
+		authData.WriteString(base64.RawURLEncoding.EncodeToString(serializedProtected))
 	}
 
 	needsBase64 := true
@@ -427,7 +431,10 @@ func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 		return "", ErrNotSupported
 	}
 
-	serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
+	serializedProtected, err := json.Marshal(obj.Signatures[0].protected)
+	if err != nil {
+		return "", err
+	}
 
 	var payload []byte
 	if !detached {
@@ -452,14 +459,23 @@ func (obj JSONWebSignature) DetachedCompactSerialize() (string, error) {
 }
 
 // FullSerialize serializes an object using the full JSON serialization format.
+//
+// It returns "" if obj cannot be serialized.
 func (obj JSONWebSignature) FullSerialize() string {
 	raw := rawJSONWebSignature{
 		Payload: newBuffer(obj.payload),
 	}
 
+	if len(obj.Signatures) == 0 {
+		return ""
+	}
+
 	if len(obj.Signatures) == 1 {
 		if obj.Signatures[0].protected != nil {
-			serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
+			serializedProtected, err := json.Marshal(obj.Signatures[0].protected)
+			if err != nil {
+				return ""
+			}
 			raw.Protected = newBuffer(serializedProtected)
 		}
 		raw.Header = obj.Signatures[0].header
@@ -473,10 +489,18 @@ func (obj JSONWebSignature) FullSerialize() string {
 			}
 
 			if signature.protected != nil {
-				raw.Signatures[i].Protected = newBuffer(mustSerializeJSON(signature.protected))
+				serializedProtected, err := json.Marshal(signature.protected)
+				if err != nil {
+					return ""
+				}
+				raw.Signatures[i].Protected = newBuffer(serializedProtected)
 			}
 		}
 	}
 
-	return string(mustSerializeJSON(raw))
+	out, err := json.Marshal(raw)
+	if err != nil {
+		return ""
+	}
+	return string(out)
 }
