@@ -245,13 +245,12 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 	if len(parsed.Signatures) == 0 {
 		// No signatures array, must be flattened serialization
 		signature := Signature{}
-		if parsed.Protected != nil && len(parsed.Protected.bytes()) > 0 {
-			signature.protected = &rawHeader{}
-			err := json.Unmarshal(parsed.Protected.bytes(), signature.protected)
-			if err != nil {
-				return nil, err
-			}
+		prot, err := parseProtectedHeader(parsed.Protected)
+		if err != nil {
+			return nil, err
 		}
+
+		signature.protected = prot
 
 		// Check that there is not a nonce in the unprotected header
 		if parsed.Header != nil && parsed.Header.getNonce() != "" {
@@ -281,7 +280,6 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
-		var err error
 		signature.Header, err = mergedHeaders.sanitized()
 		if err != nil {
 			return nil, err
@@ -311,13 +309,12 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 	}
 
 	for i, sig := range parsed.Signatures {
-		if sig.Protected != nil && len(sig.Protected.bytes()) > 0 {
-			obj.Signatures[i].protected = &rawHeader{}
-			err := json.Unmarshal(sig.Protected.bytes(), obj.Signatures[i].protected)
-			if err != nil {
-				return nil, err
-			}
+		prot, err := parseProtectedHeader(sig.Protected)
+		if err != nil {
+			return nil, err
 		}
+
+		obj.Signatures[i].protected = prot
 
 		// Check that there is not a nonce in the unprotected header
 		if sig.Header != nil && sig.Header.getNonce() != "" {
@@ -332,7 +329,6 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
-		var err error
 		obj.Signatures[i].Header, err = mergedHeaders.sanitized()
 		if err != nil {
 			return nil, err
