@@ -1091,3 +1091,37 @@ func TestPrivateEPKRejected(t *testing.T) {
 		t.Errorf("expected private parameters error, got %v", err)
 	}
 }
+
+func TestParseEncryptedJSONDoesNotRewriteMemberNames(t *testing.T) {
+	enc, err := NewEncrypter(A128GCM, Recipient{Algorithm: A128KW, Key: []byte("0123456789abcdef")}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err := enc.Encrypt([]byte("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(obj.FullSerialize()), &fields); err != nil {
+		t.Fatal(err)
+	}
+
+	// A member name with internal whitespace must not be collapsed into a
+	// recognized JWE member ("unprotec ted" -> "unprotected").
+	raw := `{"unprotec ted":{"kid":"smuggled"}`
+	for _, k := range []string{"protected", "encrypted_key", "iv", "ciphertext", "tag"} {
+		if v, ok := fields[k]; ok {
+			raw += `,"` + k + `":` + string(v)
+		}
+	}
+	raw += `}`
+
+	parsed, err := ParseEncrypted(raw, []KeyAlgorithm{A128KW}, []ContentEncryption{A128GCM})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Header.KeyID != "" {
+		t.Errorf("ParseEncrypted exposed kid %q from a whitespace-mutated member name", parsed.Header.KeyID)
+	}
+}
