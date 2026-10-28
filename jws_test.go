@@ -1004,3 +1004,25 @@ func TestUnexpectedAlgorithmCheckedBeforeHeaders(t *testing.T) {
 		})
 	}
 }
+
+// A protected header of JSON null must be rejected at parse time, not parsed
+// as a non-nil pointer to a nil map.
+func TestRejectNullProtectedHeader(t *testing.T) {
+	inputs := []string{
+		// Flattened, "null"
+		`{"payload":"dGVzdA","protected":"bnVsbA","header":{"alg":"HS256"},"signature":"AAAA"}`,
+		// Flattened, " null "
+		`{"payload":"dGVzdA","protected":"IG51bGwg","header":{"alg":"HS256"},"signature":"AAAA"}`,
+		// General, "null"
+		`{"payload":"dGVzdA","signatures":[{"protected":"bnVsbA","header":{"alg":"HS256"},"signature":"AAAA"}]}`,
+		// Compact, "null"
+		`bnVsbA.dGVzdA.AAAA`,
+	}
+
+	for _, input := range inputs {
+		_, err := ParseSigned(input, []SignatureAlgorithm{HS256})
+		if err == nil || !strings.Contains(err.Error(), "invalid protected header") {
+			t.Errorf("expected invalid protected header error for %s, got %v", input, err)
+		}
+	}
+}

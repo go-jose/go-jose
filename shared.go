@@ -555,3 +555,24 @@ func makeRawMessage(b []byte) *json.RawMessage {
 	rm := json.RawMessage(b)
 	return &rm
 }
+
+// parseProtectedHeader parses a `byteBuffer` into a `*rawHeader`.
+//
+// The byteBuffer represents a base64-decoded "protected" header, which
+// is specified to contain a JSON object.
+//
+// If the input is nil or empty, returns `nil, nil`.
+//
+// `rawHeader` is a map type and so can be nil. When this function
+// returns a non-nil `*rawHeader`, the map is guaranteed to be non-nil.
+func parseProtectedHeader(in *byteBuffer) (*rawHeader, error) {
+	if in == nil || len(in.bytes()) == 0 {
+		return nil, nil
+	}
+	var header rawHeader
+	err := json.Unmarshal(in.bytes(), &header)
+	if err != nil || header == nil {
+		return nil, errors.New("go-jose/go-jose: invalid protected header")
+	}
+	return &header, nil
+}

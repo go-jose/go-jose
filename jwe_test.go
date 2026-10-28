@@ -211,6 +211,26 @@ func TestMissingInvalidHeaders(t *testing.T) {
 	}
 }
 
+func TestRejectNullProtectedHeaderJWE(t *testing.T) {
+	inputs := []string{
+		// Flattened, "null"
+		`{"protected":"bnVsbA","header":{"alg":"dir","enc":"A128GCM"},"iv":"AAAAAAAAAAAAAAAA","ciphertext":"AAAA","tag":"AAAAAAAAAAAAAAAAAAAAAA"}`,
+		// Flattened, " null "
+		`{"protected":"IG51bGwg","header":{"alg":"dir","enc":"A128GCM"},"iv":"AAAAAAAAAAAAAAAA","ciphertext":"AAAA","tag":"AAAAAAAAAAAAAAAAAAAAAA"}`,
+		// General, "null"
+		`{"protected":"bnVsbA","recipients":[{"header":{"alg":"dir","enc":"A128GCM"}}],"iv":"AAAAAAAAAAAAAAAA","ciphertext":"AAAA","tag":"AAAAAAAAAAAAAAAAAAAAAA"}`,
+		// Compact, "null"
+		`bnVsbA..AAAAAAAAAAAAAAAA.AAAA.AAAAAAAAAAAAAAAAAAAAAA`,
+	}
+
+	for _, input := range inputs {
+		_, err := ParseEncrypted(input, []KeyAlgorithm{DIRECT}, []ContentEncryption{A128GCM})
+		if err == nil || !strings.Contains(err.Error(), "invalid protected header") {
+			t.Errorf("expected invalid protected header error for %s, got %v", input, err)
+		}
+	}
+}
+
 func TestRejectUnprotectedJWENonce(t *testing.T) {
 	// No need to test compact, since that's always protected
 

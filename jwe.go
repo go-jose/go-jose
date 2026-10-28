@@ -199,12 +199,11 @@ func (parsed *rawJSONWebEncryption) sanitized(
 		}
 	}
 
-	if parsed.Protected != nil && len(parsed.Protected.bytes()) > 0 {
-		err := json.Unmarshal(parsed.Protected.bytes(), &obj.protected)
-		if err != nil {
-			return nil, fmt.Errorf("go-jose/go-jose: invalid protected header: %s, %s", err, parsed.Protected.base64())
-		}
+	protected, err := parseProtectedHeader(parsed.Protected)
+	if err != nil {
+		return nil, err
 	}
+	obj.protected = protected
 
 	if len(parsed.Recipients) == 0 {
 		obj.recipients = []recipientInfo{
@@ -262,7 +261,6 @@ func (parsed *rawJSONWebEncryption) sanitized(
 	// Note: this must be called _after_ we parse the protected header,
 	// otherwise fields from the protected header will not get picked up.
 	mergedHeaders := obj.mergedHeaders(nil)
-	var err error
 	obj.Header, err = mergedHeaders.sanitized()
 	if err != nil {
 		return nil, fmt.Errorf("go-jose/go-jose: cannot sanitize merged headers: %w", err)
