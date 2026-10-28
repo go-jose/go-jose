@@ -45,7 +45,7 @@ func ExampleParseSigned() {
 
 	out := jwt.Claims{}
 	if err := tok.Claims(sharedKey, &out); err != nil {
-		fmt.Printf("validating claims: %s\n", err)
+		fmt.Printf("decoding claims: %s\n", err)
 		return
 	}
 	fmt.Printf("iss: %s, sub: %s\n", out.Issuer, out.Subject)
@@ -63,7 +63,7 @@ func ExampleParseEncrypted() {
 
 	out := jwt.Claims{}
 	if err := tok.Claims(key, &out); err != nil {
-		fmt.Printf("validating claims: %s\n", err)
+		fmt.Printf("decoding claims: %s\n", err)
 		return
 	}
 	fmt.Printf("iss: %s, sub: %s\n", out.Issuer, out.Subject)
@@ -77,7 +77,7 @@ func ExampleParseSignedAndEncrypted() {
 		[]jose.ContentEncryption{jose.A128GCM},
 		[]jose.SignatureAlgorithm{jose.RS256})
 	if err != nil {
-		fmt.Printf("validating claims: %s\n", err)
+		fmt.Printf("decoding claims: %s\n", err)
 		return
 	}
 
@@ -89,7 +89,7 @@ func ExampleParseSignedAndEncrypted() {
 
 	out := jwt.Claims{}
 	if err := nested.Claims(&rsaPrivKey.PublicKey, &out); err != nil {
-		fmt.Printf("validating claims: %s\n", err)
+		fmt.Printf("decoding claims: %s\n", err)
 		return
 	}
 
@@ -129,7 +129,7 @@ func ExampleClaims_Validate_withParse() {
 
 	cl := jwt.Claims{}
 	if err := tok.Claims(sharedKey, &cl); err != nil {
-		fmt.Printf("validating claims: %s\n", err)
+		fmt.Printf("decoding claims: %s\n", err)
 		return
 	}
 
@@ -266,7 +266,7 @@ func ExampleSigned_multipleClaims() {
 	}
 	raw, err := jwt.Signed(signer).Claims(c).Claims(c2).Serialize()
 	if err != nil {
-		fmt.Printf("validating claims: %s\n", err)
+		fmt.Printf("decoding claims: %s\n", err)
 		return
 	}
 
@@ -284,7 +284,7 @@ func ExampleJSONWebToken_Claims_map() {
 
 	out := make(map[string]interface{})
 	if err := tok.Claims(sharedKey, &out); err != nil {
-		fmt.Printf("validating claims: %s\n", err)
+		fmt.Printf("decoding claims: %s\n", err)
 		return
 	}
 
@@ -305,7 +305,7 @@ func ExampleJSONWebToken_Claims_multiple() {
 		Scopes []string `json:"scopes"`
 	}{}
 	if err := tok.Claims(sharedKey, &out, &out2); err != nil {
-		fmt.Printf("validating claims: %s\n", err)
+		fmt.Printf("decoding claims: %s\n", err)
 		return
 	}
 	fmt.Printf("iss: %s, sub: %s, scopes: %s\n", out.Issuer, out.Subject, strings.Join(out2.Scopes, ","))

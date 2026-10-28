@@ -16,5 +16,12 @@
 
 /*
 Package jwt provides an implementation of the JSON Web Token standard.
+
+Signature verification and claims validation are separate steps. ParseSigned
+(or ParseEncrypted) plus JSONWebToken.Claims checks the cryptography and
+unmarshals the payload; it does not enforce exp, nbf, or other registered
+claims. Call Claims.Validate or Claims.ValidateWithLeeway afterward when you
+need that. Unmarshaling into map[string]interface{} binds JSON numbers as
+float64, so integers larger than 2^53 are not exact.
 */
 package jwt
