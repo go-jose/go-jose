@@ -84,14 +84,18 @@ func (obj JSONWebEncryption) mergedHeaders(recipient *recipientInfo) rawHeader {
 }
 
 // Get the additional authenticated data from a JWE object.
-func (obj JSONWebEncryption) computeAuthData() []byte {
+func (obj JSONWebEncryption) computeAuthData() ([]byte, error) {
 	var protected string
 
 	switch {
 	case obj.original != nil && obj.original.Protected != nil:
 		protected = obj.original.Protected.base64()
 	case obj.protected != nil:
-		protected = base64.RawURLEncoding.EncodeToString(mustSerializeJSON((obj.protected)))
+		serializedProtected, err := json.Marshal(obj.protected)
+		if err != nil {
+			return nil, err
+		}
+		protected = base64.RawURLEncoding.EncodeToString(serializedProtected)
 	default:
 		protected = ""
 	}
@@ -102,7 +106,7 @@ func (obj JSONWebEncryption) computeAuthData() []byte {
 		output = append(output, []byte(base64.RawURLEncoding.EncodeToString(obj.aad))...)
 	}
 
-	return output
+	return output, nil
 }
 
 func containsKeyAlgorithm(haystack []KeyAlgorithm, needle KeyAlgorithm) bool {
@@ -354,7 +358,10 @@ func (obj JSONWebEncryption) CompactSerialize() (string, error) {
 		return "", ErrNotSupported
 	}
 
-	serializedProtected := mustSerializeJSON(obj.protected)
+	serializedProtected, err := json.Marshal(obj.protected)
+	if err != nil {
+		return "", err
+	}
 
 	return base64JoinWithDots(
 		serializedProtected,
@@ -366,7 +373,13 @@ func (obj JSONWebEncryption) CompactSerialize() (string, error) {
 }
 
 // FullSerialize serializes an object using the full JSON serialization format.
+//
+// It returns "" if obj cannot be serialized, for example if it has no recipients.
 func (obj JSONWebEncryption) FullSerialize() string {
+	if len(obj.recipients) == 0 {
+		return ""
+	}
+
 	raw := rawJSONWebEncryption{
 		Unprotected:  obj.unprotected,
 		Iv:           newBuffer(obj.iv),
@@ -392,8 +405,16 @@ func (obj JSONWebEncryption) FullSerialize() string {
 	}
 
 	if obj.protected != nil {
-		raw.Protected = newBuffer(mustSerializeJSON(obj.protected))
+		serializedProtected, err := json.Marshal(obj.protected)
+		if err != nil {
+			return ""
+		}
+		raw.Protected = newBuffer(serializedProtected)
 	}
 
-	return string(mustSerializeJSON(raw))
+	out, err := json.Marshal(raw)
+	if err != nil {
+		return ""
+	}
+	return string(out)
 }
