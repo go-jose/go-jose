@@ -249,7 +249,7 @@ func (k *JSONWebKey) unmarshalJSON(data []byte, allowPrivate bool) (err error) {
 			keyPub = key
 		}
 	case "oct":
-		if certPub != nil {
+		if len(certs) > 0 {
 			return errors.New("go-jose/go-jose: invalid JWK, found 'oct' (symmetric) key with cert chain")
 		}
 		key, err = raw.symmetricKey()
@@ -288,10 +288,8 @@ func (k *JSONWebKey) unmarshalJSON(data []byte, allowPrivate bool) (err error) {
 		return ErrUnsupportedKeyType
 	}
 
-	if certPub != nil && keyPub != nil {
-		if !reflect.DeepEqual(certPub, keyPub) {
-			return errors.New("go-jose/go-jose: invalid JWK, public keys in key and x5c fields do not match")
-		}
+	if len(certs) > 0 && (certPub == nil || !reflect.DeepEqual(certPub, keyPub)) {
+		return errors.New("go-jose/go-jose: invalid JWK, public keys in key and x5c fields do not match")
 	}
 
 	*k = JSONWebKey{Key: key, KeyID: raw.Kid, Algorithm: raw.Alg, Use: raw.Use, Certificates: certs}

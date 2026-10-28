@@ -651,6 +651,53 @@ func TestKeyMismatchX509(t *testing.T) {
 	}
 }
 
+// Self-signed X.509 certificate with an Ed448 public key, which crypto/x509
+// parses without decoding the key (Certificate.PublicKey is nil).
+var ed448TestCertificate, _ = x509.ParseCertificate(fromBase64Bytes(`
+MIIBjDCCAQygAwIBAgIUYbZ8tOQ70wkS5YqrwQZtOhHAtoEwBQYDK2VxMBUx
+EzARBgNVBAMMCmVkNDQ4LWxlYWYwIBcNMjYxMDIzMjA1MzQ0WhgPMjEyNjA5
+MjkyMDUzNDRaMBUxEzARBgNVBAMMCmVkNDQ4LWxlYWYwQzAFBgMrZXEDOgAY
+lq96ZZnyu80i9JJwqWLQRoLlpvSTHDeLphyk03iuccOi0TpKkDo7WCdULSTK
+t0z2P7+Vj/MCIQCjUzBRMB0GA1UdDgQWBBS3yuvgfRwqEbB//H6+xCRwF6pv
+qTAfBgNVHSMEGDAWgBS3yuvgfRwqEbB//H6+xCRwF6pvqTAPBgNVHRMBAf8E
+BTADAQH/MAUGAytlcQNzAEXCdeNtZKQ7fZZuUsZ29Rb57I4y+PL1/bBtvtCU
+yg70Dqg+eRFqjGfnIpOIaCuIG8pzdHjyGGIqAAfqCVBSodW5DTSi/uX1Q6dZ
+IuHN0usihPOasHDj3tIIYDT66ltQibpAJucDHQPHBKlv0AyUdlAsAA==`))
+
+func TestKeyMismatchX509UnsupportedCertKey(t *testing.T) {
+	if ed448TestCertificate == nil {
+		t.Fatal("failed to parse Ed448 test certificate")
+	}
+	if ed448TestCertificate.PublicKey != nil {
+		t.Fatal("crypto/x509 decodes Ed448 public keys, test needs a certificate with an unsupported key type")
+	}
+
+	jwk := JSONWebKey{
+		Certificates: []*x509.Certificate{ed448TestCertificate},
+	}
+
+	for _, key := range []interface{}{
+		// The leaf's public key can't be compared to any of these keys, so
+		// parsing should always fail.
+		ecTestKey256.Public(),
+		rsaTestKey.Public(),
+		ed25519PrivateKey.Public(),
+		[]byte{1, 2, 3, 4},
+	} {
+		jwk.Key = key
+		raw, err := jwk.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var jwk2 JSONWebKey
+		err = jwk2.UnmarshalJSON(raw)
+		if err == nil {
+			t.Errorf("should not unmarshal JWK with %T key and unsupported x5c key", key)
+		}
+	}
+}
+
 func TestMarshalUnmarshal(t *testing.T) {
 	kid := "DEADBEEF"
 
