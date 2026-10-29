@@ -40,16 +40,17 @@ import (
 
 // rawJSONWebKey represents a public or private key in JWK format, used for parsing/serializing.
 type rawJSONWebKey struct {
-	Use string      `json:"use,omitempty"`
-	Kty string      `json:"kty,omitempty"`
-	Kid string      `json:"kid,omitempty"`
-	Crv string      `json:"crv,omitempty"`
-	Alg string      `json:"alg,omitempty"`
-	K   *byteBuffer `json:"k,omitempty"`
-	X   *byteBuffer `json:"x,omitempty"`
-	Y   *byteBuffer `json:"y,omitempty"`
-	N   *byteBuffer `json:"n,omitempty"`
-	E   *byteBuffer `json:"e,omitempty"`
+	Use    string      `json:"use,omitempty"`
+	KeyOps *[]string   `json:"key_ops,omitempty"`
+	Kty    string      `json:"kty,omitempty"`
+	Kid    string      `json:"kid,omitempty"`
+	Crv    string      `json:"crv,omitempty"`
+	Alg    string      `json:"alg,omitempty"`
+	K      *byteBuffer `json:"k,omitempty"`
+	X      *byteBuffer `json:"x,omitempty"`
+	Y      *byteBuffer `json:"y,omitempty"`
+	N      *byteBuffer `json:"n,omitempty"`
+	E      *byteBuffer `json:"e,omitempty"`
 	// -- Following fields are only used for private keys --
 	// RSA uses D, P and Q, while ECDSA uses only D. Fields Dp, Dq, and Qi are
 	// completely optional. Therefore for RSA/ECDSA, D != nil is a contract that
@@ -89,6 +90,12 @@ type JSONWebKey struct {
 	Algorithm string
 	// Key use, parsed from `use` header.
 	Use string
+	// Key operations, parsed from the `key_ops` header. A nil slice means
+	// the member was absent; an empty, non-nil slice means an explicit,
+	// empty `key_ops` member and survives a JSON round trip. Values are
+	// kept verbatim, including unknown or duplicated ones, and no operation
+	// is enforced when the key is used for a cryptographic operation.
+	KeyOps []string
 
 	// X.509 certificate chain, parsed from `x5c` header.
 	Certificates []*x509.Certificate
@@ -131,6 +138,11 @@ func (k JSONWebKey) MarshalJSON() ([]byte, error) {
 	raw.Kid = k.KeyID
 	raw.Alg = k.Algorithm
 	raw.Use = k.Use
+	if k.KeyOps != nil {
+		keyOps := make([]string, len(k.KeyOps))
+		copy(keyOps, k.KeyOps)
+		raw.KeyOps = &keyOps
+	}
 
 	for _, cert := range k.Certificates {
 		raw.X5c = append(raw.X5c, base64.StdEncoding.EncodeToString(cert.Raw))
@@ -293,6 +305,9 @@ func (k *JSONWebKey) unmarshalJSON(data []byte, allowPrivate bool) (err error) {
 	}
 
 	*k = JSONWebKey{Key: key, KeyID: raw.Kid, Algorithm: raw.Alg, Use: raw.Use, Certificates: certs}
+	if raw.KeyOps != nil {
+		k.KeyOps = *raw.KeyOps
+	}
 
 	if raw.X5u != "" {
 		k.CertificatesURL, err = url.Parse(raw.X5u)
@@ -465,6 +480,12 @@ func (k *JSONWebKey) IsPublic() bool {
 }
 
 // Public creates JSONWebKey with corresponding public key if JWK represents asymmetric private key.
+//
+// If the key is converted from a private key, the returned key does not
+// carry KeyOps: the operations permitted for the public half of a key pair
+// are an application policy decision (RFC 7517, Section 4.3), and no
+// implicit mapping from private to public operations is applied. An already
+// public key keeps its KeyOps unchanged.
 func (k *JSONWebKey) Public() JSONWebKey {
 	if k.IsPublic() {
 		return *k
@@ -480,6 +501,7 @@ func (k *JSONWebKey) Public() JSONWebKey {
 	default:
 		return JSONWebKey{} // returning invalid key
 	}
+	ret.KeyOps = nil
 	return ret
 }
 
