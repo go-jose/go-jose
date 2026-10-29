@@ -368,10 +368,10 @@ func TestEncrypterWithBrokenRand(t *testing.T) {
 	}
 
 	for _, keyAlg := range keyAlgs {
-		for _, enc := range encAlgs {
-			for k, key := range generateTestKeys(keyAlg, enc) {
+		for _, encAlg := range encAlgs {
+			for k, key := range generateTestKeys(keyAlg, encAlg) {
 				for i, getReader := range readers {
-					t.Run(fmt.Sprintf("keyAlg=%s,enc=%s,key=%d,reader=%d", keyAlg, enc, k, i), func(t *testing.T) {
+					t.Run(fmt.Sprintf("keyAlg=%s,enc=%s,key=%d,reader=%d", keyAlg, encAlg, k, i), func(t *testing.T) {
 						randReader = getReader()
 						defer resetRandReader()
 
@@ -383,7 +383,7 @@ func TestEncrypterWithBrokenRand(t *testing.T) {
 						default:
 							rcpt = Recipient{Algorithm: keyAlg, Key: key.enc}
 						}
-						enc, err := NewEncrypter(enc, rcpt, nil)
+						enc, err := NewEncrypter(encAlg, rcpt, nil)
 						if err != nil {
 							t.Fatalf("error on new encrypter: %s", err)
 						}
