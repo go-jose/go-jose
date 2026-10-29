@@ -291,6 +291,31 @@ func TestRejectUnprotectedJWENonce(t *testing.T) {
 	}
 }
 
+func TestRejectRecipientCriticalHeader(t *testing.T) {
+	key := []byte("0123456789abcdef")
+	enc, err := NewEncrypter(A128GCM, Recipient{Algorithm: A128KW, Key: key}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err := enc.Encrypt([]byte("plaintext"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	obj.recipients[0].header = &rawHeader{}
+	err = obj.recipients[0].header.set(headerCritical, []string{"exp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := obj.Decrypt(key); err != ErrUnsupportedCriticalHeader {
+		t.Errorf("Decrypt should reject crit in per-recipient header, got %v", err)
+	}
+	if _, _, _, err := obj.DecryptMulti(key); err != ErrUnsupportedCriticalHeader {
+		t.Errorf("DecryptMulti should reject crit in per-recipient header, got %v", err)
+	}
+}
+
 func TestCompactSerialize(t *testing.T) {
 	// Compact serialization must fail if we have unprotected headers
 	obj := &JSONWebEncryption{
