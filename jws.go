@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/go-jose/go-jose/v4/json"
 )
@@ -89,12 +90,12 @@ func ParseSigned(
 	signature string,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
-	signature = stripWhitespace(signature)
-	if strings.HasPrefix(signature, "{") {
+	trimmed := strings.TrimLeftFunc(signature, unicode.IsSpace)
+	if strings.HasPrefix(trimmed, "{") {
 		return ParseSignedJSON(signature, signatureAlgorithms)
 	}
 
-	return parseSignedCompact(signature, nil, signatureAlgorithms)
+	return parseSignedCompact(stripWhitespace(signature), nil, signatureAlgorithms)
 }
 
 // ParseSignedCompact parses a message in JWS Compact Serialization. Validation fails if the JWS is
@@ -156,7 +157,11 @@ func (obj JSONWebSignature) computeAuthData(payload []byte, signature *Signature
 		authData.WriteString(signature.original.Protected.base64())
 	} else if signature.protected != nil {
 		protectedHeader = signature.protected
-		authData.WriteString(base64.RawURLEncoding.EncodeToString(mustSerializeJSON(protectedHeader)))
+		serializedProtected, err := json.Marshal(protectedHeader)
+		if err != nil {
+			return nil, err
+		}
+		authData.WriteString(base64.RawURLEncoding.EncodeToString(serializedProtected))
 	}
 
 	needsBase64 := true
@@ -186,6 +191,10 @@ func ParseSignedJSON(
 	input string,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
+	if len(input) == 0 {
+		return nil, errEmptyInput
+	}
+
 	var parsed rawJSONWebSignature
 	err := json.Unmarshal([]byte(input), &parsed)
 	if err != nil {
@@ -270,15 +279,16 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 			Signature: parsed.Signature,
 		}
 
-		var err error
-		signature.Header, err = signature.mergedHeaders().sanitized()
-		if err != nil {
-			return nil, err
-		}
-
-		alg := SignatureAlgorithm(signature.Header.Algorithm)
+		mergedHeaders := signature.mergedHeaders()
+		alg := mergedHeaders.getSignatureAlgorithm()
 		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
 			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
+		}
+
+		var err error
+		signature.Header, err = mergedHeaders.sanitized()
+		if err != nil {
+			return nil, err
 		}
 
 		if signature.header != nil {
@@ -318,15 +328,18 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 			return nil, ErrUnprotectedNonce
 		}
 
-		var err error
-		obj.Signatures[i].Header, err = obj.Signatures[i].mergedHeaders().sanitized()
-		if err != nil {
-			return nil, err
-		}
+		obj.Signatures[i].header = sig.Header
 
-		alg := SignatureAlgorithm(obj.Signatures[i].Header.Algorithm)
+		mergedHeaders := obj.Signatures[i].mergedHeaders()
+		alg := mergedHeaders.getSignatureAlgorithm()
 		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
 			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
+		}
+
+		var err error
+		obj.Signatures[i].Header, err = mergedHeaders.sanitized()
+		if err != nil {
+			return nil, err
 		}
 
 		if obj.Signatures[i].header != nil {
@@ -354,7 +367,6 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 		// Copy value of sig
 		original := sig
 
-		obj.Signatures[i].header = sig.Header
 		obj.Signatures[i].original = &original
 	}
 
@@ -369,6 +381,10 @@ func parseSignedCompact(
 	payload []byte,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
+	if len(input) == 0 {
+		return nil, errEmptyInput
+	}
+
 	protected, s, ok := strings.Cut(input, tokenDelim)
 	if !ok { // no period found
 		return nil, fmt.Errorf("go-jose/go-jose: compact JWS format must have three parts")
@@ -415,7 +431,10 @@ func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 		return "", ErrNotSupported
 	}
 
-	serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
+	serializedProtected, err := json.Marshal(obj.Signatures[0].protected)
+	if err != nil {
+		return "", err
+	}
 
 	var payload []byte
 	if !detached {
@@ -440,14 +459,23 @@ func (obj JSONWebSignature) DetachedCompactSerialize() (string, error) {
 }
 
 // FullSerialize serializes an object using the full JSON serialization format.
+//
+// It returns "" if obj cannot be serialized.
 func (obj JSONWebSignature) FullSerialize() string {
 	raw := rawJSONWebSignature{
 		Payload: newBuffer(obj.payload),
 	}
 
+	if len(obj.Signatures) == 0 {
+		return ""
+	}
+
 	if len(obj.Signatures) == 1 {
 		if obj.Signatures[0].protected != nil {
-			serializedProtected := mustSerializeJSON(obj.Signatures[0].protected)
+			serializedProtected, err := json.Marshal(obj.Signatures[0].protected)
+			if err != nil {
+				return ""
+			}
 			raw.Protected = newBuffer(serializedProtected)
 		}
 		raw.Header = obj.Signatures[0].header
@@ -461,10 +489,18 @@ func (obj JSONWebSignature) FullSerialize() string {
 			}
 
 			if signature.protected != nil {
-				raw.Signatures[i].Protected = newBuffer(mustSerializeJSON(signature.protected))
+				serializedProtected, err := json.Marshal(signature.protected)
+				if err != nil {
+					return ""
+				}
+				raw.Signatures[i].Protected = newBuffer(serializedProtected)
 			}
 		}
 	}
 
-	return string(mustSerializeJSON(raw))
+	out, err := json.Marshal(raw)
+	if err != nil {
+		return ""
+	}
+	return string(out)
 }

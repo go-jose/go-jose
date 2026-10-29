@@ -21,9 +21,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha512"
 	"errors"
 	"io"
+	"strings"
 	"testing"
+
+	"github.com/go-jose/go-jose/v4/json"
 )
 
 func TestEd25519(t *testing.T) {
@@ -163,6 +167,10 @@ func TestInvalidECDecrypt(t *testing.T) {
 
 	generator := randomKeyGenerator{size: 16}
 
+	recipient := recipientInfo{
+		// decryptKey will error out before the contents here matter
+		encryptedKey: []byte("not used"),
+	}
 	// Missing epk header
 	headers := rawHeader{}
 
@@ -170,17 +178,24 @@ func TestInvalidECDecrypt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := dec.decryptKey(headers, nil, generator); err == nil {
+	want := "go-jose/go-jose: missing epk header"
+	_, err := dec.decryptKey(headers, &recipient, generator)
+	if err == nil {
 		t.Error("ec decrypter accepted object with missing epk header")
+	} else if err.Error() != want {
+		t.Errorf("decryptKey with missing epk header: got %q, want %q", err, want)
 	}
 
 	// Invalid epk header
-	if err := headers.set(headerEPK, &JSONWebKey{}); err == nil {
-		t.Fatal("epk header should be invalid")
-	}
+	invalid := json.RawMessage("invalid")
+	headers["epk"] = &invalid
 
-	if _, err := dec.decryptKey(headers, nil, generator); err == nil {
+	want = "go-jose/go-jose: invalid epk header"
+	_, err = dec.decryptKey(headers, &recipient, generator)
+	if err == nil {
 		t.Error("ec decrypter accepted object with invalid epk header")
+	} else if err.Error() != want {
+		t.Errorf("decryptKey with invalid epk header: got %q, want %q", err, want)
 	}
 }
 
@@ -356,6 +371,54 @@ func TestInvalidEllipticCurve(t *testing.T) {
 	}
 }
 
+func TestInvalidEllipticCurveVerify(t *testing.T) {
+	payload := []byte("payload")
+
+	// Mixed signature: we're signing with P-256, but the hash is SHA-384. This
+	// allows us to trigger the "mismatched curve" code instead of the "mismatched hash"
+	// code when we try to verify using the JOSE alg ES384.
+	hash384 := sha512.Sum384(payload)
+	r, s, err := ecdsa.Sign(rand.Reader, ecTestKey256, hash384[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make a fake ES384 signature by taking the r and s from the P-256 signature
+	// and padding them out with zeroes.
+	newSignature := make([]byte, 96)
+	// FillBytes will zero-extend the 32-byte `r` and `s` values to fill the space available.
+	r.FillBytes(newSignature[:48])
+	s.FillBytes(newSignature[48:])
+
+	verifier256 := ecEncrypterVerifier{publicKey: &ecTestKey256.PublicKey}
+	err = verifier256.verifyPayload(payload, newSignature, ES384)
+	if err == nil || !strings.Contains(err.Error(), "different algorithm") {
+		t.Fatalf("verifying payload: expected error containing 'different algorithm', got %v", err)
+	}
+
+	// Mixed signature: we're signing with P-384, but the hash is SHA-512. This
+	// allows us to trigger the "mismatched curve" code instead of the "mismatched hash"
+	// code when we try to verify using the JOSE alg ES512.
+	hash512 := sha512.Sum512(payload)
+	r, s, err = ecdsa.Sign(rand.Reader, ecTestKey384, hash512[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make a fake ES512 signature by taking the r and s from the P-384 signature
+	// and padding them out with zeroes.
+	newSignature = make([]byte, 132)
+	// FillBytes will zero-extend the 48-byte `r` and `s` values to fill the space available.
+	r.FillBytes(newSignature[:66])
+	s.FillBytes(newSignature[66:])
+
+	verifier384 := ecEncrypterVerifier{publicKey: &ecTestKey384.PublicKey}
+	err = verifier384.verifyPayload(payload, newSignature, ES512)
+	if err == nil || !strings.Contains(err.Error(), "different algorithm") {
+		t.Fatalf("verifying payload: expected error containing 'different algorithm', got %v", err)
+	}
+}
+
 func TestInvalidECPublicKey(t *testing.T) {
 	// Invalid key
 	invalid := &ecdsa.PrivateKey{
@@ -365,6 +428,12 @@ func TestInvalidECPublicKey(t *testing.T) {
 			Y:     fromBase64Int("MTEx"),
 		},
 		D: fromBase64Int("0_NxaRPUMQoAJt50Gz8YiTr8gRTwyEaCumd-MToTmIo"),
+	}
+
+	recipient := recipientInfo{
+		// encryptedKey must be non-empty to pass initial checks, but the actual
+		// bytes don't matter because we'll error out before using them.
+		encryptedKey: []byte("not used"),
 	}
 
 	headers := rawHeader{}
@@ -381,8 +450,14 @@ func TestInvalidECPublicKey(t *testing.T) {
 		privateKey: ecTestKey256,
 	}
 
-	if _, err := dec.decryptKey(headers, nil, randomKeyGenerator{size: 16}); err == nil {
+	_, err := dec.decryptKey(headers, &recipient, randomKeyGenerator{size: 16})
+	if err == nil {
 		t.Fatal("decrypter accepted JWS with invalid ECDH public key")
+	}
+
+	want := "go-jose/go-jose: invalid epk header"
+	if err.Error() != want {
+		t.Errorf("decryptKey with invalid ECDH public key: got %q, want %q", err, want)
 	}
 }
 

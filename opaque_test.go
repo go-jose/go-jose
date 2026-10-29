@@ -17,6 +17,11 @@
 package jose
 
 import (
+	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -180,7 +185,7 @@ func makeOpaqueSigner(t *testing.T, signingKey interface{}, alg SignatureAlgorit
 	return &signWrapper{
 		wrapped: ri.signer,
 		algs:    []SignatureAlgorithm{alg},
-		pk:      &JSONWebKey{Key: ri.publicKey()},
+		pk:      ri.publicKey(),
 	}
 }
 
@@ -194,6 +199,46 @@ func makeOpaqueVerifier(t *testing.T, verificationKey []interface{}, alg Signatu
 		verifiers = append(verifiers, verifier)
 	}
 	return &verifyWrapper{wrapped: verifiers}
+}
+
+func TestRoundtripsJWEOpaque(t *testing.T) {
+	keyAlgs := []KeyAlgorithm{RSA1_5, RSA_OAEP, RSA_OAEP_256}
+	encs := []ContentEncryption{A128GCM, A256GCM, A128CBC_HS256, A256CBC_HS512}
+
+	serializers := []func(*JSONWebEncryption) (string, error){
+		func(obj *JSONWebEncryption) (string, error) { return obj.CompactSerialize() },
+		func(obj *JSONWebEncryption) (string, error) { return obj.FullSerialize(), nil },
+	}
+
+	for _, alg := range keyAlgs {
+		for _, enc := range encs {
+			for i, serializer := range serializers {
+				ke := makeOpaqueKeyEncrypter(t, &rsaTestKey.PublicKey, alg, "test-kid")
+				kd := makeOpaqueKeyDecrypter(t, rsaTestKey, alg)
+
+				encrypter, err := NewEncrypter(enc, Recipient{Algorithm: alg, Key: ke}, nil)
+				if err != nil {
+					t.Fatal(err, alg, enc, i)
+				}
+
+				plaintext := []byte("foo bar baz")
+				jwe, err := encrypter.Encrypt(plaintext)
+				if err != nil {
+					t.Fatal(err, alg, enc, i)
+				}
+
+				jwe = jweSerialize(t, serializer, jwe, kd, alg, enc)
+
+				decrypted, err := jwe.Decrypt(kd)
+				if err != nil {
+					t.Fatal(err, alg, enc, i)
+				}
+				if !bytes.Equal(decrypted, plaintext) {
+					t.Errorf("alg %s enc %s serializer %d: got %q, want %q", alg, enc, i, decrypted, plaintext)
+				}
+			}
+		}
+	}
 }
 
 func makeOpaqueKeyEncrypter(t *testing.T, signingKey interface{}, alg KeyAlgorithm, kid string) *keyEncryptWrapper {
@@ -305,4 +350,33 @@ func jweSerialize(t *testing.T,
 		t.Fatal(err)
 	}
 	return jwe
+}
+
+type badSigner struct {
+	*ecdsa.PrivateKey
+}
+
+func (bs badSigner) Algs() []SignatureAlgorithm {
+	return []SignatureAlgorithm{ES256}
+}
+
+func (bs badSigner) SignPayload([]byte, SignatureAlgorithm) ([]byte, error) {
+	panic("Shouldn't be called in this test")
+}
+
+func (bs badSigner) Public() *JSONWebKey {
+	return &JSONWebKey{
+		Key:   bs.PrivateKey,
+		KeyID: "BS",
+	}
+}
+
+// TestOpaqueSignerNonPublic ensures a private key returned in Public() doesn't end up in an embedded JWK
+func TestOpaqueSignerNonPublic(t *testing.T) {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	var os OpaqueSigner = badSigner{key}
+	_, err := NewSigner(SigningKey{Algorithm: ES256, Key: os}, &SignerOptions{EmbedJWK: true})
+	if !errors.Is(err, ErrNotPublic) {
+		t.Fatal("Expected ErrNotPublic when using BadSigner")
+	}
 }

@@ -76,6 +76,23 @@ func TestInvalidInputs(t *testing.T) {
 	}
 }
 
+// TestOpenEmptyCiphertextContent tests that decryption of an empty ciphertext errors but
+// does not panic. Empty ciphertext in CBC-HMAC is invalid. If the plaintext was empty,
+// the ciphertext will be padded out to a single block.
+func TestOpenEmptyCiphertextContent(t *testing.T) {
+	key := make([]byte, 32)
+	aead, _ := NewCBCHMAC(key, aes.NewCipher)
+	ctx := aead.(*cbcAEAD)
+	nonce := make([]byte, 16)
+	aad := []byte("aad")
+
+	// Compute a valid auth tag so that we don't hit an early exit on that.
+	tag := ctx.computeAuthTag(aad, nonce, nil /*empty ciphertext*/)
+	if _, err := aead.Open(nil, nonce, tag /* tag || empty ciphertext */, aad); err == nil {
+		t.Error("expected error for empty ciphertext content, got nil")
+	}
+}
+
 func TestVectorsAESCBC128(t *testing.T) {
 	// Source: http://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-29#appendix-A.2
 	plaintext := []byte{
@@ -258,11 +275,21 @@ func TestPadding(t *testing.T) {
 	}
 }
 
+func TestUnpadEmpty(t *testing.T) {
+	_, err := unpadBuffer(nil, 16)
+	if err == nil || !strings.Contains(err.Error(), "padding") {
+		t.Errorf("expected padding-related error unpadding empty buffer, got %v", err)
+	}
+}
+
 func TestInvalidKey(t *testing.T) {
-	key := make([]byte, 30)
-	_, err := NewCBCHMAC(key, aes.NewCipher)
-	if err == nil {
-		t.Error("should not be able to instantiate CBC-HMAC with invalid key")
+	// These key sizes product an invalid hash size (key size / 2)
+	for _, n := range []int{31, 47, 63} {
+		key := make([]byte, n)
+		_, err := NewCBCHMAC(key, aes.NewCipher)
+		if err == nil {
+			t.Error("should not be able to instantiate CBC-HMAC with invalid key")
+		}
 	}
 }
 
@@ -314,12 +341,19 @@ func TestInvalidPaddingOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	block, _ := aes.NewCipher(key)
+	// The AES key is the second half of the CBC-HMAC key
+	block, err := aes.NewCipher(key[len(key)/2:])
+	if err != nil {
+		t.Fatal(err)
+	}
 	cbc := cipher.NewCBCEncrypter(block, nonce)
 	buffer := append([]byte{}, plaintext...)
 	cbc.CryptBlocks(buffer, buffer)
 
-	aead, _ := NewCBCHMAC(key, aes.NewCipher)
+	aead, err := NewCBCHMAC(key, aes.NewCipher)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := aead.(*cbcAEAD)
 
 	// Mutated ciphertext, but with correct auth tag
@@ -328,7 +362,7 @@ func TestInvalidPaddingOpen(t *testing.T) {
 	copy(tail, ctx.computeAuthTag(nil, nonce, ciphertext[:size]))
 
 	// Open should fail (b/c of invalid padding, even though tag matches)
-	_, err := aead.Open(nil, nonce, ciphertext, nil)
+	_, err = aead.Open(nil, nonce, ciphertext, nil)
 	if err == nil || !strings.Contains(err.Error(), "invalid padding") {
 		t.Error("no or unexpected error on open with invalid padding:", err)
 	}

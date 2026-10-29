@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-jose/go-jose/v4/json"
 	"github.com/go-jose/go-jose/v4/testutils/assert"
 )
 
@@ -83,6 +84,28 @@ Bz5ykrw/Gg4QWmw6MfwjOX5Fu1oJF9ABoCFD5umvKhpoJkcT8aYM0+E1xiEAx64u
 Wq2b2GCGP4wMEZuqCcE72fiue295ovPkNsbEjTQk/ijWza0=
 -----END CERTIFICATE-----`
 
+func TestParseEmptySigned(t *testing.T) {
+	_, err := ParseSigned("", []SignatureAlgorithm{HS256})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseSignedCompact("", []SignatureAlgorithm{HS256})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseSignedJSON("", []SignatureAlgorithm{HS256})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseDetached("", []byte{}, []SignatureAlgorithm{HS256})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+}
+
 func TestEmbeddedHMAC(t *testing.T) {
 	// protected: {"alg":"HS256", "jwk":{"kty":"oct", "k":"MTEx"}}, aka HMAC key.
 	msg := `{"payload":"TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ","protected":"eyJhbGciOiJIUzI1NiIsICJqd2siOnsia3R5Ijoib2N0IiwgImsiOiJNVEV4In19","signature":"lvo41ZZsuHwQvSh0uJtEXRR3vmuBJ7in6qMoD7p9jyo"}`
@@ -90,6 +113,45 @@ func TestEmbeddedHMAC(t *testing.T) {
 	_, err := ParseSigned(msg, []SignatureAlgorithm{HS256})
 	if err == nil {
 		t.Error("should not allow parsing JWS with embedded JWK with HMAC key")
+	}
+}
+
+func TestEmbeddedMalformedEd25519JWK(t *testing.T) {
+	testCases := []struct {
+		name string
+		x    []byte
+	}{
+		{
+			name: "short x",
+			x:    []byte{0x01},
+		},
+		{
+			name: "identity point sign-bit alias",
+			x: fromHexBytes(`
+				01000000000000000000000000000000
+				00000000000000000000000000000080`),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			protected := []byte(`{"alg":"EdDSA","jwk":{"kty":"OKP","crv":"Ed25519","x":"` +
+				base64.RawURLEncoding.EncodeToString(tc.x) + `"}}`)
+			payload := []byte("forged payload")
+			signature := make([]byte, 64)
+			signature[0] = 1
+
+			msg := strings.Join([]string{
+				base64.RawURLEncoding.EncodeToString(protected),
+				base64.RawURLEncoding.EncodeToString(payload),
+				base64.RawURLEncoding.EncodeToString(signature),
+			}, ".")
+
+			_, err := ParseSigned(msg, []SignatureAlgorithm{EdDSA})
+			if err == nil {
+				t.Error("should not allow parsing JWS with malformed Ed25519 embedded JWK")
+			}
+		})
 	}
 }
 
@@ -207,6 +269,57 @@ func TestRejectUnprotectedJWSNonce(t *testing.T) {
 		t.Error("JWS with an unprotected nonce parsed as valid.")
 	} else if err != ErrUnprotectedNonce {
 		t.Errorf("Improper error for unprotected nonce: %v", err)
+	}
+}
+
+func TestParseSignedJSONDoesNotRewriteMemberNames(t *testing.T) {
+	payload := []byte(`{"resource":"newAccount"}`)
+	protected := rawHeader{}
+	err := protected.set(headerAlgorithm, RS256)
+	if err != nil {
+		t.Fatalf("set alg: %v", err)
+	}
+	protectedJSON, err := json.Marshal(protected)
+	if err != nil {
+		t.Fatalf("marshal protected: %v", err)
+	}
+	protectedB64 := newBuffer(protectedJSON).base64()
+	payloadB64 := newBuffer(payload).base64()
+	signingInput := []byte(protectedB64 + "." + payloadB64)
+	signature, err := rsaDecrypterSigner{privateKey: rsaTestKey}.signPayload(signingInput, RS256)
+	if err != nil {
+		t.Fatalf("sign payload: %v", err)
+	}
+
+	jwkJSON, err := json.Marshal(JSONWebKey{Key: &rsaTestKey.PublicKey})
+	if err != nil {
+		t.Fatalf("marshal jwk: %v", err)
+	}
+	raw := `{"payload":"` + payloadB64 +
+		`","protected":"` + protectedB64 +
+		`","hea der":{"jwk":` + string(jwkJSON) +
+		`,"url":"https://example.test/acme/new-account"}` +
+		`,"signature":"` + newBuffer(signature.Signature).base64() + `"}`
+
+	parsed, err := ParseSigned(raw, []SignatureAlgorithm{RS256})
+	if err != nil {
+		t.Fatalf("ParseSigned: %v", err)
+	}
+	header := parsed.Signatures[0].Header
+	if header.JSONWebKey != nil {
+		t.Fatal("ParseSigned exposed a JWK from a whitespace-mutated member name")
+	}
+	_, ok := header.ExtraHeaders[HeaderKey("url")]
+	if ok {
+		t.Fatal("ParseSigned exposed a header from a whitespace-mutated member name")
+	}
+
+	verified, err := parsed.Verify(&rsaTestKey.PublicKey)
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	if string(verified) != string(payload) {
+		t.Fatalf("verified payload = %q, want %q", verified, payload)
 	}
 }
 
@@ -495,15 +608,11 @@ func TestErrorUnexpectedSignatureAlgorithmInSignatures(t *testing.T) {
 // Test that a null value in the header doesn't panic
 func TestNullHeaderValue(t *testing.T) {
 	msg := `{
-   "payload":
-    "eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGF
-     tcGxlLmNvbS9pc19yb290Ijp0cnVlfQ",
+   "payload": "eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ",
    "protected":"eyJhbGciOiJFUzI1NiIsIm5vbmNlIjpudWxsfQ",
    "header":
     {"kid":"e9bc097a-ce51-4036-9562-d2ade882db0d"},
-   "signature":
-    "DtEhU3ljbEg8L38VWAfUAqOyKAM6-Xx-F4GawxaepmXFCgfTjDxw5djxLa8IS
-     lSApmWQxfKTUJqPP3-Kg6NU1Q"
+   "signature": "DtEhU3ljbEg8L38VWAfUAqOyKAM6-Xx-F4GawxaepmXFCgfTjDxw5djxLa8ISlSApmWQxfKTUJqPP3-Kg6NU1Q"
   }`
 
 	defer func() {
@@ -760,5 +869,138 @@ func BenchmarkParseSignedCompat(b *testing.B) {
 		if _, err := ParseSignedCompact(raw, []SignatureAlgorithm{HS256}); err != nil {
 			panic(err)
 		}
+	}
+}
+
+func TestEmbeddedPrivateJWKRejected(t *testing.T) {
+	privateJWK, err := fromRsaPrivateKey(rsaTestKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicJWK := fromRsaPublicKey(&rsaTestKey.PublicKey)
+	strayJWK := fromRsaPublicKey(&rsaTestKey.PublicKey)
+	strayJWK.P, strayJWK.Q = privateJWK.P, privateJWK.Q
+
+	testCases := []struct {
+		name        string
+		jwk         *rawJSONWebKey
+		unprotected bool // place the jwk in the unprotected header instead
+		wantErr     bool
+	}{
+		{name: "public key", jwk: publicJWK},
+		{name: "private key", jwk: privateJWK, wantErr: true},
+		{name: "private key in unprotected header", jwk: privateJWK, unprotected: true, wantErr: true},
+		{name: "symmetric key", jwk: &rawJSONWebKey{Kty: "oct", K: newBuffer([]byte("111"))}, wantErr: true},
+		{name: "public key with stray private members", jwk: strayJWK, wantErr: true},
+	}
+
+	payload := newBuffer([]byte("Lorem ipsum dolor sit amet"))
+	signature := newBuffer([]byte("not a real signature"))
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			marshal := func(v interface{}) []byte {
+				t.Helper()
+				b, err := json.Marshal(v)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return b
+			}
+
+			alg := json.RawMessage(`"RS256"`)
+			jwk := json.RawMessage(marshal(tc.jwk))
+			protected := rawHeader{headerAlgorithm: &alg}
+			var unprotected *rawHeader
+			if tc.unprotected {
+				unprotected = &rawHeader{headerJWK: &jwk}
+			} else {
+				protected[headerJWK] = &jwk
+			}
+			encProtected := newBuffer(marshal(protected))
+
+			messages := map[string]string{
+				"flattened": string(marshal(rawJSONWebSignature{
+					Payload:   payload,
+					Protected: encProtected,
+					Header:    unprotected,
+					Signature: signature,
+				})),
+				"general": string(marshal(rawJSONWebSignature{
+					Payload: payload,
+					Signatures: []rawSignatureInfo{{
+						Protected: encProtected,
+						Header:    unprotected,
+						Signature: signature,
+					}},
+				})),
+			}
+			if !tc.unprotected {
+				messages["compact"] = encProtected.base64() + "." + payload.base64() + "." + signature.base64()
+			}
+
+			for name, msg := range messages {
+				_, err := ParseSigned(msg, []SignatureAlgorithm{RS256})
+				if tc.wantErr {
+					if err == nil || !strings.Contains(err.Error(), "JWK contains private parameters") {
+						t.Errorf("%s: expected private parameters error, got %v", name, err)
+					}
+				} else if err != nil {
+					t.Errorf("%s: unexpected error: %v", name, err)
+				}
+			}
+		})
+	}
+}
+
+func TestGeneralSerializationUnprotectedHeader(t *testing.T) {
+	// The unprotected header of each signature must be reflected in the parsed
+	// Header and Unprotected fields for both serializations.
+	protected := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`))
+	payload := base64.RawURLEncoding.EncodeToString([]byte("Lorem ipsum dolor sit amet"))
+	signature := base64.RawURLEncoding.EncodeToString([]byte("not a real signature"))
+	unprotected := `"header":{"kid":"from-unprotected"}`
+
+	messages := map[string]string{
+		"flattened": `{"payload":"` + payload + `","protected":"` + protected + `",` + unprotected + `,"signature":"` + signature + `"}`,
+		"general":   `{"payload":"` + payload + `","signatures":[{"protected":"` + protected + `",` + unprotected + `,"signature":"` + signature + `"}]}`,
+	}
+	for name, msg := range messages {
+		t.Run(name, func(t *testing.T) {
+			obj, err := ParseSigned(msg, []SignatureAlgorithm{RS256})
+			if err != nil {
+				t.Fatal(err)
+			}
+			sig := obj.Signatures[0]
+			if sig.Header.KeyID != "from-unprotected" {
+				t.Errorf("Header.KeyID = %q, want %q", sig.Header.KeyID, "from-unprotected")
+			}
+			if sig.Unprotected.KeyID != "from-unprotected" {
+				t.Errorf("Unprotected.KeyID = %q, want %q", sig.Unprotected.KeyID, "from-unprotected")
+			}
+		})
+	}
+}
+
+func TestUnexpectedAlgorithmCheckedBeforeHeaders(t *testing.T) {
+	// A message with an unexpected algorithm must be rejected as such, before
+	// the rest of the header, including any embedded key, is parsed.
+	protected := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","jwk":"not a key"}`))
+	payload := base64.RawURLEncoding.EncodeToString([]byte("Lorem ipsum dolor sit amet"))
+	signature := base64.RawURLEncoding.EncodeToString([]byte("not a real signature"))
+
+	messages := map[string]string{
+		"compact":   protected + "." + payload + "." + signature,
+		"flattened": `{"payload":"` + payload + `","protected":"` + protected + `","signature":"` + signature + `"}`,
+		"general":   `{"payload":"` + payload + `","signatures":[{"protected":"` + protected + `","signature":"` + signature + `"}]}`,
+	}
+	for name, msg := range messages {
+		t.Run(name, func(t *testing.T) {
+			_, err := ParseSigned(msg, []SignatureAlgorithm{RS256})
+			var errUnexpectedSigAlg *ErrUnexpectedSignatureAlgorithm
+			if !errors.As(err, &errUnexpectedSigAlg) {
+				t.Fatalf("expected ErrUnexpectedSignatureAlgorithm, got %v", err)
+			}
+		})
 	}
 }

@@ -5,6 +5,8 @@ on:
     branches: [ '**' ]
   pull_request:
     branches: [ '**' ]
+  schedule:
+    - cron: '17 3 1 * *'
 
 jobs:
   build:
@@ -12,18 +14,20 @@ jobs:
       fail-fast: false
       matrix:
         GO_VERSION:
-          - "1.24.x"
-          - "1.25.x"
+          - "1.26.x"
+          - "1.27.x"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         persist-credentials: false
 
     - name: Set up Go ${{ matrix.GO_VERSION }}
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: "${{ matrix.GO_VERSION }}"
+
+    - run: go version
 
     - name: Build
       run: go build -v ./...
@@ -36,15 +40,15 @@ jobs:
       matrix:
         GO_VERSION:
           # We only need to test vulns on one version
-          - "1.25.x"
+          - "1.27.x"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Set up Go ${{ matrix.GO_VERSION }}
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           # When Go produces a security release, we want govulncheck to run
           # against the most recently released Go version.

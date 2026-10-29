@@ -22,10 +22,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"math/big"
@@ -196,6 +198,139 @@ func TestRsaPrivateExcessPrimes(t *testing.T) {
 	_, err := fromRsaPrivateKey(&brokenRsaPrivateKey)
 	if err != ErrUnsupportedKeyType {
 		t.Error("expected unsupported key type error, got", err)
+	}
+}
+
+func TestRsaKeyChecks(t *testing.T) {
+	defer func(old int) { MaxRSAModulusBits = old }(MaxRSAModulusBits)
+
+	// oddOfBits returns an odd integer of exactly the given bit length.
+	oddOfBits := func(bits int) *byteBuffer {
+		n := new(big.Int).Lsh(big.NewInt(1), uint(bits-1))
+		return newBuffer(n.SetBit(n, 0, 1).Bytes())
+	}
+
+	testCases := []struct {
+		name    string
+		public  bool                 // parse as a public key (n and e only)
+		limit   int                  // override for MaxRSAModulusBits, 0 for default
+		mutate  func(*rawJSONWebKey) // applied to a valid JWK of rsaTestKey
+		wantErr string               // substring of the expected error, empty for success
+	}{
+		{
+			name:   "public key, modulus one under limit",
+			public: true,
+			mutate: func(jwk *rawJSONWebKey) { jwk.N = oddOfBits(MaxRSAModulusBits - 1) },
+		},
+		{
+			name:   "public key, modulus at limit",
+			public: true,
+			mutate: func(jwk *rawJSONWebKey) { jwk.N = oddOfBits(MaxRSAModulusBits) },
+		},
+		{
+			name:    "public key, modulus over limit",
+			public:  true,
+			mutate:  func(jwk *rawJSONWebKey) { jwk.N = oddOfBits(MaxRSAModulusBits + 1) },
+			wantErr: "modulus too large",
+		},
+		{
+			name:    "private key, modulus over limit",
+			mutate:  func(jwk *rawJSONWebKey) { jwk.N = oddOfBits(MaxRSAModulusBits + 1) },
+			wantErr: "modulus too large",
+		},
+		{
+			name:    "public key, limit lowered below key",
+			public:  true,
+			limit:   rsaTestKey.N.BitLen() - 1,
+			wantErr: "modulus too large",
+		},
+		{
+			name:    "private key, limit lowered below key",
+			limit:   rsaTestKey.N.BitLen() - 1,
+			wantErr: "modulus too large",
+		},
+		{
+			name:   "public key, limit raised to key",
+			public: true,
+			limit:  rsaTestKey.N.BitLen(),
+		},
+		{
+			name:  "private key, limit raised to key",
+			limit: rsaTestKey.N.BitLen(),
+		},
+		{
+			name: "p nudged",
+			mutate: func(jwk *rawJSONWebKey) {
+				jwk.P = newBuffer(new(big.Int).Add(rsaTestKey.Primes[0], big.NewInt(2)).Bytes())
+			},
+			wantErr: "p * q != n",
+		},
+		{
+			name:    "p = q",
+			mutate:  func(jwk *rawJSONWebKey) { jwk.Q = jwk.P },
+			wantErr: "p * q != n",
+		},
+		{
+			name:    "p = 1",
+			mutate:  func(jwk *rawJSONWebKey) { jwk.P = newBufferFromInt(1) },
+			wantErr: "p * q != n",
+		},
+		{
+			name:    "p = 0",
+			mutate:  func(jwk *rawJSONWebKey) { jwk.P = newBuffer([]byte{}) },
+			wantErr: "p * q != n",
+		},
+		{
+			name:    "enormous p",
+			mutate:  func(jwk *rawJSONWebKey) { jwk.P = oddOfBits(1 << 20) },
+			wantErr: "p * q != n",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			MaxRSAModulusBits = 4096
+			jwk, err := fromRsaPrivateKey(rsaTestKey)
+			require.NoError(t, err)
+			if tc.mutate != nil {
+				tc.mutate(jwk)
+			}
+			if tc.limit != 0 {
+				MaxRSAModulusBits = tc.limit
+			}
+
+			if tc.public {
+				_, err = rawJSONWebKey{N: jwk.N, E: jwk.E}.rsaPublicKey()
+			} else {
+				_, err = jwk.rsaPrivateKey()
+			}
+
+			if tc.wantErr == "" {
+				assert.NoError(t, err)
+			} else if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("expected error containing %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestUnmarshalPrivateJWKAllowed(t *testing.T) {
+	raw, err := json.Marshal(JSONWebKey{Key: rsaTestKey})
+	require.NoError(t, err)
+
+	var jwk JSONWebKey
+	require.NoError(t, json.Unmarshal(raw, &jwk))
+	if _, ok := jwk.Key.(*rsa.PrivateKey); !ok {
+		t.Errorf("expected *rsa.PrivateKey, got %T", jwk.Key)
+	}
+
+	var jwks JSONWebKeySet
+	require.NoError(t, json.Unmarshal([]byte(`{"keys":[`+string(raw)+`]}`), &jwks))
+	if len(jwks.Keys) != 1 {
+		t.Fatalf("expected 1 key, got %d", len(jwks.Keys))
+	}
+	if _, ok := jwks.Keys[0].Key.(*rsa.PrivateKey); !ok {
+		t.Errorf("expected *rsa.PrivateKey, got %T", jwks.Keys[0].Key)
 	}
 }
 
@@ -839,6 +974,130 @@ func TestEd25519Serialization(t *testing.T) {
 	assert.EqualSlice(t,
 		jwk.Key.(ed25519.PrivateKey).Public().(ed25519.PublicKey),
 		jwk2.Key.(ed25519.PrivateKey).Public().(ed25519.PublicKey))
+}
+
+func TestEd25519RejectsMalformedPublicJWK(t *testing.T) {
+	overlongX := append(ed25519.PublicKey(nil), ed25519PublicKey...)
+	overlongX = append(overlongX, 0x42)
+
+	testCases := []struct {
+		name string
+		x    []byte
+	}{
+		{
+			name: "short x",
+			x:    []byte{0x01},
+		},
+		{
+			name: "overlong x",
+			x:    overlongX,
+		},
+		{
+			name: "identity point",
+			x: fromHexBytes(`
+				01000000000000000000000000000000
+				00000000000000000000000000000000`),
+		},
+		{
+			name: "identity point sign-bit alias",
+			x: fromHexBytes(`
+				01000000000000000000000000000000
+				00000000000000000000000000000080`),
+		},
+		{
+			name: "low-order point",
+			x: fromHexBytes(`
+				26e8958fc2b227b045c3f489f2ef98f0
+				d5dfac05d3c63339b13802886d53fc05`),
+		},
+		{
+			name: "low-order point sign-bit variant",
+			x: fromHexBytes(`
+				26e8958fc2b227b045c3f489f2ef98f0
+				d5dfac05d3c63339b13802886d53fc85`),
+		},
+		{
+			name: "non-canonical low-order point",
+			x: fromHexBytes(`
+				edffffffffffffffffffffffffffffff
+				ffffffffffffffffffffffffffffff7f`),
+		},
+		{
+			name: "non-canonical low-order sign-bit variant",
+			x: fromHexBytes(`
+				edffffffffffffffffffffffffffffff
+				ffffffffffffffffffffffffffffffff`),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := rawEd25519JWK(t, tc.x, nil)
+			var jwk JSONWebKey
+			err := json.Unmarshal(raw, &jwk)
+			if err == nil {
+				t.Fatalf("accepted malformed Ed25519 public JWK %s", raw)
+			}
+		})
+	}
+}
+
+func TestEd25519RejectsMalformedPrivateJWK(t *testing.T) {
+	_, otherPrivateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+
+	testCases := []struct {
+		name string
+		x    []byte
+		d    []byte
+	}{
+		{
+			name: "short d",
+			x:    ed25519PublicKey,
+			d:    ed25519PrivateKey.Seed()[:ed25519.SeedSize-1],
+		},
+		{
+			name: "short x",
+			x:    []byte{0x01},
+			d:    ed25519PrivateKey.Seed(),
+		},
+		{
+			name: "mismatched x",
+			x:    otherPrivateKey.Public().(ed25519.PublicKey),
+			d:    ed25519PrivateKey.Seed(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := rawEd25519JWK(t, tc.x, tc.d)
+			var jwk JSONWebKey
+			err := json.Unmarshal(raw, &jwk)
+			if err == nil {
+				t.Fatalf("accepted malformed Ed25519 private JWK %s", raw)
+			}
+		})
+	}
+}
+
+func rawEd25519JWK(t *testing.T, x []byte, d []byte) []byte {
+	t.Helper()
+
+	raw := map[string]string{
+		"kty": "OKP",
+		"crv": "Ed25519",
+		"x":   base64.RawURLEncoding.EncodeToString(x),
+	}
+	if d != nil {
+		raw["d"] = base64.RawURLEncoding.EncodeToString(d)
+	}
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	return out
 }
 
 type fakeOpaqueSigner struct {

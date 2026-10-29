@@ -133,17 +133,6 @@ func TestFixedSizeBuffer(t *testing.T) {
 	}
 }
 
-func TestSerializeJSONRejectsNil(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r == nil || !strings.Contains(r.(string), "nil pointer") {
-			t.Error("serialize function should not accept nil pointer")
-		}
-	}()
-
-	mustSerializeJSON(nil)
-}
-
 func TestFixedSizeBufferTooLarge(t *testing.T) {
 	defer func() {
 		r := recover()

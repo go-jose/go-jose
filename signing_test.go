@@ -19,8 +19,10 @@ package jose
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"io"
 	"reflect"
@@ -183,7 +185,7 @@ func TestSignerWithBrokenRand(t *testing.T) {
 	for _, alg := range sigAlgs {
 		signingKey, verificationKey := GenerateSigningTestKey(alg)
 		for i, getReader := range brokenRandReaders {
-			RandReader = getReader()
+			randReader = getReader()
 			err := RoundtripJWS(alg, serializer, corrupter, signingKey, verificationKey, "test_nonce")
 			if err == nil {
 				t.Error("signer should fail if rand is broken", alg, i)
@@ -230,6 +232,37 @@ func TestJWSInvalidKey(t *testing.T) {
 	_, err = obj.Verify("")
 	if err == nil {
 		t.Error("verification should fail with incorrect key")
+	}
+}
+
+func TestJWSNilVerificationKey(t *testing.T) {
+	tests := []struct {
+		name            string
+		algorithm       SignatureAlgorithm
+		verificationKey interface{}
+	}{
+		{name: "Ed25519", algorithm: EdDSA, verificationKey: ed25519.PublicKey(nil)},
+		{name: "ECDSA", algorithm: ES256, verificationKey: (*ecdsa.PublicKey)(nil)},
+		{name: "RSA", algorithm: RS256, verificationKey: (*rsa.PublicKey)(nil)},
+		{name: "JWK", algorithm: RS256, verificationKey: (*JSONWebKey)(nil)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			signingKey, _ := GenerateSigningTestKey(test.algorithm)
+			signer, err := NewSigner(SigningKey{Algorithm: test.algorithm, Key: signingKey}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			obj, err := signer.Sign([]byte("payload"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := obj.Verify(test.verificationKey); err != errInvalidVerificationKey {
+				t.Fatalf("Verify() error = %v, want %v", err, errInvalidVerificationKey)
+			}
+		})
 	}
 }
 
@@ -296,6 +329,105 @@ func TestMultiRecipientJWS(t *testing.T) {
 
 	if !bytes.Equal(output, input) {
 		t.Fatal("input/output do not match", output, input)
+	}
+}
+
+// TestVerifyMultiJWKSPerSignatureKid checks that VerifyMulti honors different "kid"
+// headers on different signatures. It creates a JWS that validates only if the "kid"
+// from the second of the two signatures is used.
+func TestVerifyMultiJWKSPerSignatureKid(t *testing.T) {
+	payload := []byte("Lorem ipsum dolor sit amet")
+
+	keyBar, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyFoo, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader) // only its public key goes in the JWKS
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Both signatures are produced by keyBar. The "foo" signature is therefore
+	// invalid relative to the JWKS, whose "foo" entry is the unrelated keyFoo.
+	signer, err := NewMultiSigner([]SigningKey{
+		{Algorithm: ES256, Key: &JSONWebKey{KeyID: "foo", Key: keyBar}},
+		{Algorithm: ES256, Key: &JSONWebKey{KeyID: "bar", Key: keyBar}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err := signer.Sign(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSigned(obj.FullSerialize(), []SignatureAlgorithm{ES256})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jwks := &JSONWebKeySet{Keys: []JSONWebKey{
+		{KeyID: "foo", Key: keyFoo.Public()},
+		{KeyID: "bar", Key: keyBar.Public()},
+	}}
+
+	idx, sig, out, err := parsed.VerifyMulti(jwks)
+	if err != nil {
+		t.Fatalf("VerifyMulti failed: %v", err)
+	}
+	if idx != 1 {
+		t.Errorf("verified signature index = %d, want 1", idx)
+	}
+	if sig.Header.KeyID != "bar" {
+		t.Errorf("verified kid = %q, want \"bar\"", sig.Header.KeyID)
+	}
+	if !bytes.Equal(out, payload) {
+		t.Error("payload mismatch")
+	}
+}
+
+// TestVerifyMultiJWKSNoMatchingKid checks that VerifyMulti against a JWK Set fails
+// with ErrJWKSKidNotFound when there's no key matching the "kid" headers of the
+// signatures.
+func TestVerifyMultiJWKSNoMatchingKid(t *testing.T) {
+	payload := []byte("Lorem ipsum dolor sit amet")
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := NewMultiSigner([]SigningKey{
+		{Algorithm: ES256, Key: &JSONWebKey{KeyID: "foo", Key: key}},
+		{Algorithm: ES256, Key: &JSONWebKey{KeyID: "bar", Key: key}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err := signer.Sign(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSigned(obj.FullSerialize(), []SignatureAlgorithm{ES256})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The JWKS contains a usable key, but under a kid that matches no signature.
+	jwks := &JSONWebKeySet{Keys: []JSONWebKey{
+		{KeyID: "other", Key: key.Public()},
+	}}
+
+	_, _, _, err = parsed.VerifyMulti(jwks)
+	if err == nil {
+		t.Error("expected error when no signature kid is present in the JWKS")
+	}
+
+	// The JWKS contains a usable key matching the second signature.
+	jwks = &JSONWebKeySet{Keys: []JSONWebKey{
+		{KeyID: "bar", Key: key.Public()},
+	}}
+	_, _, _, err = parsed.VerifyMulti(jwks)
+	if err != nil {
+		t.Errorf("verifying with JWK Set that includes 'bar': %s", err)
 	}
 }
 
@@ -628,5 +760,15 @@ func BenchmarkParseSigned(b *testing.B) {
 		if err != nil {
 			b.Errorf("Error on parse: %s", err)
 		}
+	}
+}
+
+func TestSignUnmarshalableExtraHeader(t *testing.T) {
+	signer, err := NewSigner(SigningKey{Algorithm: RS256, Key: rsaTestKey}, (&SignerOptions{}).WithHeader("x", make(chan int)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := signer.Sign([]byte("payload")); err == nil {
+		t.Error("expected error signing with unmarshalable extra header")
 	}
 }

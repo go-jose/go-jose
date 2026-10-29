@@ -22,10 +22,51 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"math/big"
 	"regexp"
+	"strings"
 	"testing"
+
+	"github.com/go-jose/go-jose/v4/json"
 )
+
+func TestParseEmptyEncrypted(t *testing.T) {
+	_, err := ParseEncrypted("", []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseEncryptedCompact("", []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+
+	_, err = ParseEncryptedJSON("", []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+	if !errors.Is(err, errEmptyInput) {
+		t.Errorf("parsing empty input: got %s, want %s", err, errEmptyInput)
+	}
+}
+
+func TestUnexpectedAlgorithmCheckedBeforeHeadersJWE(t *testing.T) {
+	// A message with an unexpected algorithm must be rejected as such, before
+	// the rest of the header, including any embedded key, is parsed.
+	protected := newBuffer([]byte(`{"alg":"RSA1_5","enc":"A128GCM","jwk":"not a key"}`)).base64()
+
+	messages := map[string]string{
+		"compact":   protected + ".dGVzdA.dGVzdA.dGVzdA.dGVzdA",
+		"flattened": `{"protected":"` + protected + `","encrypted_key":"dGVzdA","iv":"dGVzdA","ciphertext":"dGVzdA","tag":"dGVzdA"}`,
+		"general":   `{"protected":"` + protected + `","recipients":[{"encrypted_key":"dGVzdA"}],"iv":"dGVzdA","ciphertext":"dGVzdA","tag":"dGVzdA"}`,
+	}
+	for name, msg := range messages {
+		t.Run(name, func(t *testing.T) {
+			_, err := ParseEncrypted(msg, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+			if err == nil || !regexp.MustCompile(`unexpected key algorithm`).MatchString(err.Error()) {
+				t.Fatalf("expected unexpected key algorithm error, got %v", err)
+			}
+		})
+	}
+}
 
 func TestCompactParseJWE(t *testing.T) {
 	// Should parse
@@ -289,7 +330,7 @@ func TestVectorsJWE(t *testing.T) {
 		"tag":"XFBoMYUZodetZdvTiFvSkQ" }`)
 
 	// Mock random reader
-	RandReader = bytes.NewReader([]byte{
+	randReader = bytes.NewReader([]byte{
 		// Encryption key
 		177, 161, 244, 128, 84, 143, 225, 115, 63, 180, 3, 255, 107, 154,
 		212, 246, 138, 7, 110, 91, 112, 46, 34, 105, 47, 130, 203, 46, 122,
@@ -332,6 +373,72 @@ func TestJWENilProtected(t *testing.T) {
 	if _, err := jwe.Decrypt(key); err == nil {
 		t.Error(err)
 	}
+}
+
+func TestJWEDecryptWithoutProtectedHeader(t *testing.T) {
+	key := []byte("0123456789abcdef")
+	plaintext := []byte("secret")
+	token := jweJSONWithoutProtectedHeader(t, key, plaintext)
+
+	parsed, err := ParseEncryptedJSON(
+		token,
+		[]KeyAlgorithm{DIRECT},
+		[]ContentEncryption{A128GCM},
+	)
+	if err != nil {
+		t.Fatalf("ParseEncryptedJSON: %v", err)
+	}
+
+	decrypted, err := parsed.Decrypt(key)
+	if err != nil {
+		t.Fatalf("Decrypt: %v", err)
+	}
+	if !bytes.Equal(decrypted, plaintext) {
+		t.Fatalf("Decrypt plaintext = %q, want %q", decrypted, plaintext)
+	}
+
+	index, _, decrypted, err := parsed.DecryptMulti(key)
+	if err != nil {
+		t.Fatalf("DecryptMulti: %v", err)
+	}
+	if index != 0 {
+		t.Fatalf("DecryptMulti index = %d, want 0", index)
+	}
+	if !bytes.Equal(decrypted, plaintext) {
+		t.Fatalf("DecryptMulti plaintext = %q, want %q", decrypted, plaintext)
+	}
+}
+
+func jweJSONWithoutProtectedHeader(t *testing.T, key []byte, plaintext []byte) string {
+	t.Helper()
+
+	cipher := newAESGCM(16)
+	parts, err := cipher.encrypt(key, []byte{}, plaintext)
+	if err != nil {
+		t.Fatalf("encrypt content: %v", err)
+	}
+
+	unprotected := rawHeader{}
+	err = unprotected.set(headerAlgorithm, DIRECT)
+	if err != nil {
+		t.Fatalf("set alg: %v", err)
+	}
+	err = unprotected.set(headerEncryption, A128GCM)
+	if err != nil {
+		t.Fatalf("set enc: %v", err)
+	}
+
+	raw := rawJSONWebEncryption{
+		Unprotected: &unprotected,
+		Iv:          newBuffer(parts.iv),
+		Ciphertext:  newBuffer(parts.ciphertext),
+		Tag:         newBuffer(parts.tag),
+	}
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatalf("marshal JWE: %v", err)
+	}
+	return string(out)
 }
 
 func TestVectorsJWECorrupt(t *testing.T) {
@@ -380,13 +487,13 @@ func TestVectorsJWECorrupt(t *testing.T) {
 	msg, _ := ParseEncrypted(corruptCiphertext, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	_, err := msg.Decrypt(priv)
 	if err != ErrCryptoFailure {
-		t.Error("should detect corrupt ciphertext")
+		t.Errorf("Decrypt(): got %q, want %q", err, ErrCryptoFailure)
 	}
 
 	msg, _ = ParseEncrypted(corruptAuthtag, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
 	_, err = msg.Decrypt(priv)
 	if err != ErrCryptoFailure {
-		t.Error("should detect corrupt auth tag")
+		t.Errorf("Decrypt(): got %q, want %q", err, ErrCryptoFailure)
 	}
 }
 
@@ -718,11 +825,293 @@ func TestJWEWithNullAlg(t *testing.T) {
 	}
 }
 
+func TestEmptyEncryptedKey(t *testing.T) {
+	// These inputs use key wrapping with an empty wrapped key.
+	// All fields except the unprotected header are empty; in particular "JWE Encrypted Key" is empty.
+	serializedCompact := `eyJhbGciOiJQQkVTMi1IUzUxMitBMjU2S1ciLCJjdHkiOiJhcHBsaWNhdGlvbi9qd2sranNvbiIsImVuYyI6IkEyNTZHQ00iLCJwMmMiOjIxMDAwMCwicDJzIjoiY000YyJ9....`
+	serializedJSON := `{"unprotected":{"alg":"PBES2-HS512+A256KW","cty":"application/jwk+json","enc":"A256GCM","p2c":210000,"p2s":"cM4c"}}`
+	acceptedAlgs := []KeyAlgorithm{PBES2_HS512_A256KW}
+	acceptedContentAlgs := []ContentEncryption{A256GCM}
+	item, err := ParseEncrypted(serializedCompact, acceptedAlgs, acceptedContentAlgs)
+	if err != nil {
+		t.Fatalf("ParseEncrypted(%q): %s", serializedCompact, err)
+	}
+
+	secret := []byte("valid-key-used-for-decryption")
+
+	// Note: we check this "want" value to distinguish from other error cases, but future refactorings to give
+	// a more useful error message would be okay.
+	want := "go-jose/go-jose: error in cryptographic primitive"
+	_, err = item.Decrypt(secret)
+	if err == nil {
+		t.Errorf("Decrypt() after ParseEncrypted() with empty encrypted key should fail")
+	} else if err.Error() != want {
+		t.Errorf("Decrypt() after ParseEncrypted() with empty encrypted key: got %q, want %q", err, want)
+	}
+
+	item, err = ParseEncryptedCompact(serializedCompact, acceptedAlgs, acceptedContentAlgs)
+	if err != nil {
+		t.Fatalf("ParseEncryptedCompact(%q): %s", serializedCompact, err)
+	}
+
+	_, err = item.Decrypt(secret)
+	if err == nil {
+		t.Errorf("Decrypt() after ParseEncryptedCompact() with empty encrypted key should fail")
+	} else if err.Error() != want {
+		t.Errorf("Decrypt() after ParseEncryptedCompact() with empty encrypted key: got %q, want %q", err, want)
+	}
+
+	item, err = ParseEncryptedJSON(serializedJSON, acceptedAlgs, acceptedContentAlgs)
+	if err != nil {
+		t.Fatalf("ParseEncryptedJSON(%q): %s", serializedJSON, err)
+	}
+
+	_, err = item.Decrypt(secret)
+	if err == nil {
+		t.Errorf("Decrypt() after ParseEncryptedJSON() with empty encrypted key should fail")
+	} else if err.Error() != want {
+		t.Errorf("Decrypt() after ParseEncryptedJSON() with empty encrypted key: got %q, want %q", err, want)
+	}
+}
+
+func TestJWERejectsShortGCMCEKForDeclaredContentEncryption(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      []byte
+		declared ContentEncryption
+		actual   ContentEncryption
+	}{
+		{
+			name:     "A256GCM with A128GCM key",
+			key:      []byte("0123456789abcdef"),
+			declared: A256GCM,
+			actual:   A128GCM,
+		},
+		{
+			name:     "A192GCM with A128GCM key",
+			key:      []byte("0123456789abcdef"),
+			declared: A192GCM,
+			actual:   A128GCM,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			plaintext := []byte("content encrypted under a shorter CEK")
+			token := jweJSONWithMismatchedCEK(
+				t,
+				test.key,
+				plaintext,
+				test.declared,
+				test.actual,
+			)
+
+			parsed, err := ParseEncryptedJSON(
+				token,
+				[]KeyAlgorithm{DIRECT},
+				[]ContentEncryption{test.declared},
+			)
+			if err != nil {
+				t.Fatalf("ParseEncryptedJSON: %v", err)
+			}
+
+			_, err = parsed.Decrypt(test.key)
+			if err == nil {
+				t.Fatal("Decrypt accepted content encrypted under a shorter CEK")
+			}
+
+			_, _, _, err = parsed.DecryptMulti(test.key)
+			if err == nil {
+				t.Fatal("DecryptMulti accepted content encrypted under a shorter CEK")
+			}
+		})
+	}
+}
+
+func TestJWERejectsShortCBCHMACCEKForDeclaredContentEncryption(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      []byte
+		declared ContentEncryption
+	}{
+		{
+			name:     "A256CBC-HS512 with A128CBC-HS256 key",
+			key:      []byte("0123456789abcdef0123456789abcdef"),
+			declared: A256CBC_HS512,
+		},
+		{
+			name:     "A192CBC-HS384 with A128CBC-HS256 key",
+			key:      []byte("0123456789abcdef0123456789abcdef"),
+			declared: A192CBC_HS384,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			plaintext := []byte("content encrypted under a shorter CEK")
+			token := jweJSONWithMismatchedCBCHMACCEK(t, test.key, plaintext, test.declared)
+
+			parsed, err := ParseEncryptedJSON(
+				token,
+				[]KeyAlgorithm{DIRECT},
+				[]ContentEncryption{test.declared},
+			)
+			if err != nil {
+				t.Fatalf("ParseEncryptedJSON: %v", err)
+			}
+
+			_, err = parsed.Decrypt(test.key)
+			if err == nil {
+				t.Fatal("Decrypt accepted content encrypted under a shorter CEK")
+			}
+
+			_, _, _, err = parsed.DecryptMulti(test.key)
+			if err == nil {
+				t.Fatal("DecryptMulti accepted content encrypted under a shorter CEK")
+			}
+		})
+	}
+}
+
+func jweJSONWithMismatchedCEK(
+	t *testing.T,
+	key []byte,
+	plaintext []byte,
+	declared ContentEncryption,
+	actual ContentEncryption,
+) string {
+	t.Helper()
+
+	protected := rawHeader{}
+	err := protected.set(headerAlgorithm, DIRECT)
+	if err != nil {
+		t.Fatalf("set alg: %v", err)
+	}
+	err = protected.set(headerEncryption, declared)
+	if err != nil {
+		t.Fatalf("set enc: %v", err)
+	}
+
+	protectedJSON, err := json.Marshal(protected)
+	if err != nil {
+		t.Fatalf("marshal protected: %v", err)
+	}
+	protectedB64 := newBuffer(protectedJSON).base64()
+	cipher := getContentCipher(actual)
+	parts, err := cipher.encrypt(key, []byte(protectedB64), plaintext)
+	if err != nil {
+		t.Fatalf("encrypt content: %v", err)
+	}
+
+	raw := rawJSONWebEncryption{
+		Protected:  newBuffer(protectedJSON),
+		Iv:         newBuffer(parts.iv),
+		Ciphertext: newBuffer(parts.ciphertext),
+		Tag:        newBuffer(parts.tag),
+	}
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatalf("marshal JWE: %v", err)
+	}
+	return string(out)
+}
+
+func jweJSONWithMismatchedCBCHMACCEK(
+	t *testing.T,
+	key []byte,
+	plaintext []byte,
+	declared ContentEncryption,
+) string {
+	t.Helper()
+
+	protected := rawHeader{}
+	err := protected.set(headerAlgorithm, DIRECT)
+	if err != nil {
+		t.Fatalf("set alg: %v", err)
+	}
+	err = protected.set(headerEncryption, declared)
+	if err != nil {
+		t.Fatalf("set enc: %v", err)
+	}
+
+	protectedJSON, err := json.Marshal(protected)
+	if err != nil {
+		t.Fatalf("marshal protected: %v", err)
+	}
+	protectedB64 := newBuffer(protectedJSON).base64()
+	cipher := getContentCipher(A128CBC_HS256)
+	parts, err := cipher.encrypt(key, []byte(protectedB64), plaintext)
+	if err != nil {
+		t.Fatalf("encrypt content: %v", err)
+	}
+
+	actualTagLen := len(parts.tag)
+	declaredTagLen := cbcTagLength(t, declared)
+	if declaredTagLen < actualTagLen {
+		t.Fatalf("declared tag length %d is shorter than actual tag length %d",
+			declaredTagLen, actualTagLen)
+	}
+
+	prefixLen := declaredTagLen - actualTagLen
+	if len(parts.ciphertext) < prefixLen {
+		t.Fatalf("ciphertext length %d is shorter than tag prefix length %d",
+			len(parts.ciphertext), prefixLen)
+	}
+
+	// Move ciphertext bytes into the tag field so the outer declared-tag length check
+	// passes while the inner A128CBC-HS256 AEAD still sees its original tag.
+	ciphertextPart := parts.ciphertext[:len(parts.ciphertext)-prefixLen]
+	tagPart := append([]byte{}, parts.ciphertext[len(parts.ciphertext)-prefixLen:]...)
+	tagPart = append(tagPart, parts.tag...)
+
+	raw := rawJSONWebEncryption{
+		Protected:  newBuffer(protectedJSON),
+		Iv:         newBuffer(parts.iv),
+		Ciphertext: newBuffer(ciphertextPart),
+		Tag:        newBuffer(tagPart),
+	}
+	out, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatalf("marshal JWE: %v", err)
+	}
+	return string(out)
+}
+
+func cbcTagLength(t *testing.T, enc ContentEncryption) int {
+	t.Helper()
+
+	switch enc {
+	case A128CBC_HS256:
+		return 16
+	case A192CBC_HS384:
+		return 24
+	case A256CBC_HS512:
+		return 32
+	default:
+		t.Fatalf("unsupported CBC enc %q", enc)
+		return 0
+	}
+}
+
 func BenchmarkParseEncryptedCompat(b *testing.B) {
 	msg := "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkExMjhHQ00ifQ.dGVzdA.dGVzdA.dGVzdA.dGVzdA"
 	for range b.N {
 		if _, err := ParseEncryptedCompact(msg, []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM}); err != nil {
 			panic(err)
 		}
+	}
+}
+
+func TestPrivateEPKRejected(t *testing.T) {
+	epk := json.RawMessage(`{"kty":"EC","crv":"P-256","x":"AQAB","y":"AQAB","d":"AQAB"}`)
+	headers := rawHeader{headerEPK: &epk}
+	if _, err := headers.getEPK(); err == nil || !strings.Contains(err.Error(), "JWK contains private parameters") {
+		t.Errorf("expected private parameters error, got %v", err)
+	}
+}
+
+func TestFullSerializeNoRecipients(t *testing.T) {
+	if out := (JSONWebEncryption{}).FullSerialize(); out != "" {
+		t.Errorf("expected empty string, got %q", out)
 	}
 }
