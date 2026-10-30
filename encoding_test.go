@@ -103,6 +103,31 @@ func TestByteBufferTrim(t *testing.T) {
 	}
 }
 
+func TestNilByteBuffer(t *testing.T) {
+	var buf *byteBuffer
+
+	if got := buf.bytes(); got != nil {
+		t.Errorf("bytes() = %v, want nil", got)
+	}
+	if got := buf.base64(); got != "" {
+		t.Errorf("base64() = %q, want empty string", got)
+	}
+	if got := buf.bigInt(); got.Sign() != 0 {
+		t.Errorf("bigInt() = %s, want 0", got)
+	}
+	if got := buf.toInt(); got != 0 {
+		t.Errorf("toInt() = %d, want 0", got)
+	}
+
+	got, err := buf.MarshalJSON()
+	if err != nil {
+		t.Errorf("MarshalJSON() returned error: %s", err)
+	}
+	if string(got) != `""` {
+		t.Errorf("MarshalJSON() = %s, want %s", got, `""`)
+	}
+}
+
 func TestFixedSizeBuffer(t *testing.T) {
 	data0 := []byte{}
 	data1 := []byte{1}
