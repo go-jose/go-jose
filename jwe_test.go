@@ -22,13 +22,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"math/big"
 	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 func TestParseEmptyEncrypted(t *testing.T) {
@@ -309,7 +309,7 @@ func TestParseEncryptedZeroValueProtectedHeaders(t *testing.T) {
 
 	// Add an unprotected header with a non-empty field of the same name.
 	// The protected header bytes are untouched, so the authentication tag is still valid.
-	var msg map[string]*json.RawMessage
+	var msg map[string]*jsontext.Value
 	err = json.Unmarshal([]byte(obj.FullSerialize()), &msg)
 	if err != nil {
 		t.Fatalf("unmarshaling test jwe: %s", err)
@@ -330,9 +330,9 @@ func TestParseEncryptedZeroValueProtectedHeaders(t *testing.T) {
 		t.Fatalf("decrypting test jwe: %s", err)
 	}
 
-	got := parsed.Header.ExtraHeaders["test"]
-	if got != "" {
-		t.Errorf("ParseEncryptedJSON().Header.ExtraHeaders[test] = %s, but want empty string", got)
+	got := string(parsed.Header.Other["test"])
+	if got != `""` {
+		t.Errorf("ParseEncryptedJSON().Header.Other[test] = %s, but want empty string", got)
 	}
 }
 
@@ -428,6 +428,37 @@ func TestVectorsJWE(t *testing.T) {
 	serialized = object.FullSerialize()
 	if serialized != expectedFull {
 		t.Error("JSON serialization is not what we expected")
+	}
+}
+
+func TestFullSerializeEmptyCiphertext(t *testing.T) {
+	key := []byte("0123456789abcdef")
+	encrypter, err := NewEncrypter(A128GCM, Recipient{Algorithm: DIRECT, Key: key}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	obj, err := encrypter.Encrypt([]byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg := obj.FullSerialize()
+	if !strings.Contains(msg, `"ciphertext":""`) {
+		t.Errorf("FullSerialize() = %s, want it to contain an empty ciphertext", msg)
+	}
+
+	parsed, err := ParseEncrypted(msg, []KeyAlgorithm{DIRECT}, []ContentEncryption{A128GCM})
+	if err != nil {
+		t.Fatalf("parsing %s: %s", msg, err)
+	}
+
+	plaintext, err := parsed.Decrypt(key)
+	if err != nil {
+		t.Fatalf("decrypting %s: %s", msg, err)
+	}
+	if len(plaintext) != 0 {
+		t.Errorf("Decrypt() = %x, want empty plaintext", plaintext)
 	}
 }
 
@@ -1168,7 +1199,7 @@ func BenchmarkParseEncryptedCompat(b *testing.B) {
 }
 
 func TestPrivateEPKRejected(t *testing.T) {
-	epk := json.RawMessage(`{"kty":"EC","crv":"P-256","x":"AQAB","y":"AQAB","d":"AQAB"}`)
+	epk := jsontext.Value(`{"kty":"EC","crv":"P-256","x":"AQAB","y":"AQAB","d":"AQAB"}`)
 	headers := rawHeader{headerEPK: &epk}
 	if _, err := headers.getEPK(); err == nil || !strings.Contains(err.Error(), "JWK contains private parameters") {
 		t.Errorf("expected private parameters error, got %v", err)

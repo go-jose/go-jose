@@ -21,13 +21,12 @@ import (
 	"compress/flate"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"math/big"
 	"strings"
 	"unicode"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 // Strip all newlines and whitespace

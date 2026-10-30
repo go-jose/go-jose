@@ -21,10 +21,10 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 // KeyAlgorithm represents a key management algorithm.
@@ -187,7 +187,7 @@ var supportedCritical = map[string]struct{}{
 // some members into particular structs rather than generic maps, but at the
 // same time we need to receive any extra fields unhandled by this library to
 // pass through to consuming code in case it wants to examine them.
-type rawHeader map[HeaderKey]*json.RawMessage
+type rawHeader map[HeaderKey]*jsontext.Value
 
 // Header represents the read-only JOSE header for JWE/JWS objects.
 type Header struct {
@@ -199,14 +199,9 @@ type Header struct {
 	// Unverified certificate chain parsed from x5c header.
 	certificates []*x509.Certificate
 
-	// At parse time, each header parameter with a name other than "kid",
-	// "jwk", "alg", "nonce", or "x5c"  will have its value passed to
-	// [json.Unmarshal] to unmarshal it into an interface value.
-	// The resulting value will be stored in this map, with the header
-	// parameter name as the key.
-	//
-	// [json.Unmarshal]: https://pkg.go.dev/encoding/json#Unmarshal
-	ExtraHeaders map[HeaderKey]interface{}
+	// Other contains the unparsed values of any header parameter not
+	// parsed into another field of `Header`.
+	Other map[HeaderKey]jsontext.Value
 }
 
 // Certificates verifies & returns the certificate chain present
@@ -237,7 +232,7 @@ func (h Header) Certificates(opts x509.VerifyOptions) ([][]*x509.Certificate, er
 }
 
 func (parsed rawHeader) set(k HeaderKey, v interface{}) error {
-	b, err := json.Marshal(v)
+	b, err := json.Marshal(v, json.Deterministic(true))
 	if err != nil {
 		return err
 	}
@@ -467,16 +462,10 @@ func (parsed rawHeader) sanitized() (h Header, err error) {
 				return
 			}
 		default:
-			if h.ExtraHeaders == nil {
-				h.ExtraHeaders = map[HeaderKey]interface{}{}
+			if h.Other == nil {
+				h.Other = map[HeaderKey]jsontext.Value{}
 			}
-			var v2 interface{}
-			err = json.Unmarshal(*v, &v2)
-			if err != nil {
-				err = fmt.Errorf("failed to unmarshal value: %v: %#v", err, string(*v))
-				return
-			}
-			h.ExtraHeaders[k] = v2
+			h.Other[k] = v.Clone()
 		}
 	}
 	return
@@ -545,8 +534,8 @@ func curveSize(crv elliptic.Curve) int {
 	return div + 1
 }
 
-func makeRawMessage(b []byte) *json.RawMessage {
-	rm := json.RawMessage(b)
+func makeRawMessage(b []byte) *jsontext.Value {
+	rm := jsontext.Value(b)
 	return &rm
 }
 

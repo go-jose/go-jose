@@ -120,7 +120,7 @@ func (kdw *keyDecryptWrapper) DecryptKey(encryptedKey []byte, header Header) ([]
 	if err != nil {
 		return nil, err
 	}
-	for k, v := range header.ExtraHeaders {
+	for k, v := range header.Other {
 		err = rawHeader.set(k, v)
 		if err != nil {
 			return nil, err

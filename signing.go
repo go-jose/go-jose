@@ -22,10 +22,9 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 // NonceSource represents a source of random nonces to go into JWS objects
@@ -71,7 +70,7 @@ type SignerOptions struct {
 	// Values will be serialized by [json.Marshal] and must be valid inputs to
 	// that function.
 	//
-	// [json.Marshal]: https://pkg.go.dev/encoding/json#Marshal
+	// [json.Marshal]: https://pkg.go.dev/encoding/json/v2#Marshal
 	ExtraHeaders map[HeaderKey]interface{}
 }
 
@@ -81,7 +80,7 @@ type SignerOptions struct {
 // The v argument will be serialized by [json.Marshal] and must be a valid
 // input to that function.
 //
-// [json.Marshal]: https://pkg.go.dev/encoding/json#Marshal
+// [json.Marshal]: https://pkg.go.dev/encoding/json/v2#Marshal
 func (so *SignerOptions) WithHeader(k HeaderKey, v interface{}) *SignerOptions {
 	if so.ExtraHeaders == nil {
 		so.ExtraHeaders = map[HeaderKey]interface{}{}
@@ -321,7 +320,7 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 			protected[k] = v
 		}
 
-		serializedProtected, err := json.Marshal(protected)
+		serializedProtected, err := json.Marshal(protected, json.Deterministic(true))
 		if err != nil {
 			return nil, fmt.Errorf("go-jose/go-jose: Error marshaling JSON: %s", err)
 		}
@@ -351,7 +350,7 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 
 		signatureInfo.protected = &rawHeader{}
 		for k, v := range protected {
-			b, err := json.Marshal(v)
+			b, err := json.Marshal(v, json.Deterministic(true))
 			if err != nil {
 				return nil, fmt.Errorf("go-jose/go-jose: Error marshalling item %#v: %v", k, err)
 			}

@@ -28,6 +28,8 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	jsonv1 "encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"math"
@@ -35,8 +37,6 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 // rawJSONWebKey represents a public or private key in JWK format, used for parsing/serializing.
@@ -172,7 +172,7 @@ func (k JSONWebKey) MarshalJSON() ([]byte, error) {
 		raw.X5u = k.CertificatesURL.String()
 	}
 
-	return json.Marshal(raw)
+	return json.Marshal(raw, jsonv1.OmitEmptyWithLegacySemantics(true))
 }
 
 // UnmarshalJSON reads a key from its JSON representation.

@@ -29,13 +29,12 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json/v2"
 	"errors"
 	"math/big"
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/go-jose/go-jose/v4/json"
 
 	"github.com/go-jose/go-jose/v4/testutils/assert"
 	"github.com/go-jose/go-jose/v4/testutils/require"
@@ -95,6 +94,26 @@ func TestCurveSize(t *testing.T) {
 	}
 	if size521 != 66 {
 		t.Error("P-521 have 66 bytes")
+	}
+}
+
+func TestRoundtripEmptySymmetricKey(t *testing.T) {
+	out, err := JSONWebKey{Key: []byte{}}.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `"k":""`) {
+		t.Errorf("MarshalJSON() = %s, want it to contain an empty k", out)
+	}
+
+	var parsed JSONWebKey
+	err = parsed.UnmarshalJSON(out)
+	if err != nil {
+		t.Fatalf("parsing %s: %s", out, err)
+	}
+	key, ok := parsed.Key.([]byte)
+	if !ok || len(key) != 0 {
+		t.Errorf("parsed key = %#v, want empty []byte", parsed.Key)
 	}
 }
 

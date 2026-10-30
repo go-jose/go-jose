@@ -22,12 +22,11 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
+	"encoding/json/jsontext"
 	"errors"
 	"io"
 	"strings"
 	"testing"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 func TestEd25519(t *testing.T) {
@@ -187,7 +186,7 @@ func TestInvalidECDecrypt(t *testing.T) {
 	}
 
 	// Invalid epk header
-	invalid := json.RawMessage("invalid")
+	invalid := jsontext.Value("invalid")
 	headers["epk"] = &invalid
 
 	want = "go-jose/go-jose: invalid epk header"
