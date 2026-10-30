@@ -523,8 +523,9 @@ func (k *JSONWebKey) Valid() bool {
 }
 
 // MaxRSAModulusBits is the largest RSA modulus size, in bits, that will be
-// accepted when parsing a JWK. Applications that need larger keys can raise
-// this limit.
+// accepted when parsing a JWK or verifying an x5c certificate chain with
+// [Header.Certificates]. Applications that need larger keys can raise this
+// limit.
 //
 // If modifying MaxRSAModulusBits, do it before any parsing occurs.
 var MaxRSAModulusBits = 4096
