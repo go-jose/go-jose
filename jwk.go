@@ -406,6 +406,9 @@ func ecThumbprintInput(curve elliptic.Curve, x, y *big.Int) (string, error) {
 }
 
 func rsaThumbprintInput(n *big.Int, e int) (string, error) {
+	if n == nil || e <= 0 {
+		return "", errors.New("go-jose/go-jose: invalid RSA key")
+	}
 	return fmt.Sprintf(rsaThumbprintTemplate,
 		newBufferFromInt(uint64(e)).base64(),
 		newBuffer(n.Bytes()).base64()), nil
