@@ -362,7 +362,7 @@ func (k *JSONWebKey) unmarshalJSON(data []byte, allowPrivate bool) (err error) {
 		}
 	}
 
-	return
+	return nil
 }
 
 // JSONWebKeySet represents a JWK Set object.
