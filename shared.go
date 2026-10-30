@@ -490,22 +490,8 @@ func parseCertificateChain(chain []string) ([]*x509.Certificate, error) {
 }
 
 func (parsed rawHeader) isSet(k HeaderKey) bool {
-	dvr := parsed[k]
-	if dvr == nil {
-		return false
-	}
-
-	var dv interface{}
-	err := json.Unmarshal(*dvr, &dv)
-	if err != nil {
-		return true
-	}
-
-	if dvStr, ok := dv.(string); ok {
-		return dvStr != ""
-	}
-
-	return true
+	_, ok := parsed[k]
+	return ok
 }
 
 // Merge headers from src into dst, giving precedence to headers from l.

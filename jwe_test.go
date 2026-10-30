@@ -291,6 +291,51 @@ func TestRejectUnprotectedJWENonce(t *testing.T) {
 	}
 }
 
+func TestParseEncryptedZeroValueProtectedHeaders(t *testing.T) {
+	key := make([]byte, 16)
+
+	// Encrypt with an explicitly-empty field in the protected header.
+	encrypter, err := NewEncrypter(
+		A128GCM,
+		Recipient{Algorithm: DIRECT, Key: key},
+		(&EncrypterOptions{}).WithHeader("test", ""))
+	if err != nil {
+		t.Fatalf("making test encrypter: %s", err)
+	}
+	obj, err := encrypter.Encrypt([]byte("hello"))
+	if err != nil {
+		t.Fatalf("encrypting test jwe: %s", err)
+	}
+
+	// Add an unprotected header with a non-empty field of the same name.
+	// The protected header bytes are untouched, so the authentication tag is still valid.
+	var msg map[string]*json.RawMessage
+	err = json.Unmarshal([]byte(obj.FullSerialize()), &msg)
+	if err != nil {
+		t.Fatalf("unmarshaling test jwe: %s", err)
+	}
+	msg["unprotected"] = makeRawMessage([]byte(`{"test":"oops"}`))
+	raw, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("re-marshaling test jwe with extra unprotected headers: %s", err)
+	}
+
+	// Parse and decrypt the tampered-with object.
+	parsed, err := ParseEncryptedJSON(string(raw), []KeyAlgorithm{DIRECT}, []ContentEncryption{A128GCM})
+	if err != nil {
+		t.Fatalf("parsing test jwe: %s", err)
+	}
+	_, err = parsed.Decrypt(key)
+	if err != nil {
+		t.Fatalf("decrypting test jwe: %s", err)
+	}
+
+	got := parsed.Header.ExtraHeaders["test"]
+	if got != "" {
+		t.Errorf("ParseEncryptedJSON().Header.ExtraHeaders[test] = %s, but want empty string", got)
+	}
+}
+
 func TestCompactSerialize(t *testing.T) {
 	// Compact serialization must fail if we have unprotected headers
 	obj := &JSONWebEncryption{
