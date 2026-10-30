@@ -168,10 +168,6 @@ func (b *byteBuffer) bigInt() *big.Int {
 	return new(big.Int).SetBytes(b.bytes())
 }
 
-func (b *byteBuffer) toInt() int {
-	return int(b.bigInt().Int64())
-}
-
 func base64EncodeLen(sl []byte) int {
 	return base64.RawURLEncoding.EncodedLen(len(sl))
 }

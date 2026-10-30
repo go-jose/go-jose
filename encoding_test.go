@@ -115,9 +115,6 @@ func TestNilByteBuffer(t *testing.T) {
 	if got := buf.bigInt(); got.Sign() != 0 {
 		t.Errorf("bigInt() = %s, want 0", got)
 	}
-	if got := buf.toInt(); got != 0 {
-		t.Errorf("toInt() = %d, want 0", got)
-	}
 
 	got, err := buf.MarshalJSON()
 	if err != nil {

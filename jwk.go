@@ -30,6 +30,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"net/url"
 	"reflect"
@@ -530,18 +531,32 @@ func (k *JSONWebKey) Valid() bool {
 var MaxRSAModulusBits = 4096
 
 func (key rawJSONWebKey) rsaPublicKey() (*rsa.PublicKey, error) {
-	if key.N == nil || key.E == nil {
+	return rsaPublicKey(key.N, key.E)
+}
+
+func rsaPublicKey(N, E *byteBuffer) (*rsa.PublicKey, error) {
+	if N == nil || E == nil {
 		return nil, fmt.Errorf("go-jose/go-jose: invalid RSA key, missing n/e values")
 	}
 
-	n := key.N.bigInt()
+	n := N.bigInt()
 	if n.BitLen() > MaxRSAModulusBits {
 		return nil, fmt.Errorf("go-jose/go-jose: invalid RSA key, modulus too large")
 	}
 
+	e := new(big.Int).SetBytes(E.bytes())
+	if !e.IsInt64() {
+		return nil, fmt.Errorf("go-jose/go-jose: invalid RSA key, bad e value")
+	}
+
+	eInt64 := e.Int64()
+	if eInt64 < 2 || eInt64 > math.MaxInt {
+		return nil, fmt.Errorf("go-jose/go-jose: invalid RSA key, bad e value")
+	}
+
 	return &rsa.PublicKey{
 		N: n,
-		E: key.E.toInt(),
+		E: int(eInt64),
 	}, nil
 }
 
@@ -702,23 +717,21 @@ func (key rawJSONWebKey) rsaPrivateKey() (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("go-jose/go-jose: invalid RSA private key, missing %s value(s)", strings.Join(missing, ", "))
 	}
 
-	n := key.N.bigInt()
-	if n.BitLen() > MaxRSAModulusBits {
-		return nil, fmt.Errorf("go-jose/go-jose: invalid RSA key, modulus too large")
+	pubKey, err := rsaPublicKey(key.N, key.E)
+	if err != nil {
+		return nil, err
 	}
 
+	n := pubKey.N
 	p, q := key.P.bigInt(), key.Q.bigInt()
 	if p.BitLen()+q.BitLen() > n.BitLen()+1 || new(big.Int).Mul(p, q).Cmp(n) != 0 {
 		return nil, errors.New("go-jose/go-jose: invalid RSA private key, p * q != n")
 	}
 
 	rv := &rsa.PrivateKey{
-		PublicKey: rsa.PublicKey{
-			N: n,
-			E: key.E.toInt(),
-		},
-		D:      key.D.bigInt(),
-		Primes: []*big.Int{p, q},
+		PublicKey: *pubKey,
+		D:         key.D.bigInt(),
+		Primes:    []*big.Int{p, q},
 	}
 
 	if key.Dp != nil {
@@ -731,7 +744,7 @@ func (key rawJSONWebKey) rsaPrivateKey() (*rsa.PrivateKey, error) {
 		rv.Precomputed.Qinv = key.Qi.bigInt()
 	}
 
-	err := rv.Validate()
+	err = rv.Validate()
 	return rv, err
 }
 
