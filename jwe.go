@@ -157,7 +157,7 @@ func (parsed *rawJSONWebEncryption) sanitized() (*JSONWebEncryption, error) {
 	mergedHeaders := obj.mergedHeaders(nil)
 	obj.Header, err = mergedHeaders.sanitized()
 	if err != nil {
-		return nil, fmt.Errorf("go-jose/go-jose: cannot sanitize merged headers: %v (%v)", err, mergedHeaders)
+		return nil, fmt.Errorf("go-jose/go-jose: cannot sanitize merged headers: %w", err)
 	}
 
 	if len(parsed.Recipients) == 0 {
