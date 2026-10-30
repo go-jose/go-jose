@@ -982,6 +982,51 @@ func TestGeneralSerializationUnprotectedHeader(t *testing.T) {
 	}
 }
 
+func TestParseSignedMaxSignatures(t *testing.T) {
+	defer func(old int) { MaxSignatures = old }(MaxSignatures)
+
+	// makeJWS makes a JWS with n signatures.
+	makeJWS := func(n int) string {
+		sigs := strings.TrimSuffix(strings.Repeat(`{"protected":"eyJhbGciOiJSUzI1NiJ9","signature":"AA"},`, n), ",")
+		return `{"payload":"AA","signatures":[` + sigs + `]}`
+	}
+
+	testCases := []struct {
+		name       string
+		signatures int
+		limit      int // override for MaxSignatures, 0 for default
+		wantErr    bool
+	}{
+		{name: "at limit", signatures: 32},
+		{name: "over limit", signatures: 33, wantErr: true},
+		{name: "far over limit", signatures: 10000, wantErr: true},
+		{name: "raised limit", signatures: 33, limit: 33},
+		{name: "lowered limit", signatures: 2, limit: 1, wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			MaxSignatures = 32
+			if tc.limit != 0 {
+				MaxSignatures = tc.limit
+			}
+			obj, err := ParseSigned(makeJWS(tc.signatures), []SignatureAlgorithm{RS256})
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "too many signatures") {
+					t.Fatalf("expected too many signatures error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(obj.Signatures) != tc.signatures {
+				t.Errorf("got %d signatures, want %d", len(obj.Signatures), tc.signatures)
+			}
+		})
+	}
+}
+
 func TestUnexpectedAlgorithmCheckedBeforeHeaders(t *testing.T) {
 	// A message with an unexpected algorithm must be rejected as such, before
 	// the rest of the header, including any embedded key, is parsed.

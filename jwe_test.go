@@ -1180,3 +1180,49 @@ func TestFullSerializeNoRecipients(t *testing.T) {
 		t.Errorf("expected empty string, got %q", out)
 	}
 }
+
+func TestParseEncryptedMaxRecipients(t *testing.T) {
+	defer func(old int) { MaxRecipients = old }(MaxRecipients)
+
+	// makeJWE creates a JWE with n recipients.
+	makeJWE := func(n int) string {
+		recipients := strings.TrimSuffix(strings.Repeat("{},", n), ",")
+		return `{"unprotected":{"alg":"RSA-OAEP","enc":"A128GCM"},"recipients":[` + recipients +
+			`],"iv":"AAAAAAAAAAAAAAAA","ciphertext":"AA","tag":"AAAAAAAAAAAAAAAAAAAAAA"}`
+	}
+
+	testCases := []struct {
+		name       string
+		recipients int
+		limit      int // override for MaxRecipients, 0 for default
+		wantErr    bool
+	}{
+		{name: "at limit", recipients: 32},
+		{name: "over limit", recipients: 33, wantErr: true},
+		{name: "far over limit", recipients: 10000, wantErr: true},
+		{name: "raised limit", recipients: 33, limit: 33},
+		{name: "lowered limit", recipients: 2, limit: 1, wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			MaxRecipients = 32
+			if tc.limit != 0 {
+				MaxRecipients = tc.limit
+			}
+			obj, err := ParseEncrypted(makeJWE(tc.recipients), []KeyAlgorithm{RSA_OAEP}, []ContentEncryption{A128GCM})
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "too many recipients") {
+					t.Fatalf("expected too many recipients error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(obj.recipients) != tc.recipients {
+				t.Errorf("got %d recipients, want %d", len(obj.recipients), tc.recipients)
+			}
+		})
+	}
+}
