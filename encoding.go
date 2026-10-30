@@ -98,6 +98,8 @@ func inflate(input []byte) ([]byte, error) {
 }
 
 // byteBuffer represents a slice of bytes that can be serialized to url-safe base64.
+//
+// A nil byteBuffer represents an empty slice of bytes.
 type byteBuffer struct {
 	data []byte
 }
@@ -145,13 +147,13 @@ func (b *byteBuffer) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*b = *newBuffer(decoded)
+	b.data = decoded
 
 	return nil
 }
 
 func (b *byteBuffer) base64() string {
-	return base64.RawURLEncoding.EncodeToString(b.data)
+	return base64.RawURLEncoding.EncodeToString(b.bytes())
 }
 
 func (b *byteBuffer) bytes() []byte {
@@ -162,11 +164,11 @@ func (b *byteBuffer) bytes() []byte {
 	return b.data
 }
 
-func (b byteBuffer) bigInt() *big.Int {
-	return new(big.Int).SetBytes(b.data)
+func (b *byteBuffer) bigInt() *big.Int {
+	return new(big.Int).SetBytes(b.bytes())
 }
 
-func (b byteBuffer) toInt() int {
+func (b *byteBuffer) toInt() int {
 	return int(b.bigInt().Int64())
 }
 
