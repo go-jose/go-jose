@@ -135,7 +135,7 @@ func TestMLDSAUnusableKeysDoNotPanic(t *testing.T) {
 				if jwk.IsPublic() {
 					t.Error("IsPublic() = true; want false")
 				}
-				if _, err := NewSigner(SigningKey{Algorithm: ML_DSA_65, Key: tc.key}, nil); err == nil {
+				if _, err := NewSigner(SigningKey{Algorithm: MLDSA65, Key: tc.key}, nil); err == nil {
 					t.Error("NewSigner accepted the key")
 				}
 				if _, err := jwk.MarshalJSON(); err == nil {
@@ -148,8 +148,8 @@ func TestMLDSAUnusableKeysDoNotPanic(t *testing.T) {
 		}
 	})
 
-	realPriv := mldsaTestKey(t, ML_DSA_65)
-	signer, err := NewSigner(SigningKey{Algorithm: ML_DSA_65, Key: realPriv}, nil)
+	realPriv := mldsaTestKey(t, MLDSA65)
+	signer, err := NewSigner(SigningKey{Algorithm: MLDSA65, Key: realPriv}, nil)
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
@@ -224,8 +224,8 @@ func TestMLDSARoundtripJWSCorruptSignature(t *testing.T) {
 }
 
 func TestMLDSASignerRejectsMismatchedAlg(t *testing.T) {
-	priv := mldsaTestKey(t, ML_DSA_44)
-	for _, alg := range []SignatureAlgorithm{ML_DSA_65, ML_DSA_87, EdDSA, ES256} {
+	priv := mldsaTestKey(t, MLDSA44)
+	for _, alg := range []SignatureAlgorithm{MLDSA65, MLDSA87, EdDSA, ES256} {
 		if _, err := NewSigner(SigningKey{Algorithm: alg, Key: priv}, nil); err == nil {
 			t.Errorf("NewSigner accepted an ML-DSA-44 key for %s", alg)
 		}
@@ -233,10 +233,10 @@ func TestMLDSASignerRejectsMismatchedAlg(t *testing.T) {
 }
 
 func TestMLDSAVerifierRejectsMismatchedAlg(t *testing.T) {
-	priv44 := mldsaTestKey(t, ML_DSA_44)
-	priv65 := mldsaTestKey(t, ML_DSA_65)
+	priv44 := mldsaTestKey(t, MLDSA44)
+	priv65 := mldsaTestKey(t, MLDSA65)
 
-	signer, err := NewSigner(SigningKey{Algorithm: ML_DSA_44, Key: priv44}, nil)
+	signer, err := NewSigner(SigningKey{Algorithm: MLDSA44, Key: priv44}, nil)
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
@@ -248,7 +248,7 @@ func TestMLDSAVerifierRejectsMismatchedAlg(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompactSerialize: %v", err)
 	}
-	parsed, err := ParseSigned(msg, []SignatureAlgorithm{ML_DSA_44, ML_DSA_65})
+	parsed, err := ParseSigned(msg, []SignatureAlgorithm{MLDSA44, MLDSA65})
 	if err != nil {
 		t.Fatalf("ParseSigned: %v", err)
 	}
@@ -258,7 +258,7 @@ func TestMLDSAVerifierRejectsMismatchedAlg(t *testing.T) {
 }
 
 func TestMLDSAVerifyPayloadRejectsMismatchedAlg(t *testing.T) {
-	priv := mldsaTestKey(t, ML_DSA_65)
+	priv := mldsaTestKey(t, MLDSA65)
 	payload := []byte("Lorem ipsum dolor sit amet")
 
 	sig, err := priv.Sign(randReader, payload, crypto.Hash(0))
@@ -271,26 +271,26 @@ func TestMLDSAVerifyPayloadRejectsMismatchedAlg(t *testing.T) {
 		t.Fatalf("mldsaVerifier(pub) = _, %v, %v; want _, true, nil", ok, err)
 	}
 
-	if err := verifier.verifyPayload(payload, sig, ML_DSA_65); err != nil {
+	if err := verifier.verifyPayload(payload, sig, MLDSA65); err != nil {
 		t.Fatalf("verifyPayload(ML_DSA_65) failed on a matching key/signature pair: %v", err)
 	}
 
-	if err := verifier.verifyPayload(payload, sig, ML_DSA_44); !errors.Is(err, ErrUnsupportedAlgorithm) {
+	if err := verifier.verifyPayload(payload, sig, MLDSA44); !errors.Is(err, ErrUnsupportedAlgorithm) {
 		t.Errorf("verifyPayload(ML_DSA_44) = %v; want ErrUnsupportedAlgorithm", err)
 	}
 }
 
 func TestMLDSASignPayloadRejectsMismatchedAlg(t *testing.T) {
-	priv := mldsaTestKey(t, ML_DSA_65)
+	priv := mldsaTestKey(t, MLDSA65)
 	payload := []byte("Lorem ipsum dolor sit amet")
 
-	signer := &mldsaPrivateKeySigner{privateKey: priv, alg: ML_DSA_65}
+	signer := &mldsaPrivateKeySigner{privateKey: priv, alg: MLDSA65}
 
-	if _, err := signer.signPayload(payload, ML_DSA_65); err != nil {
+	if _, err := signer.signPayload(payload, MLDSA65); err != nil {
 		t.Fatalf("signPayload(ML_DSA_65) failed on a matching signer: %v", err)
 	}
 
-	if _, err := signer.signPayload(payload, ML_DSA_44); !errors.Is(err, ErrUnsupportedAlgorithm) {
+	if _, err := signer.signPayload(payload, MLDSA44); !errors.Is(err, ErrUnsupportedAlgorithm) {
 		t.Errorf("signPayload(ML_DSA_44) = _, %v; want ErrUnsupportedAlgorithm", err)
 	}
 }
@@ -326,8 +326,8 @@ func TestMLDSASignWithJSONWebKey(t *testing.T) {
 }
 
 func TestMLDSASignaturesAreRandomized(t *testing.T) {
-	priv := mldsaTestKey(t, ML_DSA_44)
-	signer, err := NewSigner(SigningKey{Algorithm: ML_DSA_44, Key: priv}, nil)
+	priv := mldsaTestKey(t, MLDSA44)
+	signer, err := NewSigner(SigningKey{Algorithm: MLDSA44, Key: priv}, nil)
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
@@ -427,9 +427,9 @@ func TestMLDSAMarshalPrivateJWK(t *testing.T) {
 }
 
 func TestMLDSAMarshalRejectsContradictoryAlgorithm(t *testing.T) {
-	priv := mldsaTestKey(t, ML_DSA_44)
+	priv := mldsaTestKey(t, MLDSA44)
 
-	if _, err := (&JSONWebKey{Key: priv, Algorithm: string(ML_DSA_44)}).MarshalJSON(); err != nil {
+	if _, err := (&JSONWebKey{Key: priv, Algorithm: string(MLDSA44)}).MarshalJSON(); err != nil {
 		t.Errorf("MarshalJSON with matching Algorithm: %v", err)
 	}
 
@@ -437,7 +437,7 @@ func TestMLDSAMarshalRejectsContradictoryAlgorithm(t *testing.T) {
 		t.Errorf("MarshalJSON with empty Algorithm: %v", err)
 	}
 
-	if _, err := (&JSONWebKey{Key: priv, Algorithm: string(ML_DSA_87)}).MarshalJSON(); err == nil {
+	if _, err := (&JSONWebKey{Key: priv, Algorithm: string(MLDSA87)}).MarshalJSON(); err == nil {
 		t.Error("MarshalJSON accepted an Algorithm contradicting the key's parameter set")
 	}
 
@@ -447,10 +447,10 @@ func TestMLDSAMarshalRejectsContradictoryAlgorithm(t *testing.T) {
 }
 
 func TestMLDSAEmbedJWKWithContradictoryAlgorithm(t *testing.T) {
-	priv := mldsaTestKey(t, ML_DSA_44)
-	signingKey := JSONWebKey{Key: priv, Algorithm: string(ML_DSA_87)}
+	priv := mldsaTestKey(t, MLDSA44)
+	signingKey := JSONWebKey{Key: priv, Algorithm: string(MLDSA87)}
 
-	signer, err := NewSigner(SigningKey{Algorithm: ML_DSA_44, Key: signingKey}, &SignerOptions{EmbedJWK: true})
+	signer, err := NewSigner(SigningKey{Algorithm: MLDSA44, Key: signingKey}, &SignerOptions{EmbedJWK: true})
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
@@ -523,7 +523,7 @@ func TestMLDSAJWKRoundtrip(t *testing.T) {
 
 // TestMLDSAParsedJWKSigns proves a parsed key is usable, not merely equal.
 func TestMLDSAParsedJWKSigns(t *testing.T) {
-	priv := mldsaTestKey(t, ML_DSA_65)
+	priv := mldsaTestKey(t, MLDSA65)
 	data, err := (&JSONWebKey{Key: priv}).MarshalJSON()
 	if err != nil {
 		t.Fatalf("MarshalJSON: %v", err)
@@ -532,7 +532,7 @@ func TestMLDSAParsedJWKSigns(t *testing.T) {
 	if err := parsed.UnmarshalJSON(data); err != nil {
 		t.Fatalf("UnmarshalJSON: %v", err)
 	}
-	if err := RoundtripJWS(ML_DSA_65, func(obj *JSONWebSignature) (string, error) {
+	if err := RoundtripJWS(MLDSA65, func(obj *JSONWebSignature) (string, error) {
 		return obj.CompactSerialize()
 	}, func(*JSONWebSignature) {}, parsed.Key, priv.PublicKey(), ""); err != nil {
 		t.Error(err)
@@ -540,11 +540,11 @@ func TestMLDSAParsedJWKSigns(t *testing.T) {
 }
 
 func TestMLDSAParseJWKRejects(t *testing.T) {
-	priv := mldsaTestKey(t, ML_DSA_44)
+	priv := mldsaTestKey(t, MLDSA44)
 	pub := base64.RawURLEncoding.EncodeToString(priv.PublicKey().Bytes())
-	pub65 := base64.RawURLEncoding.EncodeToString(mldsaTestKey(t, ML_DSA_65).PublicKey().Bytes())
+	pub65 := base64.RawURLEncoding.EncodeToString(mldsaTestKey(t, MLDSA65).PublicKey().Bytes())
 	seed := base64.RawURLEncoding.EncodeToString(priv.Bytes())
-	otherSeed := base64.RawURLEncoding.EncodeToString(mldsaTestKey(t, ML_DSA_44).Bytes())
+	otherSeed := base64.RawURLEncoding.EncodeToString(mldsaTestKey(t, MLDSA44).Bytes())
 
 	for _, tc := range []struct {
 		name string
@@ -593,8 +593,8 @@ func TestMLDSAParseJWKRejects(t *testing.T) {
 }
 
 func TestMLDSAJWKWithCertificateChain(t *testing.T) {
-	priv := mldsaTestKey(t, ML_DSA_44)
-	other := mldsaTestKey(t, ML_DSA_44)
+	priv := mldsaTestKey(t, MLDSA44)
+	other := mldsaTestKey(t, MLDSA44)
 
 	newCert := func(key *mldsa.PrivateKey) string {
 		t.Helper()
@@ -683,12 +683,12 @@ func TestMLDSAThumbprintDiffersByAlg(t *testing.T) {
 }
 
 var mldsaExpectedPubSize = map[SignatureAlgorithm]int{
-	ML_DSA_44: mldsa.MLDSA44PublicKeySize,
-	ML_DSA_65: mldsa.MLDSA65PublicKeySize,
-	ML_DSA_87: mldsa.MLDSA87PublicKeySize,
+	MLDSA44: mldsa.MLDSA44PublicKeySize,
+	MLDSA65: mldsa.MLDSA65PublicKeySize,
+	MLDSA87: mldsa.MLDSA87PublicKeySize,
 }
 
-var mldsaAlgs = []SignatureAlgorithm{ML_DSA_44, ML_DSA_65, ML_DSA_87}
+var mldsaAlgs = []SignatureAlgorithm{MLDSA44, MLDSA65, MLDSA87}
 
 func mldsaTestKey(t *testing.T, alg SignatureAlgorithm) *mldsa.PrivateKey {
 	t.Helper()

@@ -20,7 +20,6 @@ package jose
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/mldsa"
 	"errors"
 	"fmt"
@@ -32,11 +31,11 @@ import (
 // values for the FIPS 204 parameter sets of the same names.
 func mldsaParamsFor(alg SignatureAlgorithm) (mldsa.Parameters, bool) {
 	switch alg {
-	case ML_DSA_44:
+	case MLDSA44:
 		return mldsa.MLDSA44(), true
-	case ML_DSA_65:
+	case MLDSA65:
 		return mldsa.MLDSA65(), true
-	case ML_DSA_87:
+	case MLDSA87:
 		return mldsa.MLDSA87(), true
 	default:
 		return mldsa.Parameters{}, false
@@ -49,11 +48,11 @@ func mldsaParamsFor(alg SignatureAlgorithm) (mldsa.Parameters, bool) {
 func mldsaAlgFor(params mldsa.Parameters) (SignatureAlgorithm, bool) {
 	switch params {
 	case mldsa.MLDSA44():
-		return ML_DSA_44, true
+		return MLDSA44, true
 	case mldsa.MLDSA65():
-		return ML_DSA_65, true
+		return MLDSA65, true
 	case mldsa.MLDSA87():
-		return ML_DSA_87, true
+		return MLDSA87, true
 	default:
 		return "", false
 	}
@@ -235,11 +234,11 @@ func mldsaParseJWK(raw *rawJSONWebKey, certPub interface{}) (interface{}, error)
 		// enforces the length.
 		privateKey, err := mldsa.NewPrivateKey(params, raw.Priv.bytes())
 		if err != nil {
-			return nil, fmt.Errorf("go-jose/go-jose: invalid AKP private key: %w", err)
+			return nil, fmt.Errorf("go-jose/go-jose: invalid ML-DSA private key: %w", err)
 		}
 		pub = privateKey.PublicKey()
 		if !bytes.Equal(raw.Pub.bytes(), pub.Bytes()) {
-			return nil, errors.New("go-jose/go-jose: invalid AKP key, pub does not match the public key derived from priv")
+			return nil, errors.New("go-jose/go-jose: invalid ML-DSA key, pub does not match the public key derived from priv")
 		}
 		key = privateKey
 	} else {
@@ -265,10 +264,9 @@ func (ctx mldsaPrivateKeySigner) signPayload(payload []byte, alg SignatureAlgori
 		return Signature{}, ErrUnsupportedAlgorithm
 	}
 
-	// crypto.Hash(0) selects pure ML-DSA with an empty context string, which is
-	// what RFC 9964 specifies for JOSE. Note that crypto/mldsa ignores the
-	// io.Reader and draws its own randomness.
-	sig, err := ctx.privateKey.Sign(randReader, payload, crypto.Hash(0))
+	// RFC 9964 specifies empty context string and doesn't specify pre-hashing.
+	// Passing a `nil` crypto.SignerOpts gets us that.
+	sig, err := ctx.privateKey.Sign(nil, payload, nil)
 	if err != nil {
 		return Signature{}, err
 	}
@@ -286,7 +284,7 @@ func (ctx mldsaPublicKeyVerifier) verifyPayload(payload []byte, signature []byte
 		return ErrUnsupportedAlgorithm
 	}
 
-	// A nil Options means an empty context string, per RFC 9964.
+	// A nil Options means an empty context string, matching RFC 9964.
 	if err := mldsa.Verify(ctx.publicKey, payload, signature, nil); err != nil {
 		return fmt.Errorf("go-jose/go-jose: %s signature failed to verify: %w", ctx.alg, err)
 	}
@@ -297,11 +295,20 @@ func (ctx mldsaPublicKeyVerifier) verifyPayload(payload []byte, signature []byte
 // mldsaThumbprintTemplate is the JWK Thumbprint input for AKP keys. RFC 9964
 // gives the required members as "alg", "kty" and "pub"; RFC 7638 requires them
 // in lexicographic order with no whitespace. Note that AKP is the only key type
-// in this package whose thumbprint includes "alg".
+// in this package whose thumbprint includes "alg". The verbs take the algorithm
+// name and the unpadded base64url encoding of the public key's FIPS 204 encoding.
 const mldsaThumbprintTemplate = `{"alg":"%s","kty":"AKP","pub":"%s"}`
 
 // mldsaThumbprintInput builds the JWK Thumbprint input for an ML-DSA key. A
 // private key thumbprints as its public half.
+//
+// key is the value of JSONWebKey.Key and may be of any type; only
+// *mldsa.PublicKey and *mldsa.PrivateKey are ML-DSA keys.
+//
+// The second return value reports whether key was an ML-DSA key at all. When it
+// is false the string is empty and the error is nil, leaving the caller to
+// report the unknown key type. When it is true the error is non-nil if key is
+// not usable (see mldsaPublicOK) or its parameter set has no JOSE algorithm.
 func mldsaThumbprintInput(key interface{}) (string, bool, error) {
 	var pub *mldsa.PublicKey
 

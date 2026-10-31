@@ -26,7 +26,7 @@ import (
 )
 
 func TestNewMLDSASigningKey(t *testing.T) {
-	for _, alg := range []jose.SignatureAlgorithm{jose.ML_DSA_44, jose.ML_DSA_65, jose.ML_DSA_87} {
+	for _, alg := range []jose.SignatureAlgorithm{jose.MLDSA44, jose.MLDSA65, jose.MLDSA87} {
 		t.Run(string(alg), func(t *testing.T) {
 			pub, priv, err := NewSigningKey(alg, 0)
 			if err != nil {
@@ -57,7 +57,7 @@ func TestNewMLDSASigningKey(t *testing.T) {
 }
 
 func TestNewMLDSASigningKeyRejectsKeySize(t *testing.T) {
-	for _, alg := range []jose.SignatureAlgorithm{jose.ML_DSA_44, jose.ML_DSA_65, jose.ML_DSA_87} {
+	for _, alg := range []jose.SignatureAlgorithm{jose.MLDSA44, jose.MLDSA65, jose.MLDSA87} {
 		t.Run(string(alg), func(t *testing.T) {
 			if _, _, err := NewSigningKey(alg, 4096); err == nil {
 				t.Error("NewSigningKey accepted a key size for an ML-DSA algorithm")

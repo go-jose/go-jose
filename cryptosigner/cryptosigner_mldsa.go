@@ -43,11 +43,11 @@ func mldsaAlgs(pub crypto.PublicKey) ([]jose.SignatureAlgorithm, bool) {
 
 	switch key.Parameters() {
 	case mldsa.MLDSA44():
-		return []jose.SignatureAlgorithm{jose.ML_DSA_44}, true
+		return []jose.SignatureAlgorithm{jose.MLDSA44}, true
 	case mldsa.MLDSA65():
-		return []jose.SignatureAlgorithm{jose.ML_DSA_65}, true
+		return []jose.SignatureAlgorithm{jose.MLDSA65}, true
 	case mldsa.MLDSA87():
-		return []jose.SignatureAlgorithm{jose.ML_DSA_87}, true
+		return []jose.SignatureAlgorithm{jose.MLDSA87}, true
 	default:
 		return nil, false
 	}

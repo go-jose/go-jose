@@ -59,9 +59,9 @@ var allSignatureAlgorithms = []jose.SignatureAlgorithm{
 	jose.PS256,
 	jose.PS384,
 	jose.PS512,
-	jose.ML_DSA_44,
-	jose.ML_DSA_65,
-	jose.ML_DSA_87,
+	jose.MLDSA44,
+	jose.MLDSA65,
+	jose.MLDSA87,
 }
 
 var allContentEncryption = []jose.ContentEncryption{

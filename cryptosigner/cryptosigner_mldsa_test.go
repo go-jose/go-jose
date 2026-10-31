@@ -33,9 +33,9 @@ func TestMLDSAOpaqueRoundtrip(t *testing.T) {
 		alg    jose.SignatureAlgorithm
 		params mldsa.Parameters
 	}{
-		{jose.ML_DSA_44, mldsa.MLDSA44()},
-		{jose.ML_DSA_65, mldsa.MLDSA65()},
-		{jose.ML_DSA_87, mldsa.MLDSA87()},
+		{jose.MLDSA44, mldsa.MLDSA44()},
+		{jose.MLDSA65, mldsa.MLDSA65()},
+		{jose.MLDSA87, mldsa.MLDSA87()},
 	} {
 		t.Run(string(tc.alg), func(t *testing.T) {
 			key, err := mldsa.GenerateKey(tc.params)
@@ -83,7 +83,7 @@ func TestMLDSAOpaqueRejectsMismatchedAlg(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateKey: %v", err)
 	}
-	if _, err := Opaque(key).SignPayload([]byte("payload"), jose.ML_DSA_87); err == nil {
+	if _, err := Opaque(key).SignPayload([]byte("payload"), jose.MLDSA87); err == nil {
 		t.Error("SignPayload accepted ML-DSA-87 for an ML-DSA-44 key")
 	}
 }

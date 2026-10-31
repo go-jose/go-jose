@@ -79,7 +79,7 @@ func (s *cryptoSigner) Algs() []jose.SignatureAlgorithm {
 func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) ([]byte, error) {
 	var hash crypto.Hash
 	switch alg {
-	case jose.EdDSA, jose.ML_DSA_44, jose.ML_DSA_65, jose.ML_DSA_87:
+	case jose.EdDSA, jose.MLDSA44, jose.MLDSA65, jose.MLDSA87:
 		// No pre-hashing; the payload is signed directly.
 	case jose.RS256, jose.PS256, jose.ES256:
 		hash = crypto.SHA256
@@ -107,7 +107,7 @@ func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) 
 	switch alg {
 	case jose.EdDSA:
 		out, err = s.signer.Sign(s.rand, payload, crypto.Hash(0))
-	case jose.ML_DSA_44, jose.ML_DSA_65, jose.ML_DSA_87:
+	case jose.MLDSA44, jose.MLDSA65, jose.MLDSA87:
 		algs, ok := mldsaAlgs(s.signer.Public())
 		if !ok || len(algs) != 1 || algs[0] != alg {
 			return nil, jose.ErrUnsupportedAlgorithm

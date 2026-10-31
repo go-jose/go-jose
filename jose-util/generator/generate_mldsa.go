@@ -33,11 +33,11 @@ func newMLDSASigningKey(alg jose.SignatureAlgorithm, bits int) (crypto.PublicKey
 	var params mldsa.Parameters
 
 	switch alg {
-	case jose.ML_DSA_44:
+	case jose.MLDSA44:
 		params = mldsa.MLDSA44()
-	case jose.ML_DSA_65:
+	case jose.MLDSA65:
 		params = mldsa.MLDSA65()
-	case jose.ML_DSA_87:
+	case jose.MLDSA87:
 		params = mldsa.MLDSA87()
 	default:
 		return nil, nil, false, nil
