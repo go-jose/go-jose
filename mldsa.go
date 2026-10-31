@@ -65,9 +65,10 @@ func mldsaIsPublic(key interface{}) bool {
 }
 
 // mldsaValid reports whether key is an initialized ML-DSA key. It backs
-// JSONWebKey.Valid, which is how a caller asks this question. Every other hook
-// treats an uninitialized key as a programmer error, and crypto/mldsa panics on
-// one.
+// JSONWebKey.Valid, which is how a caller asks this question. mldsaVerifier
+// rejects a nil or zero-value key and mldsaSigner rejects a nil key. The other
+// hooks treat an uninitialized key as a programmer error, and crypto/mldsa
+// panics on one.
 func mldsaValid(key interface{}) bool {
 	switch k := key.(type) {
 	case *mldsa.PublicKey:
@@ -133,6 +134,9 @@ func mldsaVerifier(key interface{}) (payloadVerifier, bool, error) {
 	publicKey, ok := key.(*mldsa.PublicKey)
 	if !ok {
 		return nil, false, nil
+	}
+	if publicKey == nil || *publicKey == (mldsa.PublicKey{}) {
+		return nil, true, errInvalidVerificationKey
 	}
 
 	alg, ok := mldsaAlgFor(publicKey.Parameters())

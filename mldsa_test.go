@@ -128,6 +128,37 @@ func TestMLDSASignerRejectsNilKey(t *testing.T) {
 	}
 }
 
+func TestMLDSAVerifyRejectsUninitializedKey(t *testing.T) {
+	priv := mldsaTestKey(t, MLDSA44)
+	signer, err := NewSigner(SigningKey{Algorithm: MLDSA44, Key: priv}, nil)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	obj, err := signer.Sign([]byte("Lorem ipsum dolor sit amet"))
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+
+	var nilPub *mldsa.PublicKey
+	zeroPub := new(mldsa.PublicKey)
+
+	for _, tc := range []struct {
+		name string
+		key  interface{}
+	}{
+		{"typed-nil", nilPub},
+		{"zero-value", zeroPub},
+		{"JSONWebKey typed-nil", JSONWebKey{Key: nilPub}},
+		{"JSONWebKey zero-value", &JSONWebKey{Key: zeroPub}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := obj.Verify(tc.key); !errors.Is(err, errInvalidVerificationKey) {
+				t.Errorf("Verify() = %v; want %v", err, errInvalidVerificationKey)
+			}
+		})
+	}
+}
+
 func TestMLDSARoundtripJWS(t *testing.T) {
 	serializers := []func(*JSONWebSignature) (string, error){
 		func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() },
@@ -640,4 +671,32 @@ func mldsaTestKey(t *testing.T, alg SignatureAlgorithm) *mldsa.PrivateKey {
 		t.Fatalf("mldsa.GenerateKey(%s): %v", alg, err)
 	}
 	return key
+}
+
+func TestMLDSARejectsPrivateKeyInHeader(t *testing.T) {
+	priv := mldsaTestKey(t, MLDSA44)
+	jwk := fmt.Sprintf(`{"kty":"AKP","alg":"ML-DSA-44","pub":%q,"priv":%q}`,
+		base64.RawURLEncoding.EncodeToString(priv.PublicKey().Bytes()),
+		base64.RawURLEncoding.EncodeToString(priv.Bytes()))
+
+	for _, member := range []string{"jwk", "epk"} {
+		t.Run(member, func(t *testing.T) {
+			raw := rawHeader{HeaderKey(member): makeRawMessage([]byte(jwk))}
+			var err error
+			if member == "jwk" {
+				_, err = raw.sanitized()
+			} else {
+				_, err = raw.getEPK()
+			}
+			if err == nil {
+				t.Errorf("%q header accepted a private key", member)
+			}
+		})
+	}
+
+	// A JWK outside of a header may still carry private material.
+	var key JSONWebKey
+	if err := key.UnmarshalJSON([]byte(jwk)); err != nil {
+		t.Errorf("UnmarshalJSON: %v", err)
+	}
 }

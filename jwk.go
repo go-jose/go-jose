@@ -216,7 +216,7 @@ func (k *JSONWebKey) unmarshalJSON(data []byte, allowPrivate bool) (err error) {
 
 	if !allowPrivate &&
 		(raw.K != nil || raw.D != nil || raw.P != nil || raw.Q != nil ||
-			raw.Dp != nil || raw.Dq != nil || raw.Qi != nil) {
+			raw.Dp != nil || raw.Dq != nil || raw.Qi != nil || raw.Priv != nil) {
 		return errors.New("go-jose/go-jose: JWK contains private parameters")
 	}
 
