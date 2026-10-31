@@ -19,10 +19,7 @@
 package cryptosigner
 
 import (
-	"crypto"
 	"crypto/mldsa"
-	"errors"
-	"io"
 	"testing"
 
 	"github.com/go-jose/go-jose/v4"
@@ -86,34 +83,4 @@ func TestMLDSAOpaqueRejectsMismatchedAlg(t *testing.T) {
 	if _, err := Opaque(key).SignPayload([]byte("payload"), jose.MLDSA87); err == nil {
 		t.Error("SignPayload accepted ML-DSA-87 for an ML-DSA-44 key")
 	}
-}
-
-func TestMLDSAOpaqueAlgsDoesNotPanic(t *testing.T) {
-	var nilPub *mldsa.PublicKey
-	zeroPub := new(mldsa.PublicKey)
-
-	for _, tc := range []struct {
-		name string
-		pub  *mldsa.PublicKey
-	}{
-		{"typed-nil", nilPub},
-		{"zero-value", zeroPub},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			signer := Opaque(fakeMLDSASigner{pub: tc.pub})
-			if algs := signer.Algs(); len(algs) != 0 {
-				t.Errorf("Algs() = %v; want empty", algs)
-			}
-		})
-	}
-}
-
-type fakeMLDSASigner struct {
-	pub crypto.PublicKey
-}
-
-func (f fakeMLDSASigner) Public() crypto.PublicKey { return f.pub }
-
-func (f fakeMLDSASigner) Sign(io.Reader, []byte, crypto.SignerOpts) ([]byte, error) {
-	return nil, errors.New("fakeMLDSASigner: Sign unexpectedly called")
 }

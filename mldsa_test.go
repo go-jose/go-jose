@@ -99,94 +99,33 @@ func TestMLDSAKeyPredicates(t *testing.T) {
 	}
 }
 
-func TestMLDSANilKeysAreInvalid(t *testing.T) {
+func TestMLDSAUninitializedKeysAreInvalid(t *testing.T) {
 	var (
 		nilPriv *mldsa.PrivateKey
 		nilPub  *mldsa.PublicKey
 	)
-	if (&JSONWebKey{Key: nilPriv}).Valid() {
-		t.Error("nil *mldsa.PrivateKey reported valid")
-	}
-	if (&JSONWebKey{Key: nilPub}).Valid() {
-		t.Error("nil *mldsa.PublicKey reported valid")
+	for _, tc := range []struct {
+		name string
+		key  interface{}
+	}{
+		{"typed-nil private", nilPriv},
+		{"typed-nil public", nilPub},
+		{"zero-value private", new(mldsa.PrivateKey)},
+		{"zero-value public", new(mldsa.PublicKey)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if (&JSONWebKey{Key: tc.key}).Valid() {
+				t.Error("Valid() = true; want false")
+			}
+		})
 	}
 }
 
-func TestMLDSAUnusableKeysDoNotPanic(t *testing.T) {
+func TestMLDSASignerRejectsNilKey(t *testing.T) {
 	var nilPriv *mldsa.PrivateKey
-	var nilPub *mldsa.PublicKey
-	zeroPriv := new(mldsa.PrivateKey)
-	zeroPub := new(mldsa.PublicKey)
-
-	t.Run("private", func(t *testing.T) {
-		for _, tc := range []struct {
-			name string
-			key  *mldsa.PrivateKey
-		}{
-			{"typed-nil", nilPriv},
-			{"zero-value", zeroPriv},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				jwk := &JSONWebKey{Key: tc.key}
-
-				if jwk.Valid() {
-					t.Error("Valid() = true; want false")
-				}
-				if jwk.IsPublic() {
-					t.Error("IsPublic() = true; want false")
-				}
-				if _, err := NewSigner(SigningKey{Algorithm: MLDSA65, Key: tc.key}, nil); err == nil {
-					t.Error("NewSigner accepted the key")
-				}
-				if _, err := jwk.MarshalJSON(); err == nil {
-					t.Error("MarshalJSON accepted the key")
-				}
-				if _, err := jwk.Thumbprint(crypto.SHA256); err == nil {
-					t.Error("Thumbprint accepted the key")
-				}
-			})
-		}
-	})
-
-	realPriv := mldsaTestKey(t, MLDSA65)
-	signer, err := NewSigner(SigningKey{Algorithm: MLDSA65, Key: realPriv}, nil)
-	if err != nil {
-		t.Fatalf("NewSigner: %v", err)
+	if _, err := NewSigner(SigningKey{Algorithm: MLDSA65, Key: nilPriv}, nil); err == nil {
+		t.Error("NewSigner accepted a nil key")
 	}
-	obj, err := signer.Sign([]byte("Lorem ipsum dolor sit amet"))
-	if err != nil {
-		t.Fatalf("Sign: %v", err)
-	}
-
-	t.Run("public", func(t *testing.T) {
-		for _, tc := range []struct {
-			name string
-			key  *mldsa.PublicKey
-		}{
-			{"typed-nil", nilPub},
-			{"zero-value", zeroPub},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				jwk := &JSONWebKey{Key: tc.key}
-
-				if jwk.Valid() {
-					t.Error("Valid() = true; want false")
-				}
-				if jwk.IsPublic() {
-					t.Error("IsPublic() = true; want false")
-				}
-				if _, err := obj.Verify(tc.key); err == nil {
-					t.Error("Verify accepted the key")
-				}
-				if _, err := jwk.MarshalJSON(); err == nil {
-					t.Error("MarshalJSON accepted the key")
-				}
-				if _, err := jwk.Thumbprint(crypto.SHA256); err == nil {
-					t.Error("Thumbprint accepted the key")
-				}
-			})
-		}
-	})
 }
 
 func TestMLDSARoundtripJWS(t *testing.T) {

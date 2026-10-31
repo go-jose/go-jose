@@ -58,37 +58,30 @@ func mldsaAlgFor(params mldsa.Parameters) (SignatureAlgorithm, bool) {
 	}
 }
 
-// mldsaPublicOK reports whether pub is usable. crypto/mldsa's constructors
-// validate key material, but PublicKey is an exported struct with unexported
-// fields, so a caller can bypass them with a composite literal. Parameters()
-// panics on such a zero value, so every hook must screen for it.
-func mldsaPublicOK(pub *mldsa.PublicKey) bool {
-	return pub != nil && *pub != (mldsa.PublicKey{})
+// mldsaIsPublic reports whether key is an ML-DSA public key.
+func mldsaIsPublic(key interface{}) bool {
+	_, ok := key.(*mldsa.PublicKey)
+	return ok
 }
 
-// mldsaPrivateOK reports whether priv is usable. See mldsaPublicOK.
-func mldsaPrivateOK(priv *mldsa.PrivateKey) bool {
-	return priv != nil && *priv != (mldsa.PrivateKey{})
-}
-
-// mldsaKeyInfo reports whether key is a usable ML-DSA key, and if so whether it
-// is the public half. "Usable" excludes both a nil key and a zero-value key
-// constructed by a caller bypassing crypto/mldsa's validating constructors; see
-// mldsaPublicOK.
-func mldsaKeyInfo(key interface{}) (isPublic bool, ok bool) {
+// mldsaValid reports whether key is an initialized ML-DSA key. It backs
+// JSONWebKey.Valid, which is how a caller asks this question. Every other hook
+// treats an uninitialized key as a programmer error, and crypto/mldsa panics on
+// one.
+func mldsaValid(key interface{}) bool {
 	switch k := key.(type) {
 	case *mldsa.PublicKey:
-		return true, mldsaPublicOK(k)
+		return k != nil && *k != (mldsa.PublicKey{})
 	case *mldsa.PrivateKey:
-		return false, mldsaPrivateOK(k)
+		return k != nil && *k != (mldsa.PrivateKey{})
 	default:
-		return false, false
+		return false
 	}
 }
 
 // mldsaPublicOf returns the public half of an ML-DSA private key.
 func mldsaPublicOf(key interface{}) (interface{}, bool) {
-	if k, ok := key.(*mldsa.PrivateKey); ok && mldsaPrivateOK(k) {
+	if k, ok := key.(*mldsa.PrivateKey); ok {
 		return k.PublicKey(), true
 	}
 	return nil, false
@@ -114,7 +107,7 @@ func mldsaSigner(sigAlg SignatureAlgorithm, key interface{}) (recipientSigInfo, 
 	if !ok {
 		return recipientSigInfo{}, false, nil
 	}
-	if !mldsaPrivateOK(privateKey) {
+	if privateKey == nil {
 		return recipientSigInfo{}, true, errors.New("invalid private key")
 	}
 
@@ -141,9 +134,6 @@ func mldsaVerifier(key interface{}) (payloadVerifier, bool, error) {
 	if !ok {
 		return nil, false, nil
 	}
-	if !mldsaPublicOK(publicKey) {
-		return nil, true, errors.New("invalid public key")
-	}
 
 	alg, ok := mldsaAlgFor(publicKey.Parameters())
 	if !ok {
@@ -167,14 +157,8 @@ func mldsaRawJWK(key interface{}) (*rawJSONWebKey, bool, error) {
 
 	switch k := key.(type) {
 	case *mldsa.PublicKey:
-		if !mldsaPublicOK(k) {
-			return nil, true, errors.New("go-jose/go-jose: invalid public key")
-		}
 		pub = k
 	case *mldsa.PrivateKey:
-		if !mldsaPrivateOK(k) {
-			return nil, true, errors.New("go-jose/go-jose: invalid private key")
-		}
 		priv, pub = k, k.PublicKey()
 	default:
 		return nil, false, nil
@@ -307,26 +291,18 @@ const mldsaThumbprintTemplate = `{"alg":"%s","kty":"AKP","pub":"%s"}`
 //
 // The second return value reports whether key was an ML-DSA key at all. When it
 // is false the string is empty and the error is nil, leaving the caller to
-// report the unknown key type. When it is true the error is non-nil if key is
-// not usable (see mldsaPublicOK) or its parameter set has no JOSE algorithm.
+// report the unknown key type. When it is true the error is non-nil if the key's
+// parameter set has no JOSE algorithm.
 func mldsaThumbprintInput(key interface{}) (string, bool, error) {
 	var pub *mldsa.PublicKey
 
 	switch k := key.(type) {
 	case *mldsa.PublicKey:
-		if mldsaPublicOK(k) {
-			pub = k
-		}
+		pub = k
 	case *mldsa.PrivateKey:
-		if mldsaPrivateOK(k) {
-			pub = k.PublicKey()
-		}
+		pub = k.PublicKey()
 	default:
 		return "", false, nil
-	}
-
-	if pub == nil {
-		return "", true, errors.New("go-jose/go-jose: invalid ML-DSA key")
 	}
 
 	alg, ok := mldsaAlgFor(pub.Parameters())

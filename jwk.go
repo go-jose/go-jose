@@ -474,8 +474,7 @@ func (k *JSONWebKey) IsPublic() bool {
 	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
 		return true
 	default:
-		isPublic, ok := mldsaKeyInfo(k.Key)
-		return ok && isPublic
+		return mldsaIsPublic(k.Key)
 	}
 }
 
@@ -533,8 +532,7 @@ func (k *JSONWebKey) Valid() bool {
 			return false
 		}
 	default:
-		_, ok := mldsaKeyInfo(k.Key)
-		return ok
+		return mldsaValid(k.Key)
 	}
 	return true
 }

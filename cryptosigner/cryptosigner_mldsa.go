@@ -33,13 +33,6 @@ func mldsaAlgs(pub crypto.PublicKey) ([]jose.SignatureAlgorithm, bool) {
 	if !ok {
 		return nil, false
 	}
-	// PublicKey is an exported struct with unexported fields, so a caller can
-	// bypass crypto/mldsa's validating constructors with a composite literal.
-	// Parameters() panics on such a zero value, so screen for it explicitly;
-	// see mldsaPublicOK in package jose.
-	if key == nil || *key == (mldsa.PublicKey{}) {
-		return nil, false
-	}
 
 	switch key.Parameters() {
 	case mldsa.MLDSA44():

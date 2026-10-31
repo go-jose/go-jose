@@ -24,7 +24,9 @@
 
 package jose
 
-func mldsaKeyInfo(_ interface{}) (isPublic bool, ok bool) { return false, false }
+func mldsaIsPublic(_ interface{}) bool { return false }
+
+func mldsaValid(_ interface{}) bool { return false }
 
 func mldsaPublicOf(_ interface{}) (interface{}, bool) { return nil, false }
 
