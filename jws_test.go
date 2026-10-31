@@ -19,11 +19,11 @@ package jose
 import (
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 
+	"github.com/go-jose/go-jose/v4/json"
 	"github.com/go-jose/go-jose/v4/testutils/assert"
 )
 
@@ -279,7 +279,10 @@ func TestParseSignedJSONDoesNotRewriteMemberNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("set alg: %v", err)
 	}
-	protectedJSON := mustSerializeJSON(protected)
+	protectedJSON, err := json.Marshal(protected)
+	if err != nil {
+		t.Fatalf("marshal protected: %v", err)
+	}
 	protectedB64 := newBuffer(protectedJSON).base64()
 	payloadB64 := newBuffer(payload).base64()
 	signingInput := []byte(protectedB64 + "." + payloadB64)
@@ -865,6 +868,206 @@ func BenchmarkParseSignedCompat(b *testing.B) {
 	for range b.N {
 		if _, err := ParseSignedCompact(raw, []SignatureAlgorithm{HS256}); err != nil {
 			panic(err)
+		}
+	}
+}
+
+func TestEmbeddedPrivateJWKRejected(t *testing.T) {
+	privateJWK, err := fromRsaPrivateKey(rsaTestKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicJWK := fromRsaPublicKey(&rsaTestKey.PublicKey)
+	strayJWK := fromRsaPublicKey(&rsaTestKey.PublicKey)
+	strayJWK.P, strayJWK.Q = privateJWK.P, privateJWK.Q
+
+	testCases := []struct {
+		name        string
+		jwk         *rawJSONWebKey
+		unprotected bool // place the jwk in the unprotected header instead
+		wantErr     bool
+	}{
+		{name: "public key", jwk: publicJWK},
+		{name: "private key", jwk: privateJWK, wantErr: true},
+		{name: "private key in unprotected header", jwk: privateJWK, unprotected: true, wantErr: true},
+		{name: "symmetric key", jwk: &rawJSONWebKey{Kty: "oct", K: newBuffer([]byte("111"))}, wantErr: true},
+		{name: "public key with stray private members", jwk: strayJWK, wantErr: true},
+	}
+
+	payload := newBuffer([]byte("Lorem ipsum dolor sit amet"))
+	signature := newBuffer([]byte("not a real signature"))
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			marshal := func(v interface{}) []byte {
+				t.Helper()
+				b, err := json.Marshal(v)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return b
+			}
+
+			alg := json.RawMessage(`"RS256"`)
+			jwk := json.RawMessage(marshal(tc.jwk))
+			protected := rawHeader{headerAlgorithm: &alg}
+			var unprotected *rawHeader
+			if tc.unprotected {
+				unprotected = &rawHeader{headerJWK: &jwk}
+			} else {
+				protected[headerJWK] = &jwk
+			}
+			encProtected := newBuffer(marshal(protected))
+
+			messages := map[string]string{
+				"flattened": string(marshal(rawJSONWebSignature{
+					Payload:   payload,
+					Protected: encProtected,
+					Header:    unprotected,
+					Signature: signature,
+				})),
+				"general": string(marshal(rawJSONWebSignature{
+					Payload: payload,
+					Signatures: []rawSignatureInfo{{
+						Protected: encProtected,
+						Header:    unprotected,
+						Signature: signature,
+					}},
+				})),
+			}
+			if !tc.unprotected {
+				messages["compact"] = encProtected.base64() + "." + payload.base64() + "." + signature.base64()
+			}
+
+			for name, msg := range messages {
+				_, err := ParseSigned(msg, []SignatureAlgorithm{RS256})
+				if tc.wantErr {
+					if err == nil || !strings.Contains(err.Error(), "JWK contains private parameters") {
+						t.Errorf("%s: expected private parameters error, got %v", name, err)
+					}
+				} else if err != nil {
+					t.Errorf("%s: unexpected error: %v", name, err)
+				}
+			}
+		})
+	}
+}
+
+func TestGeneralSerializationUnprotectedHeader(t *testing.T) {
+	// The unprotected header of each signature must be reflected in the parsed
+	// Header and Unprotected fields for both serializations.
+	protected := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`))
+	payload := base64.RawURLEncoding.EncodeToString([]byte("Lorem ipsum dolor sit amet"))
+	signature := base64.RawURLEncoding.EncodeToString([]byte("not a real signature"))
+	unprotected := `"header":{"kid":"from-unprotected"}`
+
+	messages := map[string]string{
+		"flattened": `{"payload":"` + payload + `","protected":"` + protected + `",` + unprotected + `,"signature":"` + signature + `"}`,
+		"general":   `{"payload":"` + payload + `","signatures":[{"protected":"` + protected + `",` + unprotected + `,"signature":"` + signature + `"}]}`,
+	}
+	for name, msg := range messages {
+		t.Run(name, func(t *testing.T) {
+			obj, err := ParseSigned(msg, []SignatureAlgorithm{RS256})
+			if err != nil {
+				t.Fatal(err)
+			}
+			sig := obj.Signatures[0]
+			if sig.Header.KeyID != "from-unprotected" {
+				t.Errorf("Header.KeyID = %q, want %q", sig.Header.KeyID, "from-unprotected")
+			}
+			if sig.Unprotected.KeyID != "from-unprotected" {
+				t.Errorf("Unprotected.KeyID = %q, want %q", sig.Unprotected.KeyID, "from-unprotected")
+			}
+		})
+	}
+}
+
+func TestParseSignedMaxSignatures(t *testing.T) {
+	defer func(old int) { MaxSignatures = old }(MaxSignatures)
+
+	// makeJWS makes a JWS with n signatures.
+	makeJWS := func(n int) string {
+		sigs := strings.TrimSuffix(strings.Repeat(`{"protected":"eyJhbGciOiJSUzI1NiJ9","signature":"AA"},`, n), ",")
+		return `{"payload":"AA","signatures":[` + sigs + `]}`
+	}
+
+	testCases := []struct {
+		name       string
+		signatures int
+		limit      int // override for MaxSignatures, 0 for default
+		wantErr    bool
+	}{
+		{name: "at limit", signatures: 32},
+		{name: "over limit", signatures: 33, wantErr: true},
+		{name: "far over limit", signatures: 10000, wantErr: true},
+		{name: "raised limit", signatures: 33, limit: 33},
+		{name: "lowered limit", signatures: 2, limit: 1, wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			MaxSignatures = 32
+			if tc.limit != 0 {
+				MaxSignatures = tc.limit
+			}
+			obj, err := ParseSigned(makeJWS(tc.signatures), []SignatureAlgorithm{RS256})
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "too many signatures") {
+					t.Fatalf("expected too many signatures error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(obj.Signatures) != tc.signatures {
+				t.Errorf("got %d signatures, want %d", len(obj.Signatures), tc.signatures)
+			}
+		})
+	}
+}
+
+func TestUnexpectedAlgorithmCheckedBeforeHeaders(t *testing.T) {
+	// A message with an unexpected algorithm must be rejected as such, before
+	// the rest of the header, including any embedded key, is parsed.
+	protected := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","jwk":"not a key"}`))
+	payload := base64.RawURLEncoding.EncodeToString([]byte("Lorem ipsum dolor sit amet"))
+	signature := base64.RawURLEncoding.EncodeToString([]byte("not a real signature"))
+
+	messages := map[string]string{
+		"compact":   protected + "." + payload + "." + signature,
+		"flattened": `{"payload":"` + payload + `","protected":"` + protected + `","signature":"` + signature + `"}`,
+		"general":   `{"payload":"` + payload + `","signatures":[{"protected":"` + protected + `","signature":"` + signature + `"}]}`,
+	}
+	for name, msg := range messages {
+		t.Run(name, func(t *testing.T) {
+			_, err := ParseSigned(msg, []SignatureAlgorithm{RS256})
+			var errUnexpectedSigAlg *ErrUnexpectedSignatureAlgorithm
+			if !errors.As(err, &errUnexpectedSigAlg) {
+				t.Fatalf("expected ErrUnexpectedSignatureAlgorithm, got %v", err)
+			}
+		})
+	}
+}
+
+// A protected header of JSON null must be rejected at parse time, not parsed
+// as a non-nil pointer to a nil map.
+func TestRejectNullProtectedHeader(t *testing.T) {
+	inputs := []string{
+		// Flattened, "null"
+		`{"payload":"dGVzdA","protected":"bnVsbA","header":{"alg":"HS256"},"signature":"AAAA"}`,
+		// Flattened, " null "
+		`{"payload":"dGVzdA","protected":"IG51bGwg","header":{"alg":"HS256"},"signature":"AAAA"}`,
+		// General, "null"
+		`{"payload":"dGVzdA","signatures":[{"protected":"bnVsbA","header":{"alg":"HS256"},"signature":"AAAA"}]}`,
+		// Compact, "null"
+		`bnVsbA.dGVzdA.AAAA`,
+	}
+
+	for _, input := range inputs {
+		_, err := ParseSigned(input, []SignatureAlgorithm{HS256})
+		if err == nil || !strings.Contains(err.Error(), "invalid protected header") {
+			t.Errorf("expected invalid protected header error for %s, got %v", input, err)
 		}
 	}
 }

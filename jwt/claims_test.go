@@ -120,6 +120,32 @@ func TestNumericDate(t *testing.T) {
 	}
 }
 
+func TestNumericDateOutOfRange(t *testing.T) {
+	// Values large enough to overflow the int64 conversion or time.Unix wrap
+	// to a bogus instant, so they must be rejected rather than stored. The
+	// 9.22e18 case fits in an int64 but still overflows time.Unix's internal
+	// offset.
+	for _, raw := range []string{"1e19", "-1e19", "9.3e18", "9223372036800000000", "1e300"} {
+		var nd NumericDate
+		assert.ErrorIs(t, nd.UnmarshalJSON([]byte(raw)), ErrUnmarshalNumericDate)
+	}
+
+	// In-range values, including fractional seconds, still parse.
+	var nd NumericDate
+	if assert.NoError(t, nd.UnmarshalJSON([]byte("1451606400.5"))) {
+		assert.Equal(t, int64(1451606400), int64(nd))
+	}
+}
+
+// TestOutOfRangeNbfNotBeforeCheck guards against an out-of-range "nbf" being
+// silently accepted. Before the range check in UnmarshalJSON, {"nbf": 1e19}
+// overflowed to a value that time.Unix wrapped into the past, so Validate
+// accepted a token that is not yet valid; it must now fail to decode.
+func TestOutOfRangeNbfNotBeforeCheck(t *testing.T) {
+	var c Claims
+	assert.ErrorIs(t, json.Unmarshal([]byte(`{"nbf": 1e19}`), &c), ErrUnmarshalNumericDate)
+}
+
 func TestEncodeClaimsTimeValues(t *testing.T) {
 	now := time.Date(2016, 1, 1, 0, 0, 0, 0, time.UTC)
 

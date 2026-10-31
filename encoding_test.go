@@ -103,6 +103,28 @@ func TestByteBufferTrim(t *testing.T) {
 	}
 }
 
+func TestNilByteBuffer(t *testing.T) {
+	var buf *byteBuffer
+
+	if got := buf.bytes(); got != nil {
+		t.Errorf("bytes() = %v, want nil", got)
+	}
+	if got := buf.base64(); got != "" {
+		t.Errorf("base64() = %q, want empty string", got)
+	}
+	if got := buf.bigInt(); got.Sign() != 0 {
+		t.Errorf("bigInt() = %s, want 0", got)
+	}
+
+	got, err := buf.MarshalJSON()
+	if err != nil {
+		t.Errorf("MarshalJSON() returned error: %s", err)
+	}
+	if string(got) != `""` {
+		t.Errorf("MarshalJSON() = %s, want %s", got, `""`)
+	}
+}
+
 func TestFixedSizeBuffer(t *testing.T) {
 	data0 := []byte{}
 	data1 := []byte{1}
@@ -131,17 +153,6 @@ func TestFixedSizeBuffer(t *testing.T) {
 	if !bytes.Equal(buf4.data, []byte{1, 2, 3, 4}) {
 		t.Error("Invalid padded buffer for buf4")
 	}
-}
-
-func TestSerializeJSONRejectsNil(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r == nil || !strings.Contains(r.(string), "nil pointer") {
-			t.Error("serialize function should not accept nil pointer")
-		}
-	}()
-
-	mustSerializeJSON(nil)
 }
 
 func TestFixedSizeBufferTooLarge(t *testing.T) {
