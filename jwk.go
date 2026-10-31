@@ -280,6 +280,9 @@ func (k *JSONWebKey) UnmarshalJSON(data []byte) (err error) {
 		if err != nil {
 			return err
 		}
+		// mldsaParseJWK compared certPub using (*mldsa.PublicKey).Equal, so the
+		// generic comparison below only needs to confirm that a leaf key exists.
+		keyPub = certPub
 	case "":
 		// kty MUST be present
 		return fmt.Errorf("go-jose/go-jose: missing json web key type")
