@@ -230,7 +230,7 @@ func mldsaParseJWK(raw *rawJSONWebKey, certPub interface{}) (interface{}, error)
 		// which is what catches an alg/pub mismatch.
 		publicKey, err := mldsa.NewPublicKey(params, raw.Pub.bytes())
 		if err != nil {
-			return nil, fmt.Errorf("go-jose/go-jose: invalid AKP public key: %w", err)
+			return nil, fmt.Errorf("go-jose/go-jose: invalid ML-DSA public key: %w", err)
 		}
 		pub = publicKey
 		key = publicKey
