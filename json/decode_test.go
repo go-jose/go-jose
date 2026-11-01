@@ -1473,3 +1473,35 @@ func TestInvalidStringOption(t *testing.T) {
 		t.Fatalf("Unmarshal: %v", err)
 	}
 }
+
+func TestUnmarshalMaxDepth(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        string
+		errMaxDepth bool
+	}{
+		{"ArrayUnderMaxNestingDepth", `{"a":` + strings.Repeat(`[`, 10000-1) + strings.Repeat(`]`, 10000-1) + `}`, false},
+		{"ArrayOverMaxNestingDepth", `{"a":` + strings.Repeat(`[`, 10000) + strings.Repeat(`]`, 10000) + `}`, true},
+		{"ArrayOverStackDepth", `{"a":` + strings.Repeat(`[`, 3000000) + strings.Repeat(`]`, 3000000) + `}`, true},
+		{"ObjectUnderMaxNestingDepth", `{"a":` + strings.Repeat(`{"a":`, 10000-1) + `0` + strings.Repeat(`}`, 10000-1) + `}`, false},
+		{"ObjectOverMaxNestingDepth", `{"a":` + strings.Repeat(`{"a":`, 10000) + `0` + strings.Repeat(`}`, 10000) + `}`, true},
+		{"ObjectOverStackDepth", `{"a":` + strings.Repeat(`{"a":`, 3000000) + `0` + strings.Repeat(`}`, 3000000) + `}`, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var v interface{}
+			err := Unmarshal([]byte(tt.data), &v)
+			if tt.errMaxDepth {
+				if err == nil {
+					t.Fatalf("Unmarshal succeeded, want an error")
+				}
+				if !strings.Contains(err.Error(), "exceeded max depth") {
+					t.Fatalf("Unmarshal error = %q, want it to mention exceeded max depth", err)
+				}
+			} else if err != nil {
+				t.Fatalf("Unmarshal error = %v, want nil", err)
+			}
+		})
+	}
+}
