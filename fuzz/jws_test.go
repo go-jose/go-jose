@@ -106,18 +106,18 @@ func FuzzJWSParse(f *testing.F) {
 		sig, err := jose.ParseSigned(data, allSignatureAlgorithms)
 		if err == nil {
 			sig.FullSerialize()
-			_, _ = sig.CompactSerialize()
-			_, _ = sig.DetachedCompactSerialize()
+			_, _ = sig.compactSerialize()
+			_, _ = sig.DetachedcompactSerialize()
 		}
 		sig, err = jose.ParseSignedCompact(data, allSignatureAlgorithms)
 		if err == nil {
 			sig.FullSerialize()
-			_, _ = sig.CompactSerialize()
+			_, _ = sig.compactSerialize()
 		}
 		sig, err = jose.ParseSignedJSON(data, allSignatureAlgorithms)
 		if err == nil {
 			sig.FullSerialize()
-			_, _ = sig.CompactSerialize()
+			_, _ = sig.compactSerialize()
 		}
 	})
 }

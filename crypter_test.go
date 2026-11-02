@@ -169,7 +169,7 @@ func TestRoundtripsJWE(t *testing.T) {
 	zipAlgs := []CompressionAlgorithm{NONE, DEFLATE}
 
 	serializers := []func(*JSONWebEncryption) (string, error){
-		func(obj *JSONWebEncryption) (string, error) { return obj.CompactSerialize() },
+		func(obj *JSONWebEncryption) (string, error) { return obj.compactSerialize() },
 		func(obj *JSONWebEncryption) (string, error) { return obj.FullSerialize(), nil },
 	}
 
@@ -208,7 +208,7 @@ func TestRoundtripsJWECorrupted(t *testing.T) {
 	zipAlgs := []CompressionAlgorithm{NONE, DEFLATE}
 
 	serializers := []func(*JSONWebEncryption) (string, error){
-		func(obj *JSONWebEncryption) (string, error) { return obj.CompactSerialize() },
+		func(obj *JSONWebEncryption) (string, error) { return obj.compactSerialize() },
 		func(obj *JSONWebEncryption) (string, error) { return obj.FullSerialize(), nil },
 	}
 
@@ -316,7 +316,7 @@ func TestEncrypterWithJWKAndKeyIDByReference(t *testing.T) {
 
 	ciphertext, _ := enc.Encrypt([]byte("Lorem ipsum dolor sit amet"))
 
-	serialized1, _ := ciphertext.CompactSerialize()
+	serialized1, _ := ciphertext.compactSerialize()
 	serialized2 := ciphertext.FullSerialize()
 
 	parsed1, _ := ParseEncrypted(serialized1, []KeyAlgorithm{A128KW}, []ContentEncryption{A128GCM})
@@ -341,7 +341,7 @@ func TestEncrypterWithJWKAndKeyIDByValue(t *testing.T) {
 
 	ciphertext, _ := enc.Encrypt([]byte("Lorem ipsum dolor sit amet"))
 
-	serialized1, _ := ciphertext.CompactSerialize()
+	serialized1, _ := ciphertext.compactSerialize()
 	serialized2 := ciphertext.FullSerialize()
 
 	parsed1, _ := ParseEncrypted(serialized1, []KeyAlgorithm{A128KW}, []ContentEncryption{A128GCM})
@@ -662,9 +662,9 @@ func TestPBES2JWKEncryption(t *testing.T) {
 		t.Fatal("error on new Encrypt:", err)
 	}
 
-	serialized, err := obj.CompactSerialize()
+	serialized, err := obj.compactSerialize()
 	if err != nil {
-		t.Fatal("error on CompactSerialize")
+		t.Fatal("error on compactSerialize")
 	}
 
 	jwe1, err := ParseEncrypted(serialized, []KeyAlgorithm{PBES2_HS256_A128KW}, []ContentEncryption{A128CBC_HS256})
@@ -720,7 +720,7 @@ func TestEncrypterWithPBES2(t *testing.T) {
 
 			ciphertext, _ := enc.Encrypt(expected)
 
-			serialized1, _ := ciphertext.CompactSerialize()
+			serialized1, _ := ciphertext.compactSerialize()
 			serialized2 := ciphertext.FullSerialize()
 
 			parsed1, _ := ParseEncrypted(serialized1, []KeyAlgorithm{alg}, []ContentEncryption{A128GCM})
@@ -767,7 +767,7 @@ func TestRejectTooHighP2C(t *testing.T) {
 
 			ciphertext, _ := enc.Encrypt(expected)
 
-			serialized1, _ := ciphertext.CompactSerialize()
+			serialized1, _ := ciphertext.compactSerialize()
 			serialized2 := ciphertext.FullSerialize()
 
 			parsed1, _ := ParseEncrypted(serialized1, []KeyAlgorithm{alg}, []ContentEncryption{A128GCM})

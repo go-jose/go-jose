@@ -27,8 +27,8 @@ import (
 
 // Encrypter represents an encrypter which produces an encrypted JWE object.
 type Encrypter interface {
-	Encrypt(plaintext []byte) (*JSONWebEncryption, error)
-	EncryptWithAuthData(plaintext []byte, aad []byte) (*JSONWebEncryption, error)
+	Encrypt(plaintext []byte) (string, error)
+	EncryptWithAuthData(plaintext []byte, aad []byte) (string, error)
 	Options() EncrypterOptions
 }
 
@@ -73,7 +73,8 @@ type recipientKeyInfo struct {
 
 // EncrypterOptions represents options that can be set on new encrypters.
 type EncrypterOptions struct {
-	Compression CompressionAlgorithm
+	Serialization JOSESerialization
+	Compression   CompressionAlgorithm
 
 	// Optional map of name/value pairs to be inserted into the protected
 	// header of a JWS object. Some specifications which make use of
@@ -333,30 +334,30 @@ func newDecrypter(decryptionKey interface{}) (keyDecrypter, error) {
 }
 
 // Implementation of encrypt method producing a JWE object.
-func (ctx *genericEncrypter) Encrypt(plaintext []byte) (*JSONWebEncryption, error) {
+func (ctx *genericEncrypter) Encrypt(plaintext []byte) (string, error) {
 	return ctx.EncryptWithAuthData(plaintext, nil)
 }
 
 // Implementation of encrypt method producing a JWE object.
-func (ctx *genericEncrypter) EncryptWithAuthData(plaintext, aad []byte) (*JSONWebEncryption, error) {
+func (ctx *genericEncrypter) EncryptWithAuthData(plaintext, aad []byte) (string, error) {
 	obj := &JSONWebEncryption{}
 	obj.aad = aad
 
 	obj.protected = &rawHeader{}
 	err := obj.protected.set(headerEncryption, ctx.contentAlg)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	obj.recipients = make([]recipientInfo, len(ctx.recipients))
 
 	if len(ctx.recipients) == 0 {
-		return nil, fmt.Errorf("go-jose/go-jose: no recipients to encrypt to")
+		return "", fmt.Errorf("go-jose/go-jose: no recipients to encrypt to")
 	}
 
 	cek, headers, err := ctx.keyGenerator.genKey()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	obj.protected.merge(&headers)
@@ -364,18 +365,18 @@ func (ctx *genericEncrypter) EncryptWithAuthData(plaintext, aad []byte) (*JSONWe
 	for i, info := range ctx.recipients {
 		recipient, err := info.keyEncrypter.encryptKey(cek, info.keyAlg)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		err = recipient.header.set(headerAlgorithm, info.keyAlg)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		if info.keyID != "" {
 			err = recipient.header.set(headerKeyID, info.keyID)
 			if err != nil {
-				return nil, err
+				return "", err
 			}
 		}
 		obj.recipients[i] = recipient
@@ -391,37 +392,47 @@ func (ctx *genericEncrypter) EncryptWithAuthData(plaintext, aad []byte) (*JSONWe
 	if ctx.compressionAlg != NONE {
 		plaintext, err = compress(ctx.compressionAlg, plaintext)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		err = obj.protected.set(headerCompression, ctx.compressionAlg)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 
 	for k, v := range ctx.extraHeaders {
 		b, err := json.Marshal(v, json.Deterministic(true))
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		(*obj.protected)[k] = makeRawMessage(b)
 	}
 
 	authData, err := obj.computeAuthData()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	parts, err := ctx.cipher.encrypt(cek, authData, plaintext)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	obj.iv = parts.iv
 	obj.ciphertext = parts.ciphertext
 	obj.tag = parts.tag
 
-	return obj, nil
+	if err != nil {
+		return "", err
+	}
+	switch ctx.Options().Serialization {
+	case COMPACT:
+		return obj.compactSerialize()
+	case GENERAL_JSON, FLATTENED_JSON, FLATTENED_OR_GENERAL_JSON:
+		return obj.fullSerialize(), nil
+	default:
+		return "", fmt.Errorf("invalid serialization type")
+	}
 }
 
 func (ctx *genericEncrypter) Options() EncrypterOptions {

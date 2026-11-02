@@ -101,7 +101,7 @@ func TestRoundtripsJWS(t *testing.T) {
 	sigAlgs := []SignatureAlgorithm{RS256, RS384, RS512, PS256, PS384, PS512, HS256, HS384, HS512, ES256, ES384, ES512, EdDSA}
 
 	serializers := []func(*JSONWebSignature) (string, error){
-		func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() },
+		func(obj *JSONWebSignature) (string, error) { return obj.compactSerialize() },
 		func(obj *JSONWebSignature) (string, error) { return obj.FullSerialize(), nil },
 	}
 
@@ -126,7 +126,7 @@ func TestRoundtripsJWSCorruptSignature(t *testing.T) {
 	sigAlgs := []SignatureAlgorithm{RS256, RS384, RS512, PS256, PS384, PS512, HS256, HS384, HS512, ES256, ES384, ES512, EdDSA}
 
 	serializers := []func(*JSONWebSignature) (string, error){
-		func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() },
+		func(obj *JSONWebSignature) (string, error) { return obj.compactSerialize() },
 		func(obj *JSONWebSignature) (string, error) { return obj.FullSerialize(), nil },
 	}
 
@@ -170,7 +170,7 @@ func TestSignerWithBrokenRand(t *testing.T) {
 		sigAlgs = append(sigAlgs, RS256, RS384, RS512)
 	}
 
-	serializer := func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() }
+	serializer := func(obj *JSONWebSignature) (string, error) { return obj.compactSerialize() }
 	corrupter := func(obj *JSONWebSignature) {}
 
 	brokenRandReaders := []func() io.Reader{
@@ -293,7 +293,7 @@ func TestMultiRecipientJWS(t *testing.T) {
 		t.Fatal("error on sign: ", err)
 	}
 
-	_, err = obj.CompactSerialize()
+	_, err = obj.compactSerialize()
 	if err == nil {
 		t.Fatal("message with multiple recipient was compact serialized")
 	}
@@ -729,7 +729,7 @@ func TestSignerB64(t *testing.T) {
 		t.Error("Failed to sign payload")
 	}
 
-	msg, err := obj.CompactSerialize()
+	msg, err := obj.compactSerialize()
 	if err != nil {
 		t.Error("Failed to serialize")
 	}

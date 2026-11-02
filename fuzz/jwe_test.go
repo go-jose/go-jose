@@ -62,18 +62,18 @@ func FuzzJWEParse(f *testing.F) {
 		enc, err := jose.ParseEncrypted(data, allKeyAlgorithms, allContentEncryption)
 		if err == nil {
 			enc.FullSerialize()
-			_, _ = enc.CompactSerialize()
+			_, _ = enc.compactSerialize()
 			_ = enc.GetAuthData()
 		}
 		enc, err = jose.ParseEncryptedCompact(data, allKeyAlgorithms, allContentEncryption)
 		if err == nil {
 			enc.FullSerialize()
-			_, _ = enc.CompactSerialize()
+			_, _ = enc.compactSerialize()
 		}
 		enc, err = jose.ParseEncryptedJSON(data, allKeyAlgorithms, allContentEncryption)
 		if err == nil {
 			enc.FullSerialize()
-			_, _ = enc.CompactSerialize()
+			_, _ = enc.compactSerialize()
 		}
 	})
 }

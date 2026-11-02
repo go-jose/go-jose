@@ -34,7 +34,7 @@ type NonceSource interface {
 
 // Signer represents a signer which takes a payload and produces a signed JWS object.
 type Signer interface {
-	Sign(payload []byte) (*JSONWebSignature, error)
+	Sign(payload []byte) (string, error)
 	Options() SignerOptions
 }
 
@@ -60,8 +60,10 @@ type SigningKey struct {
 
 // SignerOptions represents options that can be set when creating signers.
 type SignerOptions struct {
-	NonceSource NonceSource
-	EmbedJWK    bool
+	Serialization   JOSESerialization
+	DetachedPayload bool
+	NonceSource     NonceSource
+	EmbedJWK        bool
 
 	// Optional map of additional keys to be inserted into the protected header
 	// of a JWS object. Some specifications which make use of JWS like to insert
@@ -279,7 +281,7 @@ func newJWKSigner(alg SignatureAlgorithm, signingKey JSONWebKey) (recipientSigIn
 	return recipient, nil
 }
 
-func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
+func (ctx *genericSigner) Sign(payload []byte) (string, error) {
 	obj := &JSONWebSignature{}
 	obj.payload = payload
 	obj.Signatures = make([]Signature, len(ctx.recipients))
@@ -311,7 +313,7 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 		if ctx.nonceSource != nil {
 			nonce, err := ctx.nonceSource.Nonce()
 			if err != nil {
-				return nil, fmt.Errorf("go-jose/go-jose: Error generating nonce: %v", err)
+				return "", fmt.Errorf("go-jose/go-jose: Error generating nonce: %v", err)
 			}
 			protected[headerNonce] = nonce
 		}
@@ -322,13 +324,13 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 
 		serializedProtected, err := json.Marshal(protected, json.Deterministic(true))
 		if err != nil {
-			return nil, fmt.Errorf("go-jose/go-jose: Error marshaling JSON: %s", err)
+			return "", fmt.Errorf("go-jose/go-jose: Error marshaling JSON: %s", err)
 		}
 		needsBase64 := true
 
 		if b64, ok := protected[headerB64]; ok {
 			if needsBase64, ok = b64.(bool); !ok {
-				return nil, errors.New("go-jose/go-jose: Invalid b64 header parameter")
+				return "", errors.New("go-jose/go-jose: Invalid b64 header parameter")
 			}
 		}
 
@@ -345,21 +347,28 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 
 		signatureInfo, err := recipient.signer.signPayload(input.Bytes(), recipient.sigAlg)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		signatureInfo.protected = &rawHeader{}
 		for k, v := range protected {
 			b, err := json.Marshal(v, json.Deterministic(true))
 			if err != nil {
-				return nil, fmt.Errorf("go-jose/go-jose: Error marshalling item %#v: %v", k, err)
+				return "", fmt.Errorf("go-jose/go-jose: Error marshalling item %#v: %v", k, err)
 			}
 			(*signatureInfo.protected)[k] = makeRawMessage(b)
 		}
 		obj.Signatures[i] = signatureInfo
 	}
 
-	return obj, nil
+	switch ctx.Options().Serialization {
+	case COMPACT:
+		return obj.compactSerialize(ctx.Options().DetachedPayload)
+	case FLATTENED_JSON, GENERAL_JSON, FLATTENED_OR_GENERAL_JSON:
+		return obj.fullSerialize(), nil
+	default:
+		return "", fmt.Errorf("invalid serialization type")
+	}
 }
 
 func (ctx *genericSigner) Options() SignerOptions {

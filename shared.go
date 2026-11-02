@@ -42,6 +42,36 @@ type CompressionAlgorithm string
 // ContentType represents type of the contained data.
 type ContentType string
 
+type JOSESerialization int
+
+const (
+	COMPACT JOSESerialization = iota + 1
+	// FLATTENED_OR_GENERAL_JSON will emit flattened JSON serialization when
+	// there is a single recipient or signature, otherwise general.
+	// At parse time, it will accept either.
+	FLATTENED_OR_GENERAL_JSON
+	// FLATTENED_JSON will emit and parse only flattened JSON serialization and
+	// will error if there are multiple recipients or signatures.
+	FLATTENED_JSON
+	// FLATTENED_JSON will emit and parse only general JSON serialization.
+	GENERAL_JSON
+)
+
+// ParserOptions represents options that can be set when parsing.
+type ParserOptions struct {
+	Serialization    JOSESerialization
+	DetachedPayload  bool
+	AllowEmbeddedJWK bool
+
+	// SupportedCriticalHeaderNames contains a list of header names that the
+	// application recognizes and should not be rejected during parsing.
+	SupportedCriticalHeaderNames []string
+
+	MaxRecipients     int
+	MaxSignatures     int
+	MaxRSAModulusBits int
+}
+
 var (
 	// ErrCryptoFailure represents an error in cryptographic primitive. This
 	// occurs when, for example, a message had an invalid authentication tag or

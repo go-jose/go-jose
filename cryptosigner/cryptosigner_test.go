@@ -37,7 +37,7 @@ func TestRoundtripsJWSCryptoSigner(t *testing.T) {
 	sigAlgs := []jose.SignatureAlgorithm{jose.RS256, jose.RS384, jose.RS512, jose.PS256, jose.PS384, jose.PS512, jose.ES256, jose.ES384, jose.ES512, jose.EdDSA}
 
 	serializers := []func(*jose.JSONWebSignature) (string, error){
-		func(obj *jose.JSONWebSignature) (string, error) { return obj.CompactSerialize() },
+		func(obj *jose.JSONWebSignature) (string, error) { return obj.compactSerialize() },
 		func(obj *jose.JSONWebSignature) (string, error) { return obj.FullSerialize(), nil },
 	}
 

@@ -336,7 +336,7 @@ func TestParseEncryptedZeroValueProtectedHeaders(t *testing.T) {
 	}
 }
 
-func TestCompactSerialize(t *testing.T) {
+func TestcompactSerialize(t *testing.T) {
 	// Compact serialization must fail if we have unprotected headers
 	obj := &JSONWebEncryption{
 		unprotected: &rawHeader{},
@@ -347,7 +347,7 @@ func TestCompactSerialize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = obj.CompactSerialize()
+	_, err = obj.compactSerialize()
 	if err == nil {
 		t.Error("Object with unprotected headers can't be compact serialized")
 	}
@@ -417,7 +417,7 @@ func TestVectorsJWE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	serialized, err := object.CompactSerialize()
+	serialized, err := object.compactSerialize()
 	if err != nil {
 		t.Fatal(err)
 	}

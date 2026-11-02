@@ -202,7 +202,7 @@ func (b *signedBuilder) Serialize() (string, error) {
 		return "", err
 	}
 
-	return sig.CompactSerialize()
+	return sig.compactSerialize()
 }
 
 func (b *signedBuilder) sign() (*jose.JSONWebSignature, error) {
@@ -231,7 +231,7 @@ func (b *encryptedBuilder) Serialize() (string, error) {
 		return "", err
 	}
 
-	return enc.CompactSerialize()
+	return enc.compactSerialize()
 }
 
 func (b *encryptedBuilder) Token() (*JSONWebToken, error) {
@@ -285,7 +285,7 @@ func (b *nestedBuilder) Serialize() (string, error) {
 		return "", err
 	}
 
-	return enc.CompactSerialize()
+	return enc.compactSerialize()
 }
 
 func (b *nestedBuilder) FullSerialize() (string, error) {
@@ -312,7 +312,7 @@ func (b *nestedBuilder) signAndEncrypt() (*jose.JSONWebEncryption, error) {
 		return nil, err
 	}
 
-	p2, err := sig.CompactSerialize()
+	p2, err := sig.compactSerialize()
 	if err != nil {
 		return nil, err
 	}

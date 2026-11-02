@@ -52,7 +52,7 @@ func Example_jWE() {
 
 	// Serialize the encrypted object using the JWE JSON Serialization format.
 	// Alternatively you can also use the compact format here by calling
-	// object.CompactSerialize() instead.
+	// object.compactSerialize() instead.
 	serialized := object.FullSerialize()
 
 	// Parse the serialized, encrypted JWE object. An error would indicate that
@@ -98,7 +98,7 @@ func Example_jWS() {
 
 	// Serialize the signed object using the JWS JSON Serialization format.
 	// Alternatively you can also use the compact format here by calling
-	// object.CompactSerialize() instead.
+	// object.compactSerialize() instead.
 	serialized := object.FullSerialize()
 
 	// Parse the serialized, protected JWS object. An error would indicate that

@@ -164,7 +164,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 
 	jwt1, err := SignedAndEncrypted(rsaSigner, encrypter).Claims(&testClaims{"foo"}).Token()
 	require.NoError(t, err, "Error marshaling signed-then-encrypted token.")
-	jwt1Serialized, err := jwt1.enc.CompactSerialize()
+	jwt1Serialized, err := jwt1.enc.compactSerialize()
 	require.NoError(t, err, "Error serializing signed-then-encrypted token.")
 	jwt1Deserialized, err := ParseSignedAndEncrypted(jwt1Serialized,
 		[]jose.KeyAlgorithm{jose.DIRECT},

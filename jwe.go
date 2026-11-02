@@ -140,28 +140,27 @@ func containsContentEncryption(haystack []ContentEncryption, needle ContentEncry
 //
 // The keyAlgorithms and contentEncryption parameters contain the allowable algorithms in the "alg" and "enc"
 // header parameters respectively. They must be non-empty. Non-matching algorithms cause a parse error.
-//
-// Deprecated: use ParseEncryptedJSON or ParseEncryptedCompact depending on which serialization you expect.
 func ParseEncrypted(input string,
 	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
+	opts ParserOptions,
 ) (*JSONWebEncryption, error) {
 	input = stripWhitespace(input)
 	if strings.HasPrefix(input, "{") {
-		return ParseEncryptedJSON(input, keyEncryptionAlgorithms, contentEncryption)
+		return parseEncryptedJSON(input, keyEncryptionAlgorithms, contentEncryption)
 	}
 
-	return ParseEncryptedCompact(input, keyEncryptionAlgorithms, contentEncryption)
+	return parseEncryptedCompact(input, keyEncryptionAlgorithms, contentEncryption)
 }
 
-// ParseEncryptedJSON parses a message in JWE JSON Serialization. Messages with
+// parseEncryptedJSON parses a message in JWE JSON Serialization. Messages with
 // more than [MaxRecipients] recipients are rejected.
 //
 // https://datatracker.ietf.org/doc/html/rfc7516#section-3.2
 //
 // The keyAlgorithms and contentEncryption parameters contain the allowable algorithms in the "alg" and "enc"
 // header parameters respectively. They must be non-empty. Any non-allowed algorithms will cause parsing to fail.
-func ParseEncryptedJSON(
+func parseEncryptedJSON(
 	input string,
 	keyEncryptionAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
@@ -298,13 +297,13 @@ func validateAlgEnc(headers rawHeader, keyAlgorithms []KeyAlgorithm, contentEncr
 	return nil
 }
 
-// ParseEncryptedCompact parses a message in JWE Compact Serialization.
+// parseEncryptedCompact parses a message in JWE Compact Serialization.
 //
 // https://datatracker.ietf.org/doc/html/rfc7516#section-3.1
 //
 // The keyAlgorithms and contentEncryption parameters contain the allowable algorithms in the "alg" and "enc"
 // header parameters respectively. They must be non-empty. Any non-allowed algorithms will cause parsing to fail.
-func ParseEncryptedCompact(
+func parseEncryptedCompact(
 	input string,
 	keyAlgorithms []KeyAlgorithm,
 	contentEncryption []ContentEncryption,
@@ -364,8 +363,8 @@ func ParseEncryptedCompact(
 	return raw.sanitized(keyAlgorithms, contentEncryption)
 }
 
-// CompactSerialize serializes an object using the compact serialization format.
-func (obj JSONWebEncryption) CompactSerialize() (string, error) {
+// compactSerialize serializes an object using the compact serialization format.
+func (obj JSONWebEncryption) compactSerialize() (string, error) {
 	if len(obj.recipients) != 1 || obj.unprotected != nil ||
 		obj.protected == nil || obj.recipients[0].header != nil {
 		return "", ErrNotSupported
@@ -385,10 +384,10 @@ func (obj JSONWebEncryption) CompactSerialize() (string, error) {
 	), nil
 }
 
-// FullSerialize serializes an object using the full JSON serialization format.
+// fullSerialize serializes an object using the full JSON serialization format.
 //
 // It returns "" if obj cannot be serialized, for example if it has no recipients.
-func (obj JSONWebEncryption) FullSerialize() string {
+func (obj JSONWebEncryption) fullSerialize() string {
 	if len(obj.recipients) == 0 {
 		return ""
 	}

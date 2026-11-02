@@ -805,7 +805,7 @@ func TestDetachedCompactSerialization(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ser, err := obj.DetachedCompactSerialize()
+	ser, err := obj.DetachedcompactSerialize()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -819,7 +819,7 @@ func TestDetachedCompactSerialization(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ser, err = obj.CompactSerialize()
+	ser, err = obj.compactSerialize()
 	if err != nil {
 		t.Fatal(err)
 	}

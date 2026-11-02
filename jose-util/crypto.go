@@ -110,7 +110,7 @@ func encrypt(args []string) error {
 	if *encryptFullFlag {
 		msg = obj.FullSerialize()
 	} else {
-		msg, err = obj.CompactSerialize()
+		msg, err = obj.compactSerialize()
 		if err != nil {
 			return fmt.Errorf("unable to serialzie message: %w", err)
 		}
@@ -189,7 +189,7 @@ func sign(args []string) error {
 	if *signFullFlag {
 		msg = obj.FullSerialize()
 	} else {
-		msg, err = obj.CompactSerialize()
+		msg, err = obj.compactSerialize()
 		if err != nil {
 			return fmt.Errorf("unable to serialize message: %w", err)
 		}

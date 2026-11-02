@@ -146,7 +146,7 @@ func TestRoundtripsJWSOpaque(t *testing.T) {
 	sigAlgs := []SignatureAlgorithm{RS256, RS384, RS512, PS256, PS384, PS512, ES256, ES384, ES512, EdDSA}
 
 	serializers := []func(*JSONWebSignature) (string, error){
-		func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() },
+		func(obj *JSONWebSignature) (string, error) { return obj.compactSerialize() },
 		func(obj *JSONWebSignature) (string, error) { return obj.FullSerialize(), nil },
 	}
 
@@ -206,7 +206,7 @@ func TestRoundtripsJWEOpaque(t *testing.T) {
 	encs := []ContentEncryption{A128GCM, A256GCM, A128CBC_HS256, A256CBC_HS512}
 
 	serializers := []func(*JSONWebEncryption) (string, error){
-		func(obj *JSONWebEncryption) (string, error) { return obj.CompactSerialize() },
+		func(obj *JSONWebEncryption) (string, error) { return obj.compactSerialize() },
 		func(obj *JSONWebEncryption) (string, error) { return obj.FullSerialize(), nil },
 	}
 
@@ -269,7 +269,7 @@ func TestOpaqueSignerKeyRotation(t *testing.T) {
 	sigAlgs := []SignatureAlgorithm{RS256, RS384, RS512, PS256, PS384, PS512, ES256, ES384, ES512, EdDSA}
 
 	serializers := []func(*JSONWebSignature) (string, error){
-		func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() },
+		func(obj *JSONWebSignature) (string, error) { return obj.compactSerialize() },
 		func(obj *JSONWebSignature) (string, error) { return obj.FullSerialize(), nil },
 	}
 

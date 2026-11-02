@@ -95,11 +95,10 @@ type Signature struct {
 //
 // The signatureAlgorithms parameter contains the allowable algorithms in the "alg" header parameter.
 // It must be non-empty. Non-matching algorithms cause a parse error.
-//
-// Deprecated: call ParseSignedJSON or ParseSignedCompact depending on which serialization you expect.
 func ParseSigned(
 	signature string,
 	signatureAlgorithms []SignatureAlgorithm,
+	opts ParserOptions,
 ) (*JSONWebSignature, error) {
 	trimmed := strings.TrimLeftFunc(signature, unicode.IsSpace)
 	if strings.HasPrefix(trimmed, "{") {
@@ -468,20 +467,10 @@ func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 	), nil
 }
 
-// CompactSerialize serializes an object using the compact serialization format.
-func (obj JSONWebSignature) CompactSerialize() (string, error) {
-	return obj.compactSerialize(false)
-}
-
-// DetachedCompactSerialize serializes an object using the compact serialization format with detached payload.
-func (obj JSONWebSignature) DetachedCompactSerialize() (string, error) {
-	return obj.compactSerialize(true)
-}
-
-// FullSerialize serializes an object using the full JSON serialization format.
+// fullSerialize serializes an object using the full JSON serialization format.
 //
 // It returns "" if obj cannot be serialized.
-func (obj JSONWebSignature) FullSerialize() string {
+func (obj JSONWebSignature) fullSerialize() string {
 	raw := rawJSONWebSignature{
 		Payload: newBuffer(obj.payload),
 	}
