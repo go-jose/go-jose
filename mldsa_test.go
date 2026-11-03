@@ -700,3 +700,23 @@ func TestMLDSARejectsPrivateKeyInHeader(t *testing.T) {
 		t.Errorf("UnmarshalJSON: %v", err)
 	}
 }
+
+func TestMLDSAOpaqueSignerPublicKeyTypes(t *testing.T) {
+	mldsaKey := mldsaTestKey(t, MLDSA44)
+
+	tests := []struct {
+		name    string
+		alg     SignatureAlgorithm
+		key     any
+		wantErr error
+	}{
+		{"mldsa private", MLDSA44, mldsaKey, ErrNotPublic},
+		{"mldsa public", MLDSA44, mldsaKey.Public(), nil},
+		{"mldsa public key", MLDSA44, mldsaKey.PublicKey(), nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertOpaqueSignerPublicKeyTypes(t, tt.alg, tt.key, tt.wantErr)
+		})
+	}
+}
