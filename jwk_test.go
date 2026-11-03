@@ -870,6 +870,32 @@ func TestJWKUnsupported(t *testing.T) {
 	}
 }
 
+// Regression for #273: an unknown EC curve must surface the
+// ErrUnsupportedEllipticCurve sentinel so callers can errors.Is it,
+// on both the public- and private-key paths and via a key set.
+func TestJWKUnsupportedEllipticCurve(t *testing.T) {
+	// Public key path
+	var pub JSONWebKey
+	err := pub.UnmarshalJSON([]byte(`{"kty": "EC", "crv": "secp256k1", "x": "AAAA", "y": "AAAA"}`))
+	if !errors.Is(err, ErrUnsupportedEllipticCurve) {
+		t.Error("expected ErrUnsupportedEllipticCurve for public key, got:", err)
+	}
+
+	// Private key path
+	var priv JSONWebKey
+	err = priv.UnmarshalJSON([]byte(`{"kty": "EC", "crv": "secp256k1", "d": "AAAA"}`))
+	if !errors.Is(err, ErrUnsupportedEllipticCurve) {
+		t.Error("expected ErrUnsupportedEllipticCurve for private key, got:", err)
+	}
+
+	// Key set path
+	var set JSONWebKeySet
+	err = json.Unmarshal([]byte(`{"keys": [{"kty": "EC", "crv": "secp256k1", "x": "AAAA", "y": "AAAA"}]}`), &set)
+	if !errors.Is(err, ErrUnsupportedEllipticCurve) {
+		t.Error("expected ErrUnsupportedEllipticCurve from key set, got:", err)
+	}
+}
+
 // Test vectors from RFC 7520
 var cookbookJWKs = []string{
 	// EC Public
