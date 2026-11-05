@@ -27,7 +27,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/go-jose/go-jose/v4/json"
+	"github.com/go-jose/go-jose/v5/json"
 )
 
 // Strip all newlines and whitespace

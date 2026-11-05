@@ -1,7 +1,7 @@
 # Go JOSE
 
-[![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v4.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v4)
-[![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v4/jwt.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v4/jwt)
+[![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v5.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v5)
+[![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v5/jwt.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v5/jwt)
 [![license](https://img.shields.io/badge/license-apache_2.0-blue.svg?style=flat)](https://raw.githubusercontent.com/go-jose/go-jose/master/LICENSE)
 
 Package jose aims to provide an implementation of the Javascript Object Signing
@@ -28,18 +28,20 @@ libraries in other languages.
 
 ### Versions
 
-The forthcoming Version 5 will be released with several breaking API changes,
-and will require Golang's `encoding/json/v2`, which is currently requires 
-Go 1.25 built with GOEXPERIMENT=jsonv2.
+Version 5 is in development on the main branch of this repository.
 
-Version 4 is the current stable version:
+Version 5 requires Go 1.27 currently, but in the future will support at least
+the current and previous Golang release.
+
+Version 4 is now feature-frozen, recieving only bug fixes.
 
     import "github.com/go-jose/go-jose/v4"
 
-It supports at least the current and previous Golang release. Currently it
-requires Golang 1.24.
+It supports at least the current and previous Golang release.
+Version 4 will be supported until Golang 1.29 is released in August 2027.
 
 Version 3 is only receiving critical security updates. Migration to Version 4 is recommended.
+Version 3 will no longer be supported once Golang 1.28 is released in February 2027.
 
 Versions 1 and 2 are obsolete, but can be found in the old repository, [square/go-jose](https://github.com/square/go-jose).
 
@@ -104,8 +106,8 @@ allows attaching a key id.
 
 ## Examples
 
-[![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v4.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v4)
-[![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v4/jwt.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v4/jwt)
+[![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v5.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v5)
+[![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v5/jwt.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v5/jwt)
 
 Examples can be found in the Godoc
 reference for this package. The

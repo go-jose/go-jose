@@ -20,7 +20,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 func expand(args []string) error {

@@ -7,7 +7,7 @@ with JOSE messages when testing or debugging.
 ## Installation
 
 ```
-$ go install github.com/go-jose/go-jose/v4/jose-util@latest
+$ go install github.com/go-jose/go-jose/v5/jose-util@latest
 ```
 
 ## Usage

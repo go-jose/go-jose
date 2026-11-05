@@ -18,6 +18,8 @@ jobs:
       - run: pip install cram
 
       - uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
 
       - run: go build .
         working-directory: jose-util

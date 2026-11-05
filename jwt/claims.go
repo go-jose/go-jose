@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-jose/go-jose/v4/json"
+	"github.com/go-jose/go-jose/v5/json"
 )
 
 // maxNumericDate bounds an accepted NumericDate (in seconds). It is far past
