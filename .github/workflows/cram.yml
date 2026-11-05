@@ -16,10 +16,10 @@ jobs:
       - uses: actions/setup-python@v7
 
       - run: pip install cram
-        with:
-          go-version: "stable"
 
       - uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
 
       - run: go build .
         working-directory: jose-util
