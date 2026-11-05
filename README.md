@@ -2,7 +2,7 @@
 
 [![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v4.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v4)
 [![godoc](https://pkg.go.dev/badge/github.com/go-jose/go-jose/v4/jwt.svg)](https://pkg.go.dev/github.com/go-jose/go-jose/v4/jwt)
-[![license](https://img.shields.io/badge/license-apache_2.0-blue.svg?style=flat)](https://raw.githubusercontent.com/go-jose/go-jose/master/LICENSE)
+[![license](https://img.shields.io/badge/license-apache_2.0-blue.svg?style=flat)](https://raw.githubusercontent.com/go-jose/go-jose/main/LICENSE)
 
 Package jose aims to provide an implementation of the Javascript Object Signing
 and Encryption set of standards. This includes support for JSON Web Encryption,
@@ -17,7 +17,7 @@ The implementation follows the
 Tables of supported algorithms are shown below. The library supports both
 the compact and JWS/JWE JSON Serialization formats, and has optional support for
 multiple recipients. It also comes with a small command-line utility
-([`jose-util`](https://pkg.go.dev/github.com/go-jose/go-jose/jose-util))
+([`jose-util`](https://pkg.go.dev/github.com/go-jose/go-jose/v4/jose-util))
 for dealing with JOSE messages in a shell.
 
 **Note**: We use a forked version of the `encoding/json` package from the Go
@@ -29,15 +29,14 @@ libraries in other languages.
 ### Versions
 
 The forthcoming Version 5 will be released with several breaking API changes,
-and will require Golang's `encoding/json/v2`, which is currently requires 
-Go 1.25 built with GOEXPERIMENT=jsonv2.
+and will require Go's `encoding/json/v2` in Go 1.27.
 
 Version 4 is the current stable version:
 
     import "github.com/go-jose/go-jose/v4"
 
-It supports at least the current and previous Golang release. Currently it
-requires Golang 1.24.
+It supports at least the current and previous Go release. Currently it
+requires Go 1.24.
 
 Version 3 is only receiving critical security updates. Migration to Version 4 is recommended.
 
@@ -56,10 +55,10 @@ standard where possible. The Godoc reference has a list of constants.
 | AES key wrap           | A128KW, A192KW, A256KW                         |
 | AES-GCM key wrap       | A128GCMKW, A192GCMKW, A256GCMKW                |
 | ECDH-ES + AES key wrap | ECDH-ES+A128KW, ECDH-ES+A192KW, ECDH-ES+A256KW |
-| ECDH-ES (direct)       | ECDH-ES<sup>1</sup>                            |
-| Direct encryption      | dir<sup>1</sup>                                |
+| ECDH-ES (direct)       | ECDH-ES[^multirecipient]                       |
+| Direct encryption      | dir[^multirecipient]                           |
 
-<sup>1. Not supported in multi-recipient mode</sup>
+[^multirecipient]: Not supported in multi-recipient mode
 
 | Signing / MAC     | Algorithm identifier(s)                     |
 |:------------------|:--------------------------------------------|
@@ -67,12 +66,8 @@ standard where possible. The Godoc reference has a list of constants.
 | RSASSA-PSS        | PS256, PS384, PS512                         |
 | HMAC              | HS256, HS384, HS512                         |
 | ECDSA             | ES256, ES384, ES512                         |
-| Ed25519           | EdDSA<sup>2</sup>                           |
-| ML-DSA            | ML-DSA-44, ML-DSA-65, ML-DSA-87<sup>3</sup> |
-
-<sup>2. Only available in version 2 of the package</sup>
-
-<sup>3. Requires Go 1.27 or later</sup>
+| Ed25519           | EdDSA                                       |
+| ML-DSA            | ML-DSA-44, ML-DSA-65, ML-DSA-87[^go127]     |
 
 | Content encryption | Algorithm identifier(s)                     |
 |:-------------------|:--------------------------------------------|
@@ -94,13 +89,9 @@ allows attaching a key id.
 |:-------------------|--------------------------------------------------------------------------------------------------------------------------------------|
 | RSA                | *[rsa.PublicKey](https://pkg.go.dev/crypto/rsa/#PublicKey), *[rsa.PrivateKey](https://pkg.go.dev/crypto/rsa/#PrivateKey)             |
 | ECDH, ECDSA        | *[ecdsa.PublicKey](https://pkg.go.dev/crypto/ecdsa/#PublicKey), *[ecdsa.PrivateKey](https://pkg.go.dev/crypto/ecdsa/#PrivateKey)     |
-| EdDSA<sup>1</sup>  | [ed25519.PublicKey](https://pkg.go.dev/crypto/ed25519#PublicKey), [ed25519.PrivateKey](https://pkg.go.dev/crypto/ed25519#PrivateKey) |
-| ML-DSA<sup>2</sup> | *[mldsa.PublicKey](https://pkg.go.dev/crypto/mldsa#PublicKey), *[mldsa.PrivateKey](https://pkg.go.dev/crypto/mldsa#PrivateKey)       |
+| EdDSA  | [ed25519.PublicKey](https://pkg.go.dev/crypto/ed25519#PublicKey), [ed25519.PrivateKey](https://pkg.go.dev/crypto/ed25519#PrivateKey) |
+| ML-DSA[^go127] | *[mldsa.PublicKey](https://pkg.go.dev/crypto/mldsa#PublicKey), *[mldsa.PrivateKey](https://pkg.go.dev/crypto/mldsa#PrivateKey)       |
 | AES, HMAC          | []byte                                                                                                                               |
-
-<sup>1. Only available in version 2 or later of the package</sup>
-
-<sup>2. Requires Go 1.27 or later</sup>
 
 ## Examples
 
@@ -112,3 +103,5 @@ reference for this package. The
 [`jose-util`](https://github.com/go-jose/go-jose/tree/main/jose-util)
 subdirectory also contains a small command-line utility which might be useful
 as an example as well.
+
+[^go127]: Requires Go 1.27 or later
