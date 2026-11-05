@@ -33,10 +33,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v4/testutils/assert"
-	"github.com/go-jose/go-jose/v4/testutils/require"
+	"github.com/go-jose/go-jose/v5/testutils/assert"
+	"github.com/go-jose/go-jose/v5/testutils/require"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 type testClaims struct {

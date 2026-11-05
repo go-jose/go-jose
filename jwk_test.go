@@ -36,8 +36,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-jose/go-jose/v4/testutils/assert"
-	"github.com/go-jose/go-jose/v4/testutils/require"
+	"github.com/go-jose/go-jose/v5/testutils/assert"
+	"github.com/go-jose/go-jose/v5/testutils/require"
 )
 
 // Test chain of two X.509 certificates

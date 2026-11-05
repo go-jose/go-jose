@@ -31,7 +31,7 @@ import (
 	"fmt"
 	"math/big"
 
-	josecipher "github.com/go-jose/go-jose/v4/cipher"
+	josecipher "github.com/go-jose/go-jose/v5/cipher"
 )
 
 // A generic RSA-based encrypter/verifier

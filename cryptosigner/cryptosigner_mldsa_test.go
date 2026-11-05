@@ -22,7 +22,7 @@ import (
 	"crypto/mldsa"
 	"testing"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 func TestMLDSAOpaqueRoundtrip(t *testing.T) {

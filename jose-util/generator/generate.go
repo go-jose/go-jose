@@ -26,7 +26,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 // NewSigningKey generates a keypair for corresponding SignatureAlgorithm.

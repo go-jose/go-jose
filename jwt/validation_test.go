@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v4/testutils/assert"
+	"github.com/go-jose/go-jose/v5/testutils/assert"
 )
 
 func TestFieldsMatch(t *testing.T) {
