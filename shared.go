@@ -54,7 +54,7 @@ var (
 	ErrUnsupportedAlgorithm = errors.New("go-jose/go-jose: unknown/unsupported algorithm")
 
 	// ErrUnsupportedKeyType indicates that the given key is not supported.
-	ErrUnsupportedKeyType = errors.New("go-jose/go-jose: unsupported key/format/elliptic curve/RSA modulus size")
+	ErrUnsupportedKeyType = errors.New("go-jose/go-jose: unsupported key type, format, curve, or RSA modulus size")
 
 	// ErrInvalidKeySize indicates that the given key is not the correct size
 	// for the selected algorithm. This can occur, for example, when trying to
