@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"strings"
 
-	jose "github.com/go-jose/go-jose/v4"
-	"github.com/go-jose/go-jose/v4/json"
+	jose "github.com/go-jose/go-jose/v5"
+	"github.com/go-jose/go-jose/v5/json"
 )
 
 // JSONWebToken represents a JSON Web Token (as specified in RFC7519).

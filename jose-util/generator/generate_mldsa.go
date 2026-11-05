@@ -23,7 +23,7 @@ import (
 	"crypto/mldsa"
 	"errors"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 // newMLDSASigningKey generates an ML-DSA key pair for alg. The parameter set is

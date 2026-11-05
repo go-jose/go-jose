@@ -31,7 +31,7 @@ import (
 	"hash"
 	"io"
 
-	josecipher "github.com/go-jose/go-jose/v4/cipher"
+	josecipher "github.com/go-jose/go-jose/v5/cipher"
 )
 
 // randReader is a cryptographically secure random number generator (stubbed out in tests).

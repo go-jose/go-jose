@@ -22,7 +22,7 @@ import (
 	"crypto"
 	"crypto/mldsa"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 // mldsaAlgs returns the single JOSE signature algorithm an ML-DSA public key

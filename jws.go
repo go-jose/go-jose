@@ -24,7 +24,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/go-jose/go-jose/v4/json"
+	"github.com/go-jose/go-jose/v5/json"
 )
 
 // MaxSignatures is the maximum number of signatures in a JWS at parse time.

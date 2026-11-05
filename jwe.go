@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-jose/go-jose/v4/json"
+	"github.com/go-jose/go-jose/v5/json"
 )
 
 // MaxRecipients is the maximum number of recipients of a JWE at parse time.

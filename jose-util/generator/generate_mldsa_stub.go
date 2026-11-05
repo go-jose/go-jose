@@ -21,7 +21,7 @@ package generator
 import (
 	"crypto"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 // newMLDSASigningKey generates no keys on toolchains without crypto/mldsa, which

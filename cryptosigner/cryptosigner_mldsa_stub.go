@@ -21,7 +21,7 @@ package cryptosigner
 import (
 	"crypto"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 // mldsaAlgs reports no algorithms on toolchains without crypto/mldsa, which was

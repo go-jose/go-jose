@@ -1,7 +1,7 @@
 package require
 
 import (
-	"github.com/go-jose/go-jose/v4/testutils/assert"
+	"github.com/go-jose/go-jose/v5/testutils/assert"
 )
 
 type TInterface interface {

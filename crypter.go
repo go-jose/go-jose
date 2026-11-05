@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-jose/go-jose/v4/json"
+	"github.com/go-jose/go-jose/v5/json"
 )
 
 // Encrypter represents an encrypter which produces an encrypted JWE object.

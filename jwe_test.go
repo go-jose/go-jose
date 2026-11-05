@@ -28,7 +28,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-jose/go-jose/v4/json"
+	"github.com/go-jose/go-jose/v5/json"
 )
 
 func TestParseEmptyEncrypted(t *testing.T) {
