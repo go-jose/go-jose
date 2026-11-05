@@ -41,7 +41,7 @@ It supports at least the current and previous Golang release.
 Version 4 will be supported until Golang 1.29 is released in August 2027.
 
 Version 3 is only receiving critical security updates. Migration to Version 4 is recommended.
-Version 3 will no longer be supported once Golang 1.28 is released in February 2028.
+Version 3 will no longer be supported once Golang 1.28 is released in February 2027.
 
 Versions 1 and 2 are obsolete, but can be found in the old repository, [square/go-jose](https://github.com/square/go-jose).
 
