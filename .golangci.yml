@@ -32,19 +32,6 @@ issues:
     - text: "weak cryptographic primitive"
       linters:
         - gosec
-    - path: json/
-      linters:
-        - dupl
-        - errcheck
-        - gocritic
-        - gocyclo
-        - golint
-        - govet
-        - ineffassign
-        - staticcheck
-        - structcheck
-        - stylecheck
-        - unused
     - path: _test\.go
       linters:
         - scopelint

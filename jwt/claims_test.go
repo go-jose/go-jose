@@ -18,10 +18,10 @@
 package jwt
 
 import (
+	"encoding/json/v2"
+	"errors"
 	"testing"
 	"time"
-
-	"github.com/go-jose/go-jose/v4/json"
 
 	"github.com/go-jose/go-jose/v4/testutils/assert"
 )
@@ -98,7 +98,10 @@ func TestDecodeClaims(t *testing.T) {
 
 	for _, v := range invalid {
 		c := Claims{}
-		assert.Equal(t, v.Err, json.Unmarshal([]byte(v.Raw), &c))
+		err := json.Unmarshal([]byte(v.Raw), &c)
+		if !errors.Is(err, v.Err) {
+			t.Errorf("got error %#v, want something that wraps %#v", err, v.Err)
+		}
 	}
 }
 

@@ -23,7 +23,6 @@ script:
   - go test -v -covermode=count -coverprofile=cryptosigner/profile.cov ./cryptosigner
   - go test -v -covermode=count -coverprofile=cipher/profile.cov ./cipher
   - go test -v -covermode=count -coverprofile=jwt/profile.cov ./jwt
-  - go test -v ./json  # no coverage for forked encoding/json package
   - golangci-lint run
   - cd jose-util && go build && PATH=$PWD:$PATH cram -v jose-util.t # cram tests jose-util
   - cd ..
