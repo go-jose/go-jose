@@ -149,7 +149,7 @@ func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) 
 		out, err = s.signer.Sign(s.rand, hashed, hash)
 	case jose.PS256, jose.PS384, jose.PS512:
 		out, err = s.signer.Sign(s.rand, hashed, &rsa.PSSOptions{
-			SaltLength: rsa.PSSSaltLengthAuto,
+			SaltLength: rsa.PSSSaltLengthEqualsHash,
 			Hash:       hash,
 		})
 	}

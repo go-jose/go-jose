@@ -209,3 +209,35 @@ func Test_cryptoSigner_Algs(t *testing.T) {
 		})
 	}
 }
+
+// RFC 7518 §3.5 requires the PSS salt length to equal the hash output size.
+// Verify strictly, since rsa.VerifyPSS with nil options accepts any salt.
+func TestPSSSaltLengthEqualsHash(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer := Opaque(key)
+	payload := []byte("pss salt length test")
+
+	for alg, hash := range map[jose.SignatureAlgorithm]crypto.Hash{
+		jose.PS256: crypto.SHA256,
+		jose.PS384: crypto.SHA384,
+		jose.PS512: crypto.SHA512,
+	} {
+		t.Run(string(alg), func(t *testing.T) {
+			sig, err := signer.SignPayload(payload, alg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			h := hash.New()
+			h.Write(payload)
+			err = rsa.VerifyPSS(&key.PublicKey, hash, h.Sum(nil), sig, &rsa.PSSOptions{
+				SaltLength: rsa.PSSSaltLengthEqualsHash,
+			})
+			if err != nil {
+				t.Errorf("signature does not use a hash-length salt: %v", err)
+			}
+		})
+	}
+}
