@@ -18,11 +18,11 @@ package jose
 
 import (
 	"encoding/base64"
+	jsonv1 "encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 // MaxRecipients is the maximum number of recipients of a JWE at parse time.
@@ -97,7 +97,7 @@ func (obj JSONWebEncryption) computeAuthData() ([]byte, error) {
 	case obj.original != nil && obj.original.Protected != nil:
 		protected = obj.original.Protected.base64()
 	case obj.protected != nil:
-		serializedProtected, err := json.Marshal(obj.protected)
+		serializedProtected, err := json.Marshal(obj.protected, json.Deterministic(true))
 		if err != nil {
 			return nil, err
 		}
@@ -371,7 +371,7 @@ func (obj JSONWebEncryption) CompactSerialize() (string, error) {
 		return "", ErrNotSupported
 	}
 
-	serializedProtected, err := json.Marshal(obj.protected)
+	serializedProtected, err := json.Marshal(obj.protected, json.Deterministic(true))
 	if err != nil {
 		return "", err
 	}
@@ -418,14 +418,14 @@ func (obj JSONWebEncryption) FullSerialize() string {
 	}
 
 	if obj.protected != nil {
-		serializedProtected, err := json.Marshal(obj.protected)
+		serializedProtected, err := json.Marshal(obj.protected, json.Deterministic(true))
 		if err != nil {
 			return ""
 		}
 		raw.Protected = newBuffer(serializedProtected)
 	}
 
-	out, err := json.Marshal(raw)
+	out, err := json.Marshal(raw, json.Deterministic(true), jsonv1.OmitEmptyWithLegacySemantics(true))
 	if err != nil {
 		return ""
 	}

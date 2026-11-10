@@ -20,17 +20,14 @@ multiple recipients. It also comes with a small command-line utility
 ([`jose-util`](https://pkg.go.dev/github.com/go-jose/go-jose/jose-util))
 for dealing with JOSE messages in a shell.
 
-**Note**: We use a forked version of the `encoding/json` package from the Go
-standard library which uses case-sensitive matching for member names (instead
-of [case-insensitive matching](https://www.ietf.org/mail-archive/web/json/current/msg03763.html)).
-This is to avoid differences in interpretation of messages between go-jose and
-libraries in other languages.
+Older versions of this package used a forked version of `encoding/json`, but v5
+uses `encoding/json/v2`. It continues to have case-sensitive matching and
+rejection of duplicate field names.
 
 ### Versions
 
 The forthcoming Version 5 will be released with several breaking API changes,
-and will require Golang's `encoding/json/v2`, which is currently requires 
-Go 1.25 built with GOEXPERIMENT=jsonv2.
+and will require Golang's `encoding/json/v2` and Go 1.27.
 
 Version 4 is the current stable version:
 

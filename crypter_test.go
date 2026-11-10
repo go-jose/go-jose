@@ -549,10 +549,10 @@ func TestEncrypterExtraHeaderInclusion(t *testing.T) {
 		t.Fatal("Decrypted output does not match input: ", output, input)
 	}
 
-	if parsed.Header.ExtraHeaders[HeaderType] != "JWT" ||
-		parsed.Header.ExtraHeaders[HeaderContentType] != "JWT" ||
-		parsed.Header.ExtraHeaders[HeaderKey("myCustomHeader")] != "xyz" {
-		t.Fatalf("Mismatch in extra headers: %#v", parsed.Header.ExtraHeaders)
+	if string(parsed.Header.Other[HeaderType]) != `"JWT"` ||
+		string(parsed.Header.Other[HeaderContentType]) != `"JWT"` ||
+		string(parsed.Header.Other[HeaderKey("myCustomHeader")]) != `"xyz"` {
+		t.Fatalf("Mismatch in extra headers: %#v", parsed.Header.Other)
 	}
 }
 

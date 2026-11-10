@@ -18,10 +18,9 @@
 package jwt
 
 import (
-	"bytes"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"reflect"
-
-	"github.com/go-jose/go-jose/v4/json"
 
 	"github.com/go-jose/go-jose/v4"
 )
@@ -56,7 +55,7 @@ type NestedBuilder interface {
 }
 
 type builder struct {
-	payload map[string]interface{}
+	payload map[string]jsontext.Value
 	err     error
 }
 
@@ -111,11 +110,21 @@ func (b builder) claims(i interface{}) builder {
 		return b
 	}
 
-	m, ok := i.(map[string]interface{})
-	switch {
-	case ok:
+	if m, ok := i.(map[string]jsontext.Value); ok {
 		return b.merge(m)
-	case reflect.Indirect(reflect.ValueOf(i)).Kind() == reflect.Struct:
+	}
+
+	if mapOfInterfaces, ok := i.(map[string]interface{}); ok {
+		m, err := normalize(mapOfInterfaces)
+		if err != nil {
+			return builder{
+				err: err,
+			}
+		}
+		return b.merge(m)
+	}
+
+	if reflect.Indirect(reflect.ValueOf(i)).Kind() == reflect.Struct {
 		m, err := normalize(i)
 		if err != nil {
 			return builder{
@@ -123,33 +132,30 @@ func (b builder) claims(i interface{}) builder {
 			}
 		}
 		return b.merge(m)
-	default:
-		return builder{
-			err: ErrInvalidClaims,
-		}
+	}
+
+	return builder{
+		err: ErrInvalidClaims,
 	}
 }
 
-func normalize(i interface{}) (map[string]interface{}, error) {
-	m := make(map[string]interface{})
+func normalize(i interface{}) (map[string]jsontext.Value, error) {
+	m := make(map[string]jsontext.Value)
 
-	raw, err := json.Marshal(i)
+	raw, err := json.Marshal(i, json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}
 
-	d := json.NewDecoder(bytes.NewReader(raw))
-	d.SetNumberType(json.UnmarshalJSONNumber)
-
-	if err := d.Decode(&m); err != nil {
+	if err := json.Unmarshal(raw, &m); err != nil {
 		return nil, err
 	}
 
 	return m, nil
 }
 
-func (b *builder) merge(m map[string]interface{}) builder {
-	p := make(map[string]interface{})
+func (b *builder) merge(m map[string]jsontext.Value) builder {
+	p := make(map[string]jsontext.Value)
 	for k, v := range b.payload {
 		p[k] = v
 	}
@@ -204,7 +210,7 @@ func (b *signedBuilder) sign() (*jose.JSONWebSignature, error) {
 		return nil, b.err
 	}
 
-	p, err := json.Marshal(b.payload)
+	p, err := json.Marshal(b.payload, json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +248,7 @@ func (b *encryptedBuilder) encrypt() (*jose.JSONWebEncryption, error) {
 		return nil, b.err
 	}
 
-	p, err := json.Marshal(b.payload)
+	p, err := json.Marshal(b.payload, json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +302,7 @@ func (b *nestedBuilder) signAndEncrypt() (*jose.JSONWebEncryption, error) {
 		return nil, b.err
 	}
 
-	p, err := json.Marshal(b.payload)
+	p, err := json.Marshal(b.payload, json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}

@@ -26,12 +26,12 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"math/big"
 
 	josecipher "github.com/go-jose/go-jose/v4/cipher"
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 // A generic RSA-based encrypter/verifier

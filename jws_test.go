@@ -19,11 +19,12 @@ package jose
 import (
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"strings"
 	"testing"
 
-	"github.com/go-jose/go-jose/v4/json"
 	"github.com/go-jose/go-jose/v4/testutils/assert"
 )
 
@@ -83,6 +84,37 @@ PWV9eeMi4Wh6V9641LesQnlOGgL5R03jQRjaicp3nvzsNElDEgPq0s9PE8s6weFK
 Bz5ykrw/Gg4QWmw6MfwjOX5Fu1oJF9ABoCFD5umvKhpoJkcT8aYM0+E1xiEAx64u
 Wq2b2GCGP4wMEZuqCcE72fiue295ovPkNsbEjTQk/ijWza0=
 -----END CERTIFICATE-----`
+
+func TestFullSerializeEmptyPayload(t *testing.T) {
+	key := []byte("0123456789abcdef0123456789abcdef")
+	signer, err := NewSigner(SigningKey{Algorithm: HS256, Key: key}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	obj, err := signer.Sign([]byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg := obj.FullSerialize()
+	if !strings.Contains(msg, `"payload":""`) {
+		t.Errorf("FullSerialize() = %s, want it to contain an empty payload", msg)
+	}
+
+	parsed, err := ParseSigned(msg, []SignatureAlgorithm{HS256})
+	if err != nil {
+		t.Fatalf("parsing %s: %s", msg, err)
+	}
+
+	payload, err := parsed.Verify(key)
+	if err != nil {
+		t.Fatalf("verifying %s: %s", msg, err)
+	}
+	if len(payload) != 0 {
+		t.Errorf("Verify() = %x, want empty payload", payload)
+	}
+}
 
 func TestParseEmptySigned(t *testing.T) {
 	_, err := ParseSigned("", []SignatureAlgorithm{HS256})
@@ -309,7 +341,7 @@ func TestParseSignedJSONDoesNotRewriteMemberNames(t *testing.T) {
 	if header.JSONWebKey != nil {
 		t.Fatal("ParseSigned exposed a JWK from a whitespace-mutated member name")
 	}
-	_, ok := header.ExtraHeaders[HeaderKey("url")]
+	_, ok := header.Other[HeaderKey("url")]
 	if ok {
 		t.Fatal("ParseSigned exposed a header from a whitespace-mutated member name")
 	}
@@ -536,7 +568,7 @@ func TestHeaderFieldsFull(t *testing.T) {
 	if obj.Signatures[0].Unprotected.Algorithm != "" {
 		t.Error("unprotected header contained an alg value")
 	}
-	if obj.Signatures[0].Unprotected.ExtraHeaders["custom"] != "test" {
+	if string(obj.Signatures[0].Unprotected.Other["custom"]) != `"test"` {
 		t.Error("unprotected header did not contain custom header value")
 	}
 }
@@ -908,8 +940,8 @@ func TestEmbeddedPrivateJWKRejected(t *testing.T) {
 				return b
 			}
 
-			alg := json.RawMessage(`"RS256"`)
-			jwk := json.RawMessage(marshal(tc.jwk))
+			alg := jsontext.Value(`"RS256"`)
+			jwk := jsontext.Value(marshal(tc.jwk))
 			protected := rawHeader{headerAlgorithm: &alg}
 			var unprotected *rawHeader
 			if tc.unprotected {

@@ -18,11 +18,11 @@
 package jwt
 
 import (
+	"encoding/json/v2"
 	"fmt"
 	"strings"
 
 	jose "github.com/go-jose/go-jose/v4"
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 // JSONWebToken represents a JSON Web Token (as specified in RFC7519).
@@ -180,8 +180,13 @@ func ParseSignedAndEncrypted(s string,
 		return nil, err
 	}
 
-	contentType, _ := enc.Header.ExtraHeaders[jose.HeaderContentType].(string)
-	if strings.ToUpper(contentType) != "JWT" {
+	contentType, _ := enc.Header.Other[jose.HeaderContentType]
+	var cty string
+	err = json.Unmarshal(contentType, &cty)
+	if err != nil {
+		return nil, ErrInvalidContentType
+	}
+	if strings.ToUpper(cty) != "JWT" {
 		return nil, ErrInvalidContentType
 	}
 
