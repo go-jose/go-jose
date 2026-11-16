@@ -19,8 +19,10 @@ package jose
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 	"testing"
@@ -378,5 +380,90 @@ func TestOpaqueSignerNonPublic(t *testing.T) {
 	_, err := NewSigner(SigningKey{Algorithm: ES256, Key: os}, &SignerOptions{EmbedJWK: true})
 	if !errors.Is(err, ErrNotPublic) {
 		t.Fatal("Expected ErrNotPublic when using BadSigner")
+	}
+}
+
+type publicKeySigner struct {
+	alg SignatureAlgorithm
+	key interface{}
+}
+
+func (ps publicKeySigner) Algs() []SignatureAlgorithm {
+	return []SignatureAlgorithm{ps.alg}
+}
+
+func (ps publicKeySigner) SignPayload([]byte, SignatureAlgorithm) ([]byte, error) {
+	return []byte("signature"), nil
+}
+
+func (ps publicKeySigner) Public() *JSONWebKey {
+	return &JSONWebKey{
+		Key:   ps.key,
+		KeyID: "PS",
+	}
+}
+
+// customPublicKey is a public key type unknown to go-jose.
+type customPublicKey []byte
+
+func assertOpaqueSignerPublicKeyTypes(t *testing.T, alg SignatureAlgorithm, key any, wantErr error) {
+	t.Helper()
+
+	signer, err := NewSigner(SigningKey{
+		Algorithm: alg,
+		Key:       publicKeySigner{alg, key},
+	}, &SignerOptions{})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("NewSigner() error = %v, want %v", err, wantErr)
+	}
+	if err != nil {
+		return
+	}
+
+	jws, err := signer.Sign([]byte("payload"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSigned(jws.FullSerialize(), []SignatureAlgorithm{alg})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kid := parsed.Signatures[0].Header.KeyID; kid != "PS" {
+		t.Errorf("kid = %q, want %q", kid, "PS")
+	}
+}
+
+func TestOpaqueSignerPublicKeyTypes(t *testing.T) {
+	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edPub, edKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name    string
+		alg     SignatureAlgorithm
+		key     any
+		wantErr error
+	}{
+		{"ecdsa private", ES256, ecKey, ErrNotPublic},
+		{"rsa private", RS256, rsaKey, ErrNotPublic},
+		{"ed25519 private", EdDSA, edKey, ErrNotPublic},
+		{"ecdsa public", ES256, &ecKey.PublicKey, nil},
+		{"rsa public", RS256, &rsaKey.PublicKey, nil},
+		{"ed25519 public", EdDSA, edPub, nil},
+		{"custom public", SignatureAlgorithm("CustomDSA"), customPublicKey("public key"), nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertOpaqueSignerPublicKeyTypes(t, tt.alg, tt.key, tt.wantErr)
+		})
 	}
 }

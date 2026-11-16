@@ -250,23 +250,23 @@ func TestRsaKeyChecks(t *testing.T) {
 			name:    "public key, modulus over limit",
 			public:  true,
 			mutate:  func(jwk *rawJSONWebKey) { jwk.N = oddOfBits(MaxRSAModulusBits + 1) },
-			wantErr: "modulus too large",
+			wantErr: "unsupported key",
 		},
 		{
 			name:    "private key, modulus over limit",
 			mutate:  func(jwk *rawJSONWebKey) { jwk.N = oddOfBits(MaxRSAModulusBits + 1) },
-			wantErr: "modulus too large",
+			wantErr: "unsupported key",
 		},
 		{
 			name:    "public key, limit lowered below key",
 			public:  true,
 			limit:   rsaTestKey.N.BitLen() - 1,
-			wantErr: "modulus too large",
+			wantErr: "unsupported key",
 		},
 		{
 			name:    "private key, limit lowered below key",
 			limit:   rsaTestKey.N.BitLen() - 1,
-			wantErr: "modulus too large",
+			wantErr: "unsupported key",
 		},
 		{
 			name:   "public key, limit raised to key",
@@ -886,6 +886,22 @@ func TestJWKUnsupported(t *testing.T) {
 	err := jwk.UnmarshalJSON([]byte(`{"kty": "XXX"}`))
 	if !errors.Is(err, ErrUnsupportedKeyType) {
 		t.Error("expected ErrUnsupportedKeyType, got:", err)
+	}
+}
+
+// TestJWKUnsupportedEllipticCurve checks that an unknown EC curve returns
+// ErrUnsupportedKeyType (via errors.Is), for both public and private JWKs.
+func TestJWKUnsupportedEllipticCurve(t *testing.T) {
+	cases := []string{
+		`{"kty":"EC","crv":"secp256k1","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","y":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}`,
+		`{"kty":"EC","crv":"secp256k1","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","y":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","d":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}`,
+	}
+	for _, raw := range cases {
+		var jwk JSONWebKey
+		err := jwk.UnmarshalJSON([]byte(raw))
+		if !errors.Is(err, ErrUnsupportedKeyType) {
+			t.Errorf("expected ErrUnsupportedKeyType, got: %v", err)
+		}
 	}
 }
 
