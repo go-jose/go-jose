@@ -43,7 +43,7 @@ func TestKeyUnwrapShort(t *testing.T) {
 		t.Errorf("KeyUnwrap(_, %q): got %q, want %q", input, err, want)
 	}
 
-	for n := 0; n < 16; n++ {
+	for n := range 16 {
 		input := bytes.Repeat([]byte("a"), n)
 		_, err = KeyUnwrap(block0, input)
 		if err == nil {
