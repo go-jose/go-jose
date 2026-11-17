@@ -1074,8 +1074,7 @@ func TestUnexpectedAlgorithmCheckedBeforeHeaders(t *testing.T) {
 	for name, msg := range messages {
 		t.Run(name, func(t *testing.T) {
 			_, err := ParseSigned(msg, []SignatureAlgorithm{RS256})
-			var errUnexpectedSigAlg *ErrUnexpectedSignatureAlgorithm
-			if !errors.As(err, &errUnexpectedSigAlg) {
+			if _, ok := errors.AsType[*ErrUnexpectedSignatureAlgorithm](err); !ok {
 				t.Fatalf("expected ErrUnexpectedSignatureAlgorithm, got %v", err)
 			}
 		})
