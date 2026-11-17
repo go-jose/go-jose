@@ -187,7 +187,7 @@ func (b *signedBuilder) Token() (*JSONWebToken, error) {
 
 	h := make([]jose.Header, len(sig.Signatures))
 	for i, v := range sig.Signatures {
-		h[i] = v.Header
+		h[i] = v.Protected
 	}
 
 	return b.builder.token(sig.Verify, h)

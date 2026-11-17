@@ -98,7 +98,7 @@ func ParseSigned(s string, signatureAlgorithms []jose.SignatureAlgorithm) (*JSON
 	}
 	headers := make([]jose.Header, len(sig.Signatures))
 	for i, signature := range sig.Signatures {
-		headers[i] = signature.Header
+		headers[i] = signature.Protected
 	}
 
 	return &JSONWebToken{

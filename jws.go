@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	jsonv1 "encoding/json"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
 	"fmt"
@@ -36,11 +37,11 @@ var MaxSignatures = 32
 
 // rawJSONWebSignature represents a raw JWS JSON object. Used for parsing/serializing.
 type rawJSONWebSignature struct {
-	Payload    *byteBuffer        `json:"payload,omitempty"`
-	Signatures []rawSignatureInfo `json:"signatures,omitempty"`
-	Protected  *byteBuffer        `json:"protected,omitempty"`
-	Header     *rawHeader         `json:"header,omitempty"`
-	Signature  *byteBuffer        `json:"signature,omitempty"`
+	Payload     *byteBuffer        `json:"payload,omitempty"`
+	Signatures  []rawSignatureInfo `json:"signatures,omitempty"`
+	Protected   *byteBuffer        `json:"protected,omitempty"`
+	Unprotected *rawHeader         `json:"header,omitempty"`
+	Signature   *byteBuffer        `json:"signature,omitempty"`
 }
 
 // rawSignatureInfo represents a single JWS signature over the JWS payload and protected header.
@@ -61,12 +62,6 @@ type JSONWebSignature struct {
 
 // Signature represents a single signature over the JWS payload and protected header.
 type Signature struct {
-	// Merged header fields. Contains both protected and unprotected header
-	// values. Prefer using Protected and Unprotected fields instead of this.
-	// Values in this header may or may not have been signed and in general
-	// should not be trusted.
-	Header Header
-
 	// Protected header. Values in this header were signed and
 	// will be verified as part of the signature verification process.
 	Protected Header
@@ -78,9 +73,9 @@ type Signature struct {
 	// The actual signature value
 	Signature []byte
 
-	protected *rawHeader
-	header    *rawHeader
-	original  *rawSignatureInfo
+	protected   *rawHeader
+	unprotected *rawHeader
+	original    *rawSignatureInfo
 }
 
 // ParseSigned parses a signed message in JWS Compact or JWS JSON Serialization. Validation fails if
@@ -154,11 +149,61 @@ func ParseDetached(
 	return parseSignedCompact(stripWhitespace(signature), payload, signatureAlgorithms)
 }
 
+func (sig Signature) getSignatureAlgorithm() (SignatureAlgorithm, error) {
+	unmarshal := func(v jsontext.Value) (SignatureAlgorithm, error) {
+		var val string
+		err := json.Unmarshal(v, &val)
+		if err != nil {
+			return "", err
+		}
+		return SignatureAlgorithm(val), nil
+	}
+
+	if sig.protected != nil {
+		if alg, ok := (*sig.protected)[headerAlgorithm]; ok && alg != nil {
+			return unmarshal(*alg)
+		}
+	}
+
+	if sig.unprotected != nil {
+		if alg, ok := (*sig.unprotected)[headerAlgorithm]; ok && alg != nil {
+			return unmarshal(*alg)
+		}
+	}
+
+	return SignatureAlgorithm(""), nil
+}
+
+func (sig Signature) getKeyID() (string, error) {
+	unmarshal := func(v jsontext.Value) (string, error) {
+		var val string
+		err := json.Unmarshal(v, &val)
+		if err != nil {
+			return "", err
+		}
+		return val, nil
+	}
+
+	if sig.protected != nil {
+		if alg, ok := (*sig.protected)[headerKeyID]; ok && alg != nil {
+			return unmarshal(*alg)
+		}
+	}
+
+	if sig.unprotected != nil {
+		if alg, ok := (*sig.unprotected)[headerKeyID]; ok && alg != nil {
+			return unmarshal(*alg)
+		}
+	}
+
+	return "", nil
+}
+
 // Get a header value
 func (sig Signature) mergedHeaders() rawHeader {
 	out := rawHeader{}
 	out.merge(sig.protected)
-	out.merge(sig.header)
+	out.merge(sig.unprotected)
 	return out
 }
 
@@ -277,11 +322,11 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 		signature.protected = prot
 
 		// Check that there is not a nonce in the unprotected header
-		if parsed.Header != nil && parsed.Header.getNonce() != "" {
+		if parsed.Unprotected != nil && parsed.Unprotected.getNonce() != "" {
 			return nil, ErrUnprotectedNonce
 		}
 
-		signature.header = parsed.Header
+		signature.unprotected = parsed.Unprotected
 		signature.Signature = parsed.Signature.bytes()
 		// Make a fake "original" rawSignatureInfo to store the unprocessed
 		// Protected header. This is necessary because the Protected header can
@@ -294,23 +339,20 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 		// header struct only if those bytes are not available.
 		signature.original = &rawSignatureInfo{
 			Protected: parsed.Protected,
-			Header:    parsed.Header,
+			Header:    parsed.Unprotected,
 			Signature: parsed.Signature,
 		}
 
-		mergedHeaders := signature.mergedHeaders()
-		alg := mergedHeaders.getSignatureAlgorithm()
+		alg, err := signature.getSignatureAlgorithm()
+		if err != nil {
+			return nil, err
+		}
 		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
 			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
-		signature.Header, err = mergedHeaders.sanitized()
-		if err != nil {
-			return nil, err
-		}
-
-		if signature.header != nil {
-			signature.Unprotected, err = signature.header.sanitized()
+		if signature.unprotected != nil {
+			signature.Unprotected, err = signature.unprotected.sanitized()
 			if err != nil {
 				return nil, err
 			}
@@ -324,7 +366,11 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 		}
 
 		// As per RFC 7515 Section 4.1.3, only public keys are allowed to be embedded.
-		jwk := signature.Header.JSONWebKey
+		jwk := signature.Protected.JSONWebKey
+		if jwk != nil && (!jwk.Valid() || !jwk.IsPublic()) {
+			return nil, errors.New("go-jose/go-jose: invalid embedded jwk, must be public key")
+		}
+		jwk = signature.Unprotected.JSONWebKey
 		if jwk != nil && (!jwk.Valid() || !jwk.IsPublic()) {
 			return nil, errors.New("go-jose/go-jose: invalid embedded jwk, must be public key")
 		}
@@ -345,21 +391,18 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 			return nil, ErrUnprotectedNonce
 		}
 
-		obj.Signatures[i].header = sig.Header
+		obj.Signatures[i].unprotected = sig.Header
 
-		mergedHeaders := obj.Signatures[i].mergedHeaders()
-		alg := mergedHeaders.getSignatureAlgorithm()
+		alg, err := obj.Signatures[i].getSignatureAlgorithm()
+		if err != nil {
+			return nil, err
+		}
 		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
 			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
-		obj.Signatures[i].Header, err = mergedHeaders.sanitized()
-		if err != nil {
-			return nil, err
-		}
-
-		if obj.Signatures[i].header != nil {
-			obj.Signatures[i].Unprotected, err = obj.Signatures[i].header.sanitized()
+		if obj.Signatures[i].unprotected != nil {
+			obj.Signatures[i].Unprotected, err = obj.Signatures[i].unprotected.sanitized()
 			if err != nil {
 				return nil, err
 			}
@@ -375,7 +418,11 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 		obj.Signatures[i].Signature = sig.Signature.bytes()
 
 		// As per RFC 7515 Section 4.1.3, only public keys are allowed to be embedded.
-		jwk := obj.Signatures[i].Header.JSONWebKey
+		jwk := obj.Signatures[i].Protected.JSONWebKey
+		if jwk != nil && (!jwk.Valid() || !jwk.IsPublic()) {
+			return nil, errors.New("go-jose/go-jose: invalid embedded jwk, must be public key")
+		}
+		jwk = obj.Signatures[i].Unprotected.JSONWebKey
 		if jwk != nil && (!jwk.Valid() || !jwk.IsPublic()) {
 			return nil, errors.New("go-jose/go-jose: invalid embedded jwk, must be public key")
 		}
@@ -443,7 +490,7 @@ func parseSignedCompact(
 }
 
 func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
-	if len(obj.Signatures) != 1 || obj.Signatures[0].header != nil || obj.Signatures[0].protected == nil {
+	if len(obj.Signatures) != 1 || obj.Signatures[0].unprotected != nil || obj.Signatures[0].protected == nil {
 		return "", ErrNotSupported
 	}
 
@@ -494,13 +541,13 @@ func (obj JSONWebSignature) FullSerialize() string {
 			}
 			raw.Protected = newBuffer(serializedProtected)
 		}
-		raw.Header = obj.Signatures[0].header
+		raw.Unprotected = obj.Signatures[0].unprotected
 		raw.Signature = newBuffer(obj.Signatures[0].Signature)
 	} else {
 		raw.Signatures = make([]rawSignatureInfo, len(obj.Signatures))
 		for i, signature := range obj.Signatures {
 			raw.Signatures[i] = rawSignatureInfo{
-				Header:    signature.header,
+				Header:    signature.unprotected,
 				Signature: newBuffer(signature.Signature),
 			}
 

@@ -483,10 +483,10 @@ func TestInvalidJWS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	obj.Signatures[0].header = &rawHeader{}
+	obj.Signatures[0].unprotected = &rawHeader{}
 
 	// headerB64 is known, but should be in protected
-	if err = obj.Signatures[0].header.set(headerCritical, []string{headerB64}); err != nil {
+	if err = obj.Signatures[0].unprotected.set(headerCritical, []string{headerB64}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -497,7 +497,7 @@ func TestInvalidJWS(t *testing.T) {
 
 	// reject unknown critical headers
 	obj.Signatures[0].protected = &rawHeader{}
-	obj.Signatures[0].header = &rawHeader{}
+	obj.Signatures[0].unprotected = &rawHeader{}
 	if err = obj.Signatures[0].protected.set(headerCritical, []string{"unknown-critical-header"}); err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +509,7 @@ func TestInvalidJWS(t *testing.T) {
 
 	// Try without alg header
 	obj.Signatures[0].protected = &rawHeader{}
-	obj.Signatures[0].header = &rawHeader{}
+	obj.Signatures[0].unprotected = &rawHeader{}
 
 	_, err = obj.Verify(&rsaTestKey.PublicKey)
 	if err == nil {

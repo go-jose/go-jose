@@ -201,6 +201,11 @@ type Header struct {
 	Other map[HeaderKey]jsontext.Value
 }
 
+// temporary
+func (h Header) getKeyID() (string, error) {
+	return h.KeyID, nil
+}
+
 // Certificates verifies & returns the certificate chain present
 // in the x5c header field of a message, if one was present. Returns
 // an error if there was no x5c header present, any certificate in the

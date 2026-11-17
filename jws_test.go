@@ -953,10 +953,10 @@ func TestEmbeddedPrivateJWKRejected(t *testing.T) {
 
 			messages := map[string]string{
 				"flattened": string(marshal(rawJSONWebSignature{
-					Payload:   payload,
-					Protected: encProtected,
-					Header:    unprotected,
-					Signature: signature,
+					Payload:     payload,
+					Protected:   encProtected,
+					Unprotected: unprotected,
+					Signature:   signature,
 				})),
 				"general": string(marshal(rawJSONWebSignature{
 					Payload: payload,
