@@ -3,7 +3,7 @@ package fuzz
 import (
 	"testing"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 var allSignatureAlgorithms = []jose.SignatureAlgorithm{

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v4"
-	"github.com/go-jose/go-jose/v4/jwt"
+	"github.com/go-jose/go-jose/v5"
+	"github.com/go-jose/go-jose/v5/jwt"
 )
 
 // jwtKeyAlgorithms is the subset of key algorithms permitted for JWT encryption.

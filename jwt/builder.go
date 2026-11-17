@@ -22,7 +22,7 @@ import (
 	"encoding/json/v2"
 	"reflect"
 
-	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v5"
 )
 
 // Builder is a utility for making JSON Web Tokens. Calls can be chained, and
