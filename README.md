@@ -28,7 +28,7 @@ rejection of duplicate field names.
 
 Version 5 is in development on the main branch of this repository.  It will be
 released with several breaking API changes, and will require Go's
-`encoding/json/v2` and Go 1.27.  In the future will support at least the
+`encoding/json/v2` and Go 1.27.  In the future it will support at least the
 current and previous Go release.
 
 Version 4 is now feature-frozen, receiving only bug fixes.
