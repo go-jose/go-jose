@@ -100,7 +100,7 @@ type Audience []string
 
 // UnmarshalJSON reads an audience from its JSON representation.
 func (s *Audience) UnmarshalJSON(b []byte) error {
-	var v interface{}
+	var v any
 	if err := json.Unmarshal(b, &v); err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (s *Audience) UnmarshalJSON(b []byte) error {
 	switch v := v.(type) {
 	case string:
 		*s = []string{v}
-	case []interface{}:
+	case []any:
 		a := make([]string, len(v))
 		for i, e := range v {
 			s, ok := e.(string)

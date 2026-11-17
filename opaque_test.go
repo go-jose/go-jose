@@ -159,7 +159,7 @@ func TestRoundtripsJWSOpaque(t *testing.T) {
 
 		for i, serializer := range serializers {
 			sw := makeOpaqueSigner(t, signingKey, alg)
-			vw := makeOpaqueVerifier(t, []interface{}{verificationKey}, alg)
+			vw := makeOpaqueVerifier(t, []any{verificationKey}, alg)
 
 			err := RoundtripJWS(alg, serializer, corrupter, sw, verificationKey, "test_nonce")
 			if err != nil {
@@ -179,7 +179,7 @@ func TestRoundtripsJWSOpaque(t *testing.T) {
 	}
 }
 
-func makeOpaqueSigner(t *testing.T, signingKey interface{}, alg SignatureAlgorithm) *signWrapper {
+func makeOpaqueSigner(t *testing.T, signingKey any, alg SignatureAlgorithm) *signWrapper {
 	ri, err := makeJWSRecipient(alg, signingKey)
 	if err != nil {
 		t.Fatal(err)
@@ -191,7 +191,7 @@ func makeOpaqueSigner(t *testing.T, signingKey interface{}, alg SignatureAlgorit
 	}
 }
 
-func makeOpaqueVerifier(t *testing.T, verificationKey []interface{}, alg SignatureAlgorithm) *verifyWrapper {
+func makeOpaqueVerifier(t *testing.T, verificationKey []any, alg SignatureAlgorithm) *verifyWrapper {
 	verifiers := []payloadVerifier{}
 	for _, vk := range verificationKey {
 		verifier, err := newVerifier(vk)
@@ -243,7 +243,7 @@ func TestRoundtripsJWEOpaque(t *testing.T) {
 	}
 }
 
-func makeOpaqueKeyEncrypter(t *testing.T, signingKey interface{}, alg KeyAlgorithm, kid string) *keyEncryptWrapper {
+func makeOpaqueKeyEncrypter(t *testing.T, signingKey any, alg KeyAlgorithm, kid string) *keyEncryptWrapper {
 	rki, err := makeJWERecipient(alg, signingKey)
 	if err != nil {
 		t.Fatal(err, alg)
@@ -255,7 +255,7 @@ func makeOpaqueKeyEncrypter(t *testing.T, signingKey interface{}, alg KeyAlgorit
 	}
 }
 
-func makeOpaqueKeyDecrypter(t *testing.T, decryptionKey interface{}, alg KeyAlgorithm) *keyDecryptWrapper {
+func makeOpaqueKeyDecrypter(t *testing.T, decryptionKey any, alg KeyAlgorithm) *keyDecryptWrapper {
 	kd, err := newDecrypter(decryptionKey)
 	if err != nil {
 		t.Fatal(err)
@@ -282,7 +282,7 @@ func TestOpaqueSignerKeyRotation(t *testing.T) {
 
 			sw := makeOpaqueSigner(t, sk1, alg)
 			sw.pk.KeyID = "first"
-			vw := makeOpaqueVerifier(t, []interface{}{pk1, pk2}, alg)
+			vw := makeOpaqueVerifier(t, []any{pk1, pk2}, alg)
 
 			signer, err := NewSigner(
 				SigningKey{Algorithm: alg, Key: sw},
@@ -318,7 +318,7 @@ func TestOpaqueSignerKeyRotation(t *testing.T) {
 	}
 }
 
-func rtSerialize(t *testing.T, serializer func(*JSONWebSignature) (string, error), sig *JSONWebSignature, vk interface{}, alg SignatureAlgorithm) *JSONWebSignature {
+func rtSerialize(t *testing.T, serializer func(*JSONWebSignature) (string, error), sig *JSONWebSignature, vk any, alg SignatureAlgorithm) *JSONWebSignature {
 	b, err := serializer(sig)
 	if err != nil {
 		t.Fatal(err)
@@ -385,7 +385,7 @@ func TestOpaqueSignerNonPublic(t *testing.T) {
 
 type publicKeySigner struct {
 	alg SignatureAlgorithm
-	key interface{}
+	key any
 }
 
 func (ps publicKeySigner) Algs() []SignatureAlgorithm {

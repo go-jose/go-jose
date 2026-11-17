@@ -27,7 +27,7 @@ import (
 
 // JSONWebToken represents a JSON Web Token (as specified in RFC7519).
 type JSONWebToken struct {
-	payload           func(k interface{}) ([]byte, error)
+	payload           func(k any) ([]byte, error)
 	unverifiedPayload func() []byte
 	Headers           []jose.Header
 }
@@ -40,7 +40,7 @@ type NestedJSONWebToken struct {
 }
 
 // Claims deserializes a JSONWebToken into dest using the provided key.
-func (t *JSONWebToken) Claims(key interface{}, dest ...interface{}) error {
+func (t *JSONWebToken) Claims(key any, dest ...any) error {
 	b, err := t.payload(key)
 	if err != nil {
 		return err
@@ -58,7 +58,7 @@ func (t *JSONWebToken) Claims(key interface{}, dest ...interface{}) error {
 // UnsafeClaimsWithoutVerification deserializes the claims of a
 // JSONWebToken into the dests. For signed JWTs, the claims are not
 // verified. This function won't work for encrypted JWTs.
-func (t *JSONWebToken) UnsafeClaimsWithoutVerification(dest ...interface{}) error {
+func (t *JSONWebToken) UnsafeClaimsWithoutVerification(dest ...any) error {
 	if t.unverifiedPayload == nil {
 		return fmt.Errorf("go-jose/go-jose: Cannot get unverified claims")
 	}
@@ -71,7 +71,7 @@ func (t *JSONWebToken) UnsafeClaimsWithoutVerification(dest ...interface{}) erro
 	return nil
 }
 
-func (t *NestedJSONWebToken) Decrypt(decryptionKey interface{}) (*JSONWebToken, error) {
+func (t *NestedJSONWebToken) Decrypt(decryptionKey any) (*JSONWebToken, error) {
 	b, err := t.enc.Decrypt(decryptionKey)
 	if err != nil {
 		return nil, err

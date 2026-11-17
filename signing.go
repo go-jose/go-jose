@@ -56,7 +56,7 @@ type Signer interface {
 //   - HS512: 64 bytes
 type SigningKey struct {
 	Algorithm SignatureAlgorithm
-	Key       interface{}
+	Key       any
 }
 
 // SignerOptions represents options that can be set when creating signers.
@@ -72,7 +72,7 @@ type SignerOptions struct {
 	// that function.
 	//
 	// [json.Marshal]: https://pkg.go.dev/encoding/json/v2#Marshal
-	ExtraHeaders map[HeaderKey]interface{}
+	ExtraHeaders map[HeaderKey]any
 }
 
 // WithHeader adds an arbitrary value to the ExtraHeaders map, initializing it
@@ -82,9 +82,9 @@ type SignerOptions struct {
 // input to that function.
 //
 // [json.Marshal]: https://pkg.go.dev/encoding/json/v2#Marshal
-func (so *SignerOptions) WithHeader(k HeaderKey, v interface{}) *SignerOptions {
+func (so *SignerOptions) WithHeader(k HeaderKey, v any) *SignerOptions {
 	if so.ExtraHeaders == nil {
-		so.ExtraHeaders = map[HeaderKey]interface{}{}
+		so.ExtraHeaders = map[HeaderKey]any{}
 	}
 	so.ExtraHeaders[k] = v
 	return so
@@ -136,7 +136,7 @@ type genericSigner struct {
 	recipients   []recipientSigInfo
 	nonceSource  NonceSource
 	embedJWK     bool
-	extraHeaders map[HeaderKey]interface{}
+	extraHeaders map[HeaderKey]any
 }
 
 type recipientSigInfo struct {
@@ -187,7 +187,7 @@ func NewMultiSigner(sigs []SigningKey, opts *SignerOptions) (Signer, error) {
 }
 
 // newVerifier creates a verifier based on the key type
-func newVerifier(verificationKey interface{}) (payloadVerifier, error) {
+func newVerifier(verificationKey any) (payloadVerifier, error) {
 	switch verificationKey := verificationKey.(type) {
 	case ed25519.PublicKey:
 		if len(verificationKey) == 0 {
@@ -231,7 +231,7 @@ func newVerifier(verificationKey interface{}) (payloadVerifier, error) {
 	}
 }
 
-func (ctx *genericSigner) addRecipient(alg SignatureAlgorithm, signingKey interface{}) error {
+func (ctx *genericSigner) addRecipient(alg SignatureAlgorithm, signingKey any) error {
 	recipient, err := makeJWSRecipient(alg, signingKey)
 	if err != nil {
 		return err
@@ -241,7 +241,7 @@ func (ctx *genericSigner) addRecipient(alg SignatureAlgorithm, signingKey interf
 	return nil
 }
 
-func makeJWSRecipient(alg SignatureAlgorithm, signingKey interface{}) (recipientSigInfo, error) {
+func makeJWSRecipient(alg SignatureAlgorithm, signingKey any) (recipientSigInfo, error) {
 	switch signingKey := signingKey.(type) {
 	case ed25519.PrivateKey:
 		return newEd25519Signer(alg, signingKey)
@@ -292,7 +292,7 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 	obj.Signatures = make([]Signature, len(ctx.recipients))
 
 	for i, recipient := range ctx.recipients {
-		protected := map[HeaderKey]interface{}{
+		protected := map[HeaderKey]any{
 			headerAlgorithm: string(recipient.sigAlg),
 		}
 
@@ -407,7 +407,7 @@ func (ctx *genericSigner) Options() SignerOptions {
 //   - HS256: 32 bytes
 //   - HS384: 48 bytes
 //   - HS512: 64 bytes
-func (obj JSONWebSignature) Verify(verificationKey interface{}) ([]byte, error) {
+func (obj JSONWebSignature) Verify(verificationKey any) ([]byte, error) {
 	err := obj.DetachedVerify(obj.payload, verificationKey)
 	if err != nil {
 		return nil, err
@@ -429,7 +429,7 @@ func (obj JSONWebSignature) UnsafePayloadWithoutVerification() []byte {
 //
 // The verificationKey argument must have one of the types allowed for the
 // verificationKey argument of JSONWebSignature.Verify().
-func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey interface{}) error {
+func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey any) error {
 	if len(obj.Signatures) > 1 {
 		return errors.New("go-jose/go-jose: too many signatures in payload; expecting only one")
 	}
@@ -486,7 +486,7 @@ func (obj JSONWebSignature) DetachedVerify(payload []byte, verificationKey inter
 //
 // The verificationKey argument must have one of the types allowed for the
 // verificationKey argument of JSONWebSignature.Verify().
-func (obj JSONWebSignature) VerifyMulti(verificationKey interface{}) (int, Signature, []byte, error) {
+func (obj JSONWebSignature) VerifyMulti(verificationKey any) (int, Signature, []byte, error) {
 	idx, sig, err := obj.DetachedVerifyMulti(obj.payload, verificationKey)
 	if err != nil {
 		return -1, Signature{}, nil, err
@@ -506,7 +506,7 @@ func (obj JSONWebSignature) VerifyMulti(verificationKey interface{}) (int, Signa
 //
 // The verificationKey argument must have one of the types allowed for the
 // verificationKey argument of JSONWebSignature.Verify().
-func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey interface{}) (int, Signature, error) {
+func (obj JSONWebSignature) DetachedVerifyMulti(payload []byte, verificationKey any) (int, Signature, error) {
 	for i, signature := range obj.Signatures {
 		if signature.header != nil {
 			// Per https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.11,

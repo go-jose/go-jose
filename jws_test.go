@@ -509,7 +509,7 @@ func TestSampleNimbusJWSMessagesEC(t *testing.T) {
 		panic(err)
 	}
 
-	ecPublicKeys := []interface{}{ecPublicKeyP256, ecPublicKeyP384, ecPublicKeyP521}
+	ecPublicKeys := []any{ecPublicKeyP256, ecPublicKeyP384, ecPublicKeyP521}
 
 	ecSampleMessages := []string{
 		"eyJhbGciOiJFUzI1NiJ9.TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ.MEWJVlvGRQyzMEGOYm4rwuiwxrX-6LjnlbaRDAuhwmnBm2Gtn7pRpGXRTMFZUXsSGDz2L1p-Hz1qn8j9bFIBtQ",
@@ -750,7 +750,7 @@ func TestJWSWithCertificateChain(t *testing.T) {
 
 	for i, testCase := range testCases {
 		signer, err := NewSigner(signerKey, &SignerOptions{
-			ExtraHeaders: map[HeaderKey]interface{}{HeaderKey("x5c"): testCase.chain},
+			ExtraHeaders: map[HeaderKey]any{HeaderKey("x5c"): testCase.chain},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -931,7 +931,7 @@ func TestEmbeddedPrivateJWKRejected(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			marshal := func(v interface{}) []byte {
+			marshal := func(v any) []byte {
 				t.Helper()
 				b, err := json.Marshal(v)
 				if err != nil {

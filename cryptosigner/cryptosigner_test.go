@@ -59,7 +59,7 @@ func (sns staticNonceSource) Nonce() (string, error) {
 	return string(sns), nil
 }
 
-func roundtripJWS(sigAlg jose.SignatureAlgorithm, serializer func(*jose.JSONWebSignature) (string, error), signingKey interface{}, verificationKey interface{}) error {
+func roundtripJWS(sigAlg jose.SignatureAlgorithm, serializer func(*jose.JSONWebSignature) (string, error), signingKey any, verificationKey any) error {
 	nonce := "test_nonce"
 	opts := &jose.SignerOptions{
 		NonceSource: staticNonceSource(nonce),
@@ -113,7 +113,7 @@ func roundtripJWS(sigAlg jose.SignatureAlgorithm, serializer func(*jose.JSONWebS
 	return nil
 }
 
-func generateSigningTestKey(sigAlg jose.SignatureAlgorithm) (sig, ver interface{}) {
+func generateSigningTestKey(sigAlg jose.SignatureAlgorithm) (sig, ver any) {
 	switch sigAlg {
 	case jose.EdDSA:
 		ver, sig, _ = ed25519.GenerateKey(rand.Reader)

@@ -32,7 +32,7 @@ type Builder interface {
 	// into single JSON object. If you are passing private claims, make sure to set
 	// struct field tags to specify the name for the JSON key to be used when
 	// serializing.
-	Claims(i interface{}) Builder
+	Claims(i any) Builder
 	// Token builds a JSONWebToken from provided data.
 	Token() (*JSONWebToken, error)
 	// Serialize serializes a token.
@@ -47,7 +47,7 @@ type NestedBuilder interface {
 	// into single JSON object. If you are passing private claims, make sure to set
 	// struct field tags to specify the name for the JSON key to be used when
 	// serializing.
-	Claims(i interface{}) NestedBuilder
+	Claims(i any) NestedBuilder
 	// Token builds a NestedJSONWebToken from provided data.
 	Token() (*NestedJSONWebToken, error)
 	// Serialize serializes a token.
@@ -105,7 +105,7 @@ func SignedAndEncrypted(sig jose.Signer, enc jose.Encrypter) NestedBuilder {
 	}
 }
 
-func (b builder) claims(i interface{}) builder {
+func (b builder) claims(i any) builder {
 	if b.err != nil {
 		return b
 	}
@@ -114,7 +114,7 @@ func (b builder) claims(i interface{}) builder {
 		return b.merge(m)
 	}
 
-	if mapOfInterfaces, ok := i.(map[string]interface{}); ok {
+	if mapOfInterfaces, ok := i.(map[string]any); ok {
 		m, err := normalize(mapOfInterfaces)
 		if err != nil {
 			return builder{
@@ -139,7 +139,7 @@ func (b builder) claims(i interface{}) builder {
 	}
 }
 
-func normalize(i interface{}) (map[string]jsontext.Value, error) {
+func normalize(i any) (map[string]jsontext.Value, error) {
 	m := make(map[string]jsontext.Value)
 
 	raw, err := json.Marshal(i, json.Deterministic(true))
@@ -168,14 +168,14 @@ func (b *builder) merge(m map[string]jsontext.Value) builder {
 	}
 }
 
-func (b *builder) token(p func(interface{}) ([]byte, error), h []jose.Header) (*JSONWebToken, error) {
+func (b *builder) token(p func(any) ([]byte, error), h []jose.Header) (*JSONWebToken, error) {
 	return &JSONWebToken{
 		payload: p,
 		Headers: h,
 	}, nil
 }
 
-func (b *signedBuilder) Claims(i interface{}) Builder {
+func (b *signedBuilder) Claims(i any) Builder {
 	return &signedBuilder{
 		builder: b.builder.claims(i),
 		sig:     b.sig,
@@ -218,7 +218,7 @@ func (b *signedBuilder) sign() (*jose.JSONWebSignature, error) {
 	return b.sig.Sign(p)
 }
 
-func (b *encryptedBuilder) Claims(i interface{}) Builder {
+func (b *encryptedBuilder) Claims(i any) Builder {
 	return &encryptedBuilder{
 		builder: b.builder.claims(i),
 		enc:     b.enc,
@@ -256,7 +256,7 @@ func (b *encryptedBuilder) encrypt() (*jose.JSONWebEncryption, error) {
 	return b.enc.Encrypt(p)
 }
 
-func (b *nestedBuilder) Claims(i interface{}) NestedBuilder {
+func (b *nestedBuilder) Claims(i any) NestedBuilder {
 	return &nestedBuilder{
 		builder: b.builder.claims(i),
 		sig:     b.sig,

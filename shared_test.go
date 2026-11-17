@@ -249,7 +249,7 @@ func TestCertificatesOversizedRSA(t *testing.T) {
 				x5c = append(x5c, base64.StdEncoding.EncodeToString(cert.Raw))
 			}
 			signer, err := NewSigner(SigningKey{Algorithm: RS256, Key: rsaTestKey}, &SignerOptions{
-				ExtraHeaders: map[HeaderKey]interface{}{HeaderKey("x5c"): x5c},
+				ExtraHeaders: map[HeaderKey]any{HeaderKey("x5c"): x5c},
 			})
 			if err != nil {
 				t.Fatalf("NewSigner() error = %v, want nil", err)
