@@ -31,7 +31,7 @@ released with several breaking API changes, and will require Go's
 `encoding/json/v2` and Go 1.27.  In the future will support at least the
 current and previous Go release.
 
-Version 4 is now feature-frozen, recieving only bug fixes.
+Version 4 is now feature-frozen, receiving only bug fixes.
 
     import "github.com/go-jose/go-jose/v4"
 
