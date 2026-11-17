@@ -17,6 +17,8 @@
 
 package jwt
 
+import "slices"
+
 import "time"
 
 const (
@@ -91,11 +93,8 @@ func (c Claims) ValidateWithLeeway(e Expected, leeway time.Duration) error {
 
 	if len(e.AnyAudience) != 0 {
 		var intersection bool
-		for _, v := range e.AnyAudience {
-			if c.Audience.Contains(v) {
-				intersection = true
-				break
-			}
+		if slices.ContainsFunc(e.AnyAudience, c.Audience.Contains) {
+			intersection = true
 		}
 
 		if !intersection {

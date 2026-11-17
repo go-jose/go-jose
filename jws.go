@@ -23,6 +23,7 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -226,12 +227,7 @@ func ParseSignedJSON(
 }
 
 func containsSignatureAlgorithm(haystack []SignatureAlgorithm, needle SignatureAlgorithm) bool {
-	for _, algorithm := range haystack {
-		if algorithm == needle {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 // ErrUnexpectedSignatureAlgorithm is returned when the signature algorithm in

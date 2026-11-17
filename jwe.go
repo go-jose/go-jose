@@ -22,6 +22,7 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -116,21 +117,11 @@ func (obj JSONWebEncryption) computeAuthData() ([]byte, error) {
 }
 
 func containsKeyAlgorithm(haystack []KeyAlgorithm, needle KeyAlgorithm) bool {
-	for _, algorithm := range haystack {
-		if algorithm == needle {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 func containsContentEncryption(haystack []ContentEncryption, needle ContentEncryption) bool {
-	for _, algorithm := range haystack {
-		if algorithm == needle {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 // ParseEncrypted parses an encrypted message in JWE Compact or JWE JSON Serialization.
