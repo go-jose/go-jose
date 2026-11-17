@@ -6,14 +6,13 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"math/big"
 	"reflect"
 	"strings"
 	"testing"
-
 	"time"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 func TestMergeHeaders(t *testing.T) {
@@ -55,14 +54,14 @@ func TestMergeHeaders(t *testing.T) {
 
 func TestHeaderEqual(t *testing.T) {
 	header1 := Header{
-		KeyID:        "1-2-3-4",
-		Algorithm:    "test",
-		ExtraHeaders: map[HeaderKey]interface{}{"kid": "1-2-3-4"},
+		KeyID:     "1-2-3-4",
+		Algorithm: "test",
+		Other:     map[HeaderKey]jsontext.Value{"kid": jsontext.Value(`"1-2-3-4"`)},
 	}
 	header2 := Header{
-		KeyID:        "1-2-3-4",
-		Algorithm:    "test",
-		ExtraHeaders: map[HeaderKey]interface{}{"kid": "1-2-3-4"},
+		KeyID:     "1-2-3-4",
+		Algorithm: "test",
+		Other:     map[HeaderKey]jsontext.Value{"kid": jsontext.Value(`"1-2-3-4"`)},
 	}
 	if !reflect.DeepEqual(header1, header2) {
 		t.Fatalf("header1 and header2 are not equal, expected equal")
@@ -71,14 +70,14 @@ func TestHeaderEqual(t *testing.T) {
 
 func TestHeaderNotEqual(t *testing.T) {
 	header1 := Header{
-		KeyID:        "1-2-3-4",
-		Algorithm:    "test",
-		ExtraHeaders: map[HeaderKey]interface{}{"kid": "1-2-3-4"},
+		KeyID:     "1-2-3-4",
+		Algorithm: "test",
+		Other:     map[HeaderKey]jsontext.Value{"kid": jsontext.Value(`"1-2-3-4"`)},
 	}
 	header2 := Header{
-		KeyID:        "1-2-3-4",
-		Algorithm:    "test",
-		ExtraHeaders: map[HeaderKey]interface{}{"kid": "9-9-9-9"},
+		KeyID:     "1-2-3-4",
+		Algorithm: "test",
+		Other:     map[HeaderKey]jsontext.Value{"kid": jsontext.Value(`"9-9-9-9"`)},
 	}
 	if reflect.DeepEqual(header1, header2) {
 		t.Fatalf("header1 and header2 are equal, expected not equal")

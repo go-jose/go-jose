@@ -27,13 +27,12 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"math/big"
 	"testing"
 	"time"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 func TestMLDSAAlgParamsRoundtrip(t *testing.T) {

@@ -23,14 +23,14 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"reflect"
 	"runtime"
 	"strings"
 	"testing"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 type staticNonceSource string
@@ -694,13 +694,13 @@ func TestSignerExtraHeaderInclusion(t *testing.T) {
 		t.Error("Failed to parse jws")
 	}
 
-	correct := map[HeaderKey]interface{}{
-		HeaderContentType:           "foo/bar",
-		HeaderKey("myCustomHeader"): "xyz",
+	correct := map[HeaderKey]jsontext.Value{
+		HeaderContentType:           jsontext.Value(`"foo/bar"`),
+		HeaderKey("myCustomHeader"): jsontext.Value(`"xyz"`),
 	}
 
-	if !reflect.DeepEqual(object.Signatures[0].Header.ExtraHeaders, correct) {
-		t.Errorf("Mismatch in extra headers: %#v", object.Signatures[0].Header.ExtraHeaders)
+	if !reflect.DeepEqual(object.Signatures[0].Header.Other, correct) {
+		t.Errorf("Mismatch in extra headers: %#v", object.Signatures[0].Header.Other)
 	}
 }
 

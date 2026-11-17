@@ -19,12 +19,12 @@ package jose
 import (
 	"bytes"
 	"encoding/base64"
+	jsonv1 "encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"strings"
 	"unicode"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 // MaxSignatures is the maximum number of signatures in a JWS at parse time.
@@ -174,7 +174,7 @@ func (obj JSONWebSignature) computeAuthData(payload []byte, signature *Signature
 		authData.WriteString(signature.original.Protected.base64())
 	} else if signature.protected != nil {
 		protectedHeader = signature.protected
-		serializedProtected, err := json.Marshal(protectedHeader)
+		serializedProtected, err := json.Marshal(protectedHeader, json.Deterministic(true))
 		if err != nil {
 			return nil, err
 		}
@@ -451,7 +451,7 @@ func (obj JSONWebSignature) compactSerialize(detached bool) (string, error) {
 		return "", ErrNotSupported
 	}
 
-	serializedProtected, err := json.Marshal(obj.Signatures[0].protected)
+	serializedProtected, err := json.Marshal(obj.Signatures[0].protected, json.Deterministic(true))
 	if err != nil {
 		return "", err
 	}
@@ -492,7 +492,7 @@ func (obj JSONWebSignature) FullSerialize() string {
 
 	if len(obj.Signatures) == 1 {
 		if obj.Signatures[0].protected != nil {
-			serializedProtected, err := json.Marshal(obj.Signatures[0].protected)
+			serializedProtected, err := json.Marshal(obj.Signatures[0].protected, json.Deterministic(true))
 			if err != nil {
 				return ""
 			}
@@ -509,7 +509,7 @@ func (obj JSONWebSignature) FullSerialize() string {
 			}
 
 			if signature.protected != nil {
-				serializedProtected, err := json.Marshal(signature.protected)
+				serializedProtected, err := json.Marshal(signature.protected, json.Deterministic(true))
 				if err != nil {
 					return ""
 				}
@@ -518,7 +518,7 @@ func (obj JSONWebSignature) FullSerialize() string {
 		}
 	}
 
-	out, err := json.Marshal(raw)
+	out, err := json.Marshal(raw, json.Deterministic(true), jsonv1.OmitEmptyWithLegacySemantics(true))
 	if err != nil {
 		return ""
 	}

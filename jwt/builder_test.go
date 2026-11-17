@@ -22,11 +22,14 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/json"
+	"encoding/json/jsontext"
 	"encoding/pem"
 	"errors"
 	"io"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,7 +37,6 @@ import (
 	"github.com/go-jose/go-jose/v4/testutils/require"
 
 	"github.com/go-jose/go-jose/v4"
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 type testClaims struct {
@@ -74,12 +76,14 @@ func TestIntegerAndFloatsNormalize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ni, err := (normalized["int"].(json.Number)).Int64()
+	var ni int64
+	err = json.Unmarshal(normalized["int"], &ni)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	nf, err := (normalized["float"].(json.Number)).Float64()
+	var nf float64
+	err = json.Unmarshal(normalized["float"], &nf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +148,9 @@ func TestBuilderMergeClaims(t *testing.T) {
 	assert.Equal(t, err, ErrInvalidClaims)
 
 	_, err = Signed(rsaSigner).Claims(&invalidMarshalClaims{}).Serialize()
-	assert.Equal(t, err.Error(), "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
+	if !strings.Contains(err.Error(), "failed marshaling invalid claims") {
+		t.Errorf("got %q, want error containing %q", err, "failed marshaling invalid claims")
+	}
 }
 
 func TestBuilderSignedAndEncrypted(t *testing.T) {
@@ -198,10 +204,10 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 		if assert.NoError(t, err, "Error parsing signed-then-encrypted full token.") {
 			expected := []jose.Header{{
 				Algorithm: string(jose.DIRECT),
-				ExtraHeaders: map[jose.HeaderKey]interface{}{
-					jose.HeaderType:        "JWT",
-					jose.HeaderContentType: "JWT",
-					"enc":                  "A128CBC-HS256",
+				Other: map[jose.HeaderKey]jsontext.Value{
+					jose.HeaderType:        jsontext.Value(`"JWT"`),
+					jose.HeaderContentType: jsontext.Value(`"JWT"`),
+					"enc":                  jsontext.Value(`"A128CBC-HS256"`),
 				},
 			}}
 			if !reflect.DeepEqual(jwe.Headers, expected) {
@@ -210,8 +216,8 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 			if jws, err := jwe.Decrypt(encryptionKey); assert.NoError(t, err) {
 				expected := []jose.Header{{
 					Algorithm: string(jose.RS256),
-					ExtraHeaders: map[jose.HeaderKey]interface{}{
-						jose.HeaderType: "JWT",
+					Other: map[jose.HeaderKey]jsontext.Value{
+						jose.HeaderType: jsontext.Value(`"JWT"`),
 					},
 				}}
 				if !reflect.DeepEqual(jws.Headers, expected) {
@@ -226,9 +232,13 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 
 	b2 := SignedAndEncrypted(rsaSigner, encrypter).Claims(&invalidMarshalClaims{})
 	_, err = b2.Serialize()
-	assert.Equal(t, err.Error(), "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
+	if !strings.Contains(err.Error(), "failed marshaling invalid claims") {
+		t.Errorf("got %q, want error containing %q", err, "failed marshaling invalid claims")
+	}
 	_, err = b2.Serialize()
-	assert.Equal(t, err.Error(), "json: error calling MarshalJSON for type *jwt.invalidMarshalClaims: failed marshaling invalid claims")
+	if !strings.Contains(err.Error(), "failed marshaling invalid claims") {
+		t.Errorf("got %q, want error containing %q", err, "failed marshaling invalid claims")
+	}
 
 	encrypter2, err := jose.NewEncrypter(jose.A128CBC_HS256, recipient, nil)
 	require.NoError(t, err, "Error creating encrypter.")
@@ -329,9 +339,9 @@ func TestBuilderHeadersEncrypter(t *testing.T) {
 	jwe, err := jose.ParseEncrypted(token, []jose.KeyAlgorithm{jose.RSA1_5}, []jose.ContentEncryption{jose.A128CBC_HS256})
 	if assert.NoError(t, err, "error parsing encrypted token") {
 		expected := jose.Header{
-			ExtraHeaders: map[jose.HeaderKey]interface{}{
-				jose.HeaderType: string(wantType),
-				"enc":           "A128CBC-HS256",
+			Other: map[jose.HeaderKey]jsontext.Value{
+				jose.HeaderType: jsontext.Value(`"` + string(wantType) + `"`),
+				"enc":           jsontext.Value(`"A128CBC-HS256"`),
 			},
 			Algorithm: string(jose.RSA1_5),
 			KeyID:     wantKeyID,
