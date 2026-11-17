@@ -25,6 +25,7 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"maps"
 )
 
 // NonceSource represents a source of random nonces to go into JWS objects
@@ -329,9 +330,7 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 			protected[headerNonce] = nonce
 		}
 
-		for k, v := range ctx.extraHeaders {
-			protected[k] = v
-		}
+		maps.Copy(protected, ctx.extraHeaders)
 
 		serializedProtected, err := json.Marshal(protected, json.Deterministic(true))
 		if err != nil {

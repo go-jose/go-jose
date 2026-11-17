@@ -20,6 +20,7 @@ package jwt
 import (
 	"encoding/json/jsontext"
 	"encoding/json/v2"
+	"maps"
 	"reflect"
 
 	"github.com/go-jose/go-jose/v5"
@@ -156,12 +157,8 @@ func normalize(i any) (map[string]jsontext.Value, error) {
 
 func (b *builder) merge(m map[string]jsontext.Value) builder {
 	p := make(map[string]jsontext.Value)
-	for k, v := range b.payload {
-		p[k] = v
-	}
-	for k, v := range m {
-		p[k] = v
-	}
+	maps.Copy(p, b.payload)
+	maps.Copy(p, m)
 
 	return builder{
 		payload: p,
