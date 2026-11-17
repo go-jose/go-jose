@@ -49,5 +49,5 @@ func (r Base64Reader) Read(p []byte) (n int, err error) {
 		err = io.EOF
 	}
 
-	return
+	return n, err
 }

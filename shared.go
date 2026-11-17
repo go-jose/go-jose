@@ -465,7 +465,7 @@ func (parsed rawHeader) sanitized() (h Header, err error) {
 			h.Other[k] = v.Clone()
 		}
 	}
-	return
+	return h, nil
 }
 
 func parseCertificateChain(chain []string) ([]*x509.Certificate, error) {
