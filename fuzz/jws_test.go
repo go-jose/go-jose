@@ -7,7 +7,7 @@ import (
 )
 
 var allSignatureAlgorithms = []jose.SignatureAlgorithm{
-	jose.EdDSA,
+	jose.EdDSA, jose.Ed25519,
 	jose.HS256, jose.HS384, jose.HS512,
 	jose.RS256, jose.RS384, jose.RS512,
 	jose.ES256, jose.ES384, jose.ES512,

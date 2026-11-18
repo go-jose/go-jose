@@ -115,7 +115,7 @@ func newRSASigner(sigAlg SignatureAlgorithm, privateKey *rsa.PrivateKey) (recipi
 }
 
 func newEd25519Signer(sigAlg SignatureAlgorithm, privateKey ed25519.PrivateKey) (recipientSigInfo, error) {
-	if sigAlg != EdDSA {
+	if sigAlg != EdDSA && sigAlg != Ed25519 {
 		return recipientSigInfo{}, ErrUnsupportedAlgorithm
 	}
 
@@ -480,7 +480,7 @@ func (ctx ecDecrypterSigner) decryptKey(headers rawHeader, recipient *recipientI
 }
 
 func (ctx edDecrypterSigner) signPayload(payload []byte, alg SignatureAlgorithm) (Signature, error) {
-	if alg != EdDSA {
+	if alg != EdDSA && alg != Ed25519 {
 		return Signature{}, ErrUnsupportedAlgorithm
 	}
 
@@ -496,7 +496,7 @@ func (ctx edDecrypterSigner) signPayload(payload []byte, alg SignatureAlgorithm)
 }
 
 func (ctx edEncrypterVerifier) verifyPayload(payload []byte, signature []byte, alg SignatureAlgorithm) error {
-	if alg != EdDSA {
+	if alg != EdDSA && alg != Ed25519 {
 		return ErrUnsupportedAlgorithm
 	}
 	ok := ed25519.Verify(ctx.publicKey, payload, signature)

@@ -54,7 +54,7 @@ func (s *cryptoSigner) Public() *jose.JSONWebKey {
 func (s *cryptoSigner) Algs() []jose.SignatureAlgorithm {
 	switch key := s.signer.Public().(type) {
 	case ed25519.PublicKey:
-		return []jose.SignatureAlgorithm{jose.EdDSA}
+		return []jose.SignatureAlgorithm{jose.EdDSA, jose.Ed25519}
 	case *ecdsa.PublicKey:
 		switch key.Curve {
 		case elliptic.P256():
@@ -79,7 +79,7 @@ func (s *cryptoSigner) Algs() []jose.SignatureAlgorithm {
 func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) ([]byte, error) {
 	var hash crypto.Hash
 	switch alg {
-	case jose.EdDSA, jose.MLDSA44, jose.MLDSA65, jose.MLDSA87:
+	case jose.EdDSA, jose.Ed25519, jose.MLDSA44, jose.MLDSA65, jose.MLDSA87:
 		// No pre-hashing; the payload is signed directly.
 	case jose.RS256, jose.PS256, jose.ES256:
 		hash = crypto.SHA256
@@ -105,7 +105,7 @@ func (s *cryptoSigner) SignPayload(payload []byte, alg jose.SignatureAlgorithm) 
 		err error
 	)
 	switch alg {
-	case jose.EdDSA:
+	case jose.EdDSA, jose.Ed25519:
 		out, err = s.signer.Sign(s.rand, payload, crypto.Hash(0))
 	case jose.MLDSA44, jose.MLDSA65, jose.MLDSA87:
 		algs, ok := mldsaAlgs(s.signer.Public())

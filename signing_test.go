@@ -98,7 +98,7 @@ func RoundtripJWS(sigAlg SignatureAlgorithm, serializer func(*JSONWebSignature) 
 
 func TestRoundtripsJWS(t *testing.T) {
 	// Test matrix
-	sigAlgs := []SignatureAlgorithm{RS256, RS384, RS512, PS256, PS384, PS512, HS256, HS384, HS512, ES256, ES384, ES512, EdDSA}
+	sigAlgs := []SignatureAlgorithm{RS256, RS384, RS512, PS256, PS384, PS512, HS256, HS384, HS512, ES256, ES384, ES512, EdDSA, Ed25519}
 
 	serializers := []func(*JSONWebSignature) (string, error){
 		func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() },
@@ -123,7 +123,7 @@ func TestRoundtripsJWS(t *testing.T) {
 
 func TestRoundtripsJWSCorruptSignature(t *testing.T) {
 	// Test matrix
-	sigAlgs := []SignatureAlgorithm{RS256, RS384, RS512, PS256, PS384, PS512, HS256, HS384, HS512, ES256, ES384, ES512, EdDSA}
+	sigAlgs := []SignatureAlgorithm{RS256, RS384, RS512, PS256, PS384, PS512, HS256, HS384, HS512, ES256, ES384, ES512, EdDSA, Ed25519}
 
 	serializers := []func(*JSONWebSignature) (string, error){
 		func(obj *JSONWebSignature) (string, error) { return obj.CompactSerialize() },
@@ -433,7 +433,7 @@ func TestVerifyMultiJWKSNoMatchingKid(t *testing.T) {
 
 func GenerateSigningTestKey(sigAlg SignatureAlgorithm) (sig, ver any) {
 	switch sigAlg {
-	case EdDSA:
+	case EdDSA, Ed25519:
 		sig = ed25519PrivateKey
 		ver = ed25519PublicKey
 	case RS256, RS384, RS512, PS256, PS384, PS512:

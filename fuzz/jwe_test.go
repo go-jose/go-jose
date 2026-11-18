@@ -7,7 +7,7 @@ import (
 )
 
 var allKeyAlgorithms = []jose.KeyAlgorithm{
-	jose.ED25519, jose.RSA1_5, jose.RSA_OAEP, jose.RSA_OAEP_256,
+	jose.Ed25519Key, jose.RSA1_5, jose.RSA_OAEP, jose.RSA_OAEP_256,
 	jose.A128KW, jose.A192KW, jose.A256KW,
 	jose.DIRECT,
 	jose.ECDH_ES, jose.ECDH_ES_A128KW, jose.ECDH_ES_A192KW, jose.ECDH_ES_A256KW,

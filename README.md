@@ -67,7 +67,7 @@ standard where possible. The Godoc reference has a list of constants.
 | RSASSA-PSS        | PS256, PS384, PS512                         |
 | HMAC              | HS256, HS384, HS512                         |
 | ECDSA             | ES256, ES384, ES512                         |
-| Ed25519           | EdDSA                                       |
+| Ed25519           | EdDSA, Ed25519                              |
 | ML-DSA            | ML-DSA-44, ML-DSA-65, ML-DSA-87             |
 
 | Content encryption | Algorithm identifier(s)                     |
@@ -90,7 +90,7 @@ allows attaching a key id.
 |:-------------------|--------------------------------------------------------------------------------------------------------------------------------------|
 | RSA                | *[rsa.PublicKey](https://pkg.go.dev/crypto/rsa/#PublicKey), *[rsa.PrivateKey](https://pkg.go.dev/crypto/rsa/#PrivateKey)             |
 | ECDH, ECDSA        | *[ecdsa.PublicKey](https://pkg.go.dev/crypto/ecdsa/#PublicKey), *[ecdsa.PrivateKey](https://pkg.go.dev/crypto/ecdsa/#PrivateKey)     |
-| EdDSA<sup>1</sup>  | [ed25519.PublicKey](https://pkg.go.dev/crypto/ed25519#PublicKey), [ed25519.PrivateKey](https://pkg.go.dev/crypto/ed25519#PrivateKey) |
+| EdDSA, Ed25519<sup>1</sup> | [ed25519.PublicKey](https://pkg.go.dev/crypto/ed25519#PublicKey), [ed25519.PrivateKey](https://pkg.go.dev/crypto/ed25519#PrivateKey) |
 | ML-DSA<sup>2</sup> | *[mldsa.PublicKey](https://pkg.go.dev/crypto/mldsa#PublicKey), *[mldsa.PrivateKey](https://pkg.go.dev/crypto/mldsa#PrivateKey)       |
 | AES, HMAC          | []byte                                                                                                                               |
 

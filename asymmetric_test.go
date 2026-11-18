@@ -49,21 +49,23 @@ func TestEd25519(t *testing.T) {
 		t.Error("should return error on invalid algorithm")
 	}
 
-	sig, err := dec.signPayload([]byte("This is a test"), "EdDSA")
-	if err != nil {
-		t.Error("should not error trying to sign payload")
-	}
-	if sig.Signature == nil {
-		t.Error("Check the signature")
-	}
-	err = enc.verifyPayload([]byte("This is a test"), sig.Signature, "EdDSA")
-	if err != nil {
-		t.Error("should not error trying to verify payload")
-	}
+	for _, alg := range []SignatureAlgorithm{EdDSA, Ed25519} {
+		sig, err := dec.signPayload([]byte("This is a test"), alg)
+		if err != nil {
+			t.Error("should not error trying to sign payload")
+		}
+		if sig.Signature == nil {
+			t.Error("Check the signature")
+		}
+		err = enc.verifyPayload([]byte("This is a test"), sig.Signature, alg)
+		if err != nil {
+			t.Error("should not error trying to verify payload")
+		}
 
-	err = enc.verifyPayload([]byte("This is test number 2"), sig.Signature, "EdDSA")
-	if err == nil {
-		t.Error("should not error trying to verify payload")
+		err = enc.verifyPayload([]byte("This is test number 2"), sig.Signature, alg)
+		if err == nil {
+			t.Error("should not error trying to verify payload")
+		}
 	}
 }
 

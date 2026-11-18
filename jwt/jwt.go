@@ -111,7 +111,7 @@ func ParseSigned(s string, signatureAlgorithms []jose.SignatureAlgorithm) (*JSON
 func validateKeyEncryptionAlgorithm(algs []jose.KeyAlgorithm) error {
 	for _, alg := range algs {
 		switch alg {
-		case jose.ED25519,
+		case jose.Ed25519Key,
 			jose.RSA1_5,
 			jose.RSA_OAEP,
 			jose.RSA_OAEP_256,
