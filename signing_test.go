@@ -76,16 +76,16 @@ func RoundtripJWS(sigAlg SignatureAlgorithm, serializer func(*JSONWebSignature) 
 
 	// Check that verify works with embedded keys (if present)
 	for i, sig := range obj.Signatures {
-		if sig.Header.JSONWebKey != nil {
-			_, err = obj.Verify(sig.Header.JSONWebKey)
+		if sig.Protected.JSONWebKey != nil {
+			_, err = obj.Verify(sig.Protected.JSONWebKey)
 			if err != nil {
 				return fmt.Errorf("error on verify with embedded key %d: %s", i, err)
 			}
 		}
 
 		// Check that the nonce correctly round-tripped (if present)
-		if sig.Header.Nonce != nonce {
-			return fmt.Errorf("Incorrect nonce returned: [%s]", sig.Header.Nonce)
+		if sig.Protected.Nonce != nonce {
+			return fmt.Errorf("Incorrect nonce returned: [%s]", sig.Protected.Nonce)
 		}
 	}
 
@@ -377,8 +377,8 @@ func TestVerifyMultiJWKSPerSignatureKid(t *testing.T) {
 	if idx != 1 {
 		t.Errorf("verified signature index = %d, want 1", idx)
 	}
-	if sig.Header.KeyID != "bar" {
-		t.Errorf("verified kid = %q, want \"bar\"", sig.Header.KeyID)
+	if sig.Protected.KeyID != "bar" {
+		t.Errorf("verified kid = %q, want \"bar\"", sig.Protected.KeyID)
 	}
 	if !bytes.Equal(out, payload) {
 		t.Error("payload mismatch")
@@ -566,7 +566,7 @@ func TestSignerKid(t *testing.T) {
 		t.Error("problem parsing signed object", err)
 	}
 
-	if parsed.Signatures[0].Header.KeyID != kid {
+	if parsed.Signatures[0].Protected.KeyID != kid {
 		t.Error("KeyID did not survive trip")
 	}
 
@@ -699,8 +699,8 @@ func TestSignerExtraHeaderInclusion(t *testing.T) {
 		HeaderKey("myCustomHeader"): jsontext.Value(`"xyz"`),
 	}
 
-	if !reflect.DeepEqual(object.Signatures[0].Header.Other, correct) {
-		t.Errorf("Mismatch in extra headers: %#v", object.Signatures[0].Header.Other)
+	if !reflect.DeepEqual(object.Signatures[0].Protected.Other, correct) {
+		t.Errorf("Mismatch in extra headers: %#v", object.Signatures[0].Protected.Other)
 	}
 }
 

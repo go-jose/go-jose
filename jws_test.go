@@ -337,7 +337,7 @@ func TestParseSignedJSONDoesNotRewriteMemberNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseSigned: %v", err)
 	}
-	header := parsed.Signatures[0].Header
+	header := parsed.Signatures[0].Unprotected
 	if header.JSONWebKey != nil {
 		t.Fatal("ParseSigned exposed a JWK from a whitespace-mutated member name")
 	}
@@ -377,10 +377,10 @@ func TestVerifyFlattenedWithIncludedUnprotectedKey(t *testing.T) {
 		t.Error("Too many or too few signatures.")
 	}
 	sig := jws.Signatures[0]
-	if sig.Header.JSONWebKey == nil {
+	if sig.Unprotected.JSONWebKey == nil {
 		t.Error("No JWK in signature header.")
 	}
-	payload, err := jws.Verify(sig.Header.JSONWebKey)
+	payload, err := jws.Verify(sig.Unprotected.JSONWebKey)
 	if err != nil {
 		t.Errorf("Signature did not validate: %v", err)
 	}
@@ -442,10 +442,10 @@ func TestVerifyFlattenedWithPrivateProtected(t *testing.T) {
 		t.Error("Too many or too few signatures.")
 	}
 	sig := jws.Signatures[0]
-	if sig.Header.JSONWebKey == nil {
+	if sig.Unprotected.JSONWebKey == nil {
 		t.Error("No JWK in signature header.")
 	}
-	payload, err := jws.Verify(sig.Header.JSONWebKey)
+	payload, err := jws.Verify(sig.Unprotected.JSONWebKey)
 	if err != nil {
 		t.Errorf("Signature did not validate: %v", err)
 	}
@@ -541,9 +541,6 @@ func TestHeaderFieldsCompact(t *testing.T) {
 	if err != nil {
 		t.Fatal("unable to parse message", msg, err)
 	}
-	if obj.Signatures[0].Header.Algorithm != "ES512" {
-		t.Error("merged header did not contain expected alg value")
-	}
 	if obj.Signatures[0].Protected.Algorithm != "ES512" {
 		t.Error("protected header did not contain expected alg value")
 	}
@@ -558,9 +555,6 @@ func TestHeaderFieldsFull(t *testing.T) {
 	obj, err := ParseSigned(msg, []SignatureAlgorithm{ES512})
 	if err != nil {
 		t.Fatal("unable to parse message", msg, err)
-	}
-	if obj.Signatures[0].Header.Algorithm != "ES512" {
-		t.Error("merged header did not contain expected alg value")
 	}
 	if obj.Signatures[0].Protected.Algorithm != "ES512" {
 		t.Error("protected header did not contain expected alg value")
@@ -705,16 +699,16 @@ func TestEmbedJWKBug(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if parsed.Signatures[0].Header.KeyID != "" {
+	if parsed.Signatures[0].Protected.KeyID != "" {
 		t.Error("expected kid field in protected header to be empty")
 	}
-	if parsed.Signatures[0].Header.JSONWebKey.KeyID != "rsa-test-key" {
+	if parsed.Signatures[0].Protected.JSONWebKey.KeyID != "rsa-test-key" {
 		t.Error("expected rsa-test-key to be kid in embedded JWK in protected header")
 	}
-	if parsedNoEmbed.Signatures[0].Header.KeyID != "rsa-test-key" {
+	if parsedNoEmbed.Signatures[0].Protected.KeyID != "rsa-test-key" {
 		t.Error("expected kid field in protected header to be rsa-test-key")
 	}
-	if parsedNoEmbed.Signatures[0].Header.JSONWebKey != nil {
+	if parsedNoEmbed.Signatures[0].Protected.JSONWebKey != nil {
 		t.Error("expected no embedded JWK to be present")
 	}
 }
@@ -987,7 +981,7 @@ func TestEmbeddedPrivateJWKRejected(t *testing.T) {
 
 func TestGeneralSerializationUnprotectedHeader(t *testing.T) {
 	// The unprotected header of each signature must be reflected in the parsed
-	// Header and Unprotected fields for both serializations.
+	// Unprotected field for both serializations.
 	protected := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`))
 	payload := base64.RawURLEncoding.EncodeToString([]byte("Lorem ipsum dolor sit amet"))
 	signature := base64.RawURLEncoding.EncodeToString([]byte("not a real signature"))
@@ -1004,9 +998,6 @@ func TestGeneralSerializationUnprotectedHeader(t *testing.T) {
 				t.Fatal(err)
 			}
 			sig := obj.Signatures[0]
-			if sig.Header.KeyID != "from-unprotected" {
-				t.Errorf("Header.KeyID = %q, want %q", sig.Header.KeyID, "from-unprotected")
-			}
 			if sig.Unprotected.KeyID != "from-unprotected" {
 				t.Errorf("Unprotected.KeyID = %q, want %q", sig.Unprotected.KeyID, "from-unprotected")
 			}

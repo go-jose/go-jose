@@ -285,7 +285,7 @@ func TestMLDSASignWithJSONWebKey(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: ParseSigned: %v", alg, err)
 		}
-		if kid := parsed.Signatures[0].Header.KeyID; kid != "test-kid" {
+		if kid := parsed.Signatures[0].Protected.KeyID; kid != "test-kid" {
 			t.Errorf("%s: KeyID = %q; want %q", alg, kid, "test-kid")
 		}
 		if _, err := parsed.Verify(&JSONWebKey{Key: priv.PublicKey()}); err != nil {

@@ -428,7 +428,7 @@ func assertOpaqueSignerPublicKeyTypes(t *testing.T, alg SignatureAlgorithm, key 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kid := parsed.Signatures[0].Header.KeyID; kid != "PS" {
+	if kid := parsed.Signatures[0].Protected.KeyID; kid != "PS" {
 		t.Errorf("kid = %q, want %q", kid, "PS")
 	}
 }

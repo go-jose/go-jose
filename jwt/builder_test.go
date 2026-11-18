@@ -302,7 +302,7 @@ func TestBuilderHeadersSigner(t *testing.T) {
 		}
 		gotKeyIDs := make([]string, len(jws.Signatures))
 		for i, sig := range jws.Signatures {
-			gotKeyIDs[i] = sig.Header.KeyID
+			gotKeyIDs[i] = sig.Protected.KeyID
 		}
 		sort.Strings(wantKeyIDs)
 		sort.Strings(gotKeyIDs)

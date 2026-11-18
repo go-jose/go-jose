@@ -93,16 +93,16 @@ func roundtripJWS(sigAlg jose.SignatureAlgorithm, serializer func(*jose.JSONWebS
 
 	// Check that verify works with embedded keys (if present)
 	for i, sig := range obj.Signatures {
-		if sig.Header.JSONWebKey != nil {
-			_, err = obj.Verify(sig.Header.JSONWebKey)
+		if sig.Protected.JSONWebKey != nil {
+			_, err = obj.Verify(sig.Protected.JSONWebKey)
 			if err != nil {
 				return fmt.Errorf("error on verify with embedded key %d: %s", i, err)
 			}
 		}
 
 		// Check that the nonce correctly round-tripped (if present)
-		if sig.Header.Nonce != nonce {
-			return fmt.Errorf("Incorrect nonce returned: [%s]", sig.Header.Nonce)
+		if sig.Protected.Nonce != nonce {
+			return fmt.Errorf("Incorrect nonce returned: [%s]", sig.Protected.Nonce)
 		}
 	}
 
