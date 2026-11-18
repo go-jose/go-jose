@@ -772,3 +772,33 @@ func TestSignUnmarshalableExtraHeader(t *testing.T) {
 		t.Error("expected error signing with unmarshalable extra header")
 	}
 }
+
+type changingHeader struct {
+	calls *int
+}
+
+func (c changingHeader) MarshalJSON() ([]byte, error) {
+	*c.calls++
+	return []byte(fmt.Sprintf("%d", *c.calls)), nil
+}
+
+// TestSignMarshalsOnce makes sure that we only marshal once, using a MarshalJSON that changes each time.
+func TestSignMarshalsOnce(t *testing.T) {
+	key := []byte("0123456789abcdef0123456789abcdef")
+	calls := 0
+	opts := (&SignerOptions{}).WithHeader("changing", changingHeader{calls: &calls})
+	signer, err := NewSigner(SigningKey{Algorithm: HS256, Key: key}, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, err := signer.Sign([]byte("payload"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Errorf("header value was marshaled %d times, want 1", calls)
+	}
+	if _, err := obj.Verify(key); err != nil {
+		t.Errorf("verifying object: %v", err)
+	}
+}

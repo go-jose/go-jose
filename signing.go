@@ -332,7 +332,16 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 
 		maps.Copy(protected, ctx.extraHeaders)
 
-		serializedProtected, err := json.Marshal(protected, json.Deterministic(true))
+		rawProtected := rawHeader{}
+		for k, v := range protected {
+			b, err := json.Marshal(v, json.Deterministic(true))
+			if err != nil {
+				return nil, fmt.Errorf("go-jose/go-jose: Error marshalling item %#v: %v", k, err)
+			}
+			rawProtected[k] = makeRawMessage(b)
+		}
+
+		serializedProtected, err := json.Marshal(rawProtected, json.Deterministic(true))
 		if err != nil {
 			return nil, fmt.Errorf("go-jose/go-jose: Error marshaling JSON: %s", err)
 		}
@@ -360,14 +369,7 @@ func (ctx *genericSigner) Sign(payload []byte) (*JSONWebSignature, error) {
 			return nil, err
 		}
 
-		signatureInfo.protected = &rawHeader{}
-		for k, v := range protected {
-			b, err := json.Marshal(v, json.Deterministic(true))
-			if err != nil {
-				return nil, fmt.Errorf("go-jose/go-jose: Error marshalling item %#v: %v", k, err)
-			}
-			(*signatureInfo.protected)[k] = makeRawMessage(b)
-		}
+		signatureInfo.protected = &rawProtected
 		obj.Signatures[i] = signatureInfo
 	}
 
