@@ -32,12 +32,13 @@ import (
 // NewSigningKey generates a keypair for corresponding SignatureAlgorithm.
 func NewSigningKey(alg jose.SignatureAlgorithm, bits int) (crypto.PublicKey, crypto.PrivateKey, error) {
 	switch alg {
-	case jose.ES256, jose.ES384, jose.ES512, jose.EdDSA:
+	case jose.ES256, jose.ES384, jose.ES512, jose.EdDSA, jose.Ed25519:
 		keylen := map[jose.SignatureAlgorithm]int{
-			jose.ES256: 256,
-			jose.ES384: 384,
-			jose.ES512: 521, // sic!
-			jose.EdDSA: 256,
+			jose.ES256:   256,
+			jose.ES384:   384,
+			jose.ES512:   521, // sic!
+			jose.EdDSA:   256,
+			jose.Ed25519: 256,
 		}
 		if bits != 0 && bits != keylen[alg] {
 			return nil, nil, errors.New("invalid elliptic curve key size, this algorithm does not support arbitrary size")
@@ -69,7 +70,7 @@ func NewSigningKey(alg jose.SignatureAlgorithm, bits int) (crypto.PublicKey, cry
 			return nil, nil, err
 		}
 		return key.Public(), key, err
-	case jose.EdDSA:
+	case jose.EdDSA, jose.Ed25519:
 		pub, key, err := ed25519.GenerateKey(rand.Reader)
 		return pub, key, err
 	case jose.RS256, jose.RS384, jose.RS512, jose.PS256, jose.PS384, jose.PS512:

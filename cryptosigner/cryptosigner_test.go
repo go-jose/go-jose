@@ -34,7 +34,7 @@ import (
 )
 
 func TestRoundtripsJWSCryptoSigner(t *testing.T) {
-	sigAlgs := []jose.SignatureAlgorithm{jose.RS256, jose.RS384, jose.RS512, jose.PS256, jose.PS384, jose.PS512, jose.ES256, jose.ES384, jose.ES512, jose.EdDSA}
+	sigAlgs := []jose.SignatureAlgorithm{jose.RS256, jose.RS384, jose.RS512, jose.PS256, jose.PS384, jose.PS512, jose.ES256, jose.ES384, jose.ES512, jose.EdDSA, jose.Ed25519}
 
 	serializers := []func(*jose.JSONWebSignature) (string, error){
 		func(obj *jose.JSONWebSignature) (string, error) { return obj.CompactSerialize() },
@@ -115,7 +115,7 @@ func roundtripJWS(sigAlg jose.SignatureAlgorithm, serializer func(*jose.JSONWebS
 
 func generateSigningTestKey(sigAlg jose.SignatureAlgorithm) (sig, ver any) {
 	switch sigAlg {
-	case jose.EdDSA:
+	case jose.EdDSA, jose.Ed25519:
 		ver, sig, _ = ed25519.GenerateKey(rand.Reader)
 	case jose.RS256, jose.RS384, jose.RS512, jose.PS256, jose.PS384, jose.PS512:
 		rsaTestKey, _ := rsa.GenerateKey(rand.Reader, 2048)
@@ -189,7 +189,7 @@ func Test_cryptoSigner_Algs(t *testing.T) {
 		fields fields
 		want   []jose.SignatureAlgorithm
 	}{
-		{"EdDSA", fields{edKey}, []jose.SignatureAlgorithm{jose.EdDSA}},
+		{"EdDSA", fields{edKey}, []jose.SignatureAlgorithm{jose.EdDSA, jose.Ed25519}},
 		{"ES256", fields{p256}, []jose.SignatureAlgorithm{jose.ES256}},
 		{"ES384", fields{p384}, []jose.SignatureAlgorithm{jose.ES384}},
 		{"ES512", fields{p521}, []jose.SignatureAlgorithm{jose.ES512}},

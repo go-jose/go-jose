@@ -25,7 +25,7 @@ import (
 )
 
 var allKeyAlgorithms = []jose.KeyAlgorithm{
-	jose.ED25519,
+	jose.Ed25519Key,
 	jose.RSA1_5,
 	jose.RSA_OAEP,
 	jose.RSA_OAEP_256,
@@ -47,6 +47,7 @@ var allKeyAlgorithms = []jose.KeyAlgorithm{
 
 var allSignatureAlgorithms = []jose.SignatureAlgorithm{
 	jose.EdDSA,
+	jose.Ed25519,
 	jose.HS256,
 	jose.HS384,
 	jose.HS512,
