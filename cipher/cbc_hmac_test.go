@@ -260,7 +260,7 @@ func TestAESCBCOverhead(t *testing.T) {
 }
 
 func TestPadding(t *testing.T) {
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		slice := make([]byte, i)
 		padded := padBuffer(slice, 16)
 		if len(padded)%16 != 0 {
@@ -369,7 +369,7 @@ func TestInvalidPaddingOpen(t *testing.T) {
 }
 
 func TestInvalidPadding(t *testing.T) {
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		slice := make([]byte, i)
 		padded := padBuffer(slice, 16)
 		if len(padded)%16 != 0 {

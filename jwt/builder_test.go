@@ -127,7 +127,7 @@ func TestBuilderMergeClaims(t *testing.T) {
 		Claims(&Claims{
 			Subject: "42",
 		}).
-		Claims(map[string]interface{}{
+		Claims(map[string]any{
 			"Scopes": []string{"read:users"},
 		}).
 		Serialize()
@@ -136,11 +136,11 @@ func TestBuilderMergeClaims(t *testing.T) {
 	parsed, err := ParseSigned(jwt, []jose.SignatureAlgorithm{jose.RS256})
 	require.NoError(t, err, "Error parsing JWT.")
 
-	out := make(map[string]interface{})
+	out := make(map[string]any)
 	if assert.NoError(t, parsed.Claims(&testPrivRSAKey1.PublicKey, &out), "Error unmarshaling claims.") {
-		assert.EqualJSON(t, map[string]interface{}{
+		assert.EqualJSON(t, map[string]any{
 			"sub":    "42",
-			"Scopes": []interface{}{"read:users"},
+			"Scopes": []any{"read:users"},
 		}, out)
 	}
 
@@ -249,7 +249,7 @@ func TestBuilderSignedAndEncrypted(t *testing.T) {
 func TestBuilderHeadersSigner(t *testing.T) {
 	tests := []struct {
 		Keys   []*rsa.PrivateKey
-		Claims interface{}
+		Claims any
 	}{
 		{
 			Keys:   []*rsa.PrivateKey{testPrivRSAKey1},
@@ -353,7 +353,7 @@ func TestBuilderHeadersEncrypter(t *testing.T) {
 }
 
 func BenchmarkMapClaims(b *testing.B) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"sub": "42",
 		"iat": 1451606400,
 		"iss": "issuer",
@@ -408,7 +408,7 @@ func mustUnmarshalRSA(data string) *rsa.PrivateKey {
 	panic("key is not of type *rsa.PrivateKey")
 }
 
-func mustMakeSigner(alg jose.SignatureAlgorithm, k interface{}) jose.Signer {
+func mustMakeSigner(alg jose.SignatureAlgorithm, k any) jose.Signer {
 	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: alg, Key: k}, (&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {
 		panic("failed to create signer:" + err.Error())

@@ -19,6 +19,7 @@ package jwt
 
 import (
 	"encoding/json/v2"
+	"slices"
 	"strconv"
 	"time"
 )
@@ -100,7 +101,7 @@ type Audience []string
 
 // UnmarshalJSON reads an audience from its JSON representation.
 func (s *Audience) UnmarshalJSON(b []byte) error {
-	var v interface{}
+	var v any
 	if err := json.Unmarshal(b, &v); err != nil {
 		return err
 	}
@@ -108,7 +109,7 @@ func (s *Audience) UnmarshalJSON(b []byte) error {
 	switch v := v.(type) {
 	case string:
 		*s = []string{v}
-	case []interface{}:
+	case []any:
 		a := make([]string, len(v))
 		for i, e := range v {
 			s, ok := e.(string)
@@ -135,10 +136,5 @@ func (s Audience) MarshalJSON() ([]byte, error) {
 
 // Contains checks whether a given string is included in the Audience
 func (s Audience) Contains(v string) bool {
-	for _, a := range s {
-		if a == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, v)
 }

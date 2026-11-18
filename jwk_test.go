@@ -516,7 +516,7 @@ func TestRoundtripX509Hex(t *testing.T) {
 	js, err := jwk2.MarshalJSON()
 	require.NoError(t, err)
 
-	var j1, j2 map[string]interface{}
+	var j1, j2 map[string]any
 	require.NoError(t, json.Unmarshal(js, &j1))
 	require.NoError(t, json.Unmarshal([]byte(output), &j2))
 	if !reflect.DeepEqual(j1, j2) {
@@ -538,7 +538,7 @@ func TestCertificatesURL(t *testing.T) {
 
 	js, err := jwk2.MarshalJSON()
 	require.NoError(t, err)
-	var j1, j2 map[string]interface{}
+	var j1, j2 map[string]any
 	require.NoError(t, json.Unmarshal(js, &j1))
 	require.NoError(t, json.Unmarshal([]byte(urlJWK), &j2))
 	if !reflect.DeepEqual(j1, j2) {
@@ -646,7 +646,7 @@ func TestKeyMismatchX509(t *testing.T) {
 		CertificateThumbprintSHA256: x5tSHA256[:],
 	}
 
-	for _, key := range []interface{}{
+	for _, key := range []any{
 		// None of these keys should match what's in the cert, so parsing should always fail.
 		ecTestKey256,
 		ecTestKey256.Public(),
@@ -695,7 +695,7 @@ func TestKeyMismatchX509UnsupportedCertKey(t *testing.T) {
 		Certificates: []*x509.Certificate{ed448TestCertificate},
 	}
 
-	for _, key := range []interface{}{
+	for _, key := range []any{
 		// The leaf's public key can't be compared to any of these keys, so
 		// parsing should always fail.
 		ecTestKey256.Public(),
@@ -720,7 +720,7 @@ func TestKeyMismatchX509UnsupportedCertKey(t *testing.T) {
 func TestMarshalUnmarshal(t *testing.T) {
 	kid := "DEADBEEF"
 
-	for i, key := range []interface{}{
+	for i, key := range []any{
 		ecTestKey256,
 		ecTestKey256.Public(),
 		ecTestKey384,
@@ -808,7 +808,7 @@ func TestMarshalUnmarshalInvalid(t *testing.T) {
 	invalidCoord := make([]byte, curveSize(ecTestKey256.Curve)+1)
 	invalidCoord[0] = 1
 
-	keys := []interface{}{
+	keys := []any{
 		// Empty keys
 		&rsa.PrivateKey{},
 		&ecdsa.PrivateKey{},
@@ -1343,7 +1343,7 @@ func TestJWKIsPublic(t *testing.T) {
 	rsaPub := rsa.PublicKey{N: bigInt, E: 1}
 
 	cases := []struct {
-		key              interface{}
+		key              any
 		expectedIsPublic bool
 	}{
 		{&eccPub, true},
@@ -1370,7 +1370,7 @@ func TestJWKValid(t *testing.T) {
 	edPrivEmpty := ed25519.PublicKey([]byte{})
 
 	cases := []struct {
-		key              interface{}
+		key              any
 		expectedValidity bool
 	}{
 		{nil, false},

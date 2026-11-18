@@ -88,7 +88,7 @@ type JSONWebKey struct {
 	//
 	// When marshaling this JSONWebKey into JSON, the "kty" header parameter
 	// will be automatically set based on the type of this field.
-	Key interface{}
+	Key any
 	// Key identifier, parsed from `kid` header.
 	KeyID string
 	// Key algorithm, parsed from `alg` header.
@@ -225,9 +225,9 @@ func (k *JSONWebKey) unmarshalJSON(data []byte, allowPrivate bool) (err error) {
 		return fmt.Errorf("go-jose/go-jose: failed to unmarshal x5c field: %s", err)
 	}
 
-	var key interface{}
-	var certPub interface{}
-	var keyPub interface{}
+	var key any
+	var certPub any
+	var keyPub any
 
 	if len(certs) > 0 {
 		// We need to check that leaf public key matches the key embedded in this
@@ -934,7 +934,7 @@ var (
 	ErrJWKSKidNotFound = errors.New("go-jose/go-jose: JWK with matching kid not found in JWK Set")
 )
 
-func tryJWKS(key interface{}, header Header) (interface{}, error) {
+func tryJWKS(key any, header Header) (any, error) {
 	var jwks JSONWebKeySet
 
 	switch jwksType := key.(type) {

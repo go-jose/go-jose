@@ -228,7 +228,7 @@ func (h Header) Certificates(opts x509.VerifyOptions) ([][]*x509.Certificate, er
 	return leaf.Verify(opts)
 }
 
-func (parsed rawHeader) set(k HeaderKey, v interface{}) error {
+func (parsed rawHeader) set(k HeaderKey, v any) error {
 	b, err := json.Marshal(v, json.Deterministic(true))
 	if err != nil {
 		return err

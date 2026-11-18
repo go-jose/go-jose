@@ -39,7 +39,7 @@ func (sns staticNonceSource) Nonce() (string, error) {
 	return string(sns), nil
 }
 
-func RoundtripJWS(sigAlg SignatureAlgorithm, serializer func(*JSONWebSignature) (string, error), corrupter func(*JSONWebSignature), signingKey interface{}, verificationKey interface{}, nonce string) error {
+func RoundtripJWS(sigAlg SignatureAlgorithm, serializer func(*JSONWebSignature) (string, error), corrupter func(*JSONWebSignature), signingKey any, verificationKey any, nonce string) error {
 	opts := &SignerOptions{}
 	if nonce != "" {
 		opts.NonceSource = staticNonceSource(nonce)
@@ -239,7 +239,7 @@ func TestJWSNilVerificationKey(t *testing.T) {
 	tests := []struct {
 		name            string
 		algorithm       SignatureAlgorithm
-		verificationKey interface{}
+		verificationKey any
 	}{
 		{name: "Ed25519", algorithm: EdDSA, verificationKey: ed25519.PublicKey(nil)},
 		{name: "ECDSA", algorithm: ES256, verificationKey: (*ecdsa.PublicKey)(nil)},
@@ -431,7 +431,7 @@ func TestVerifyMultiJWKSNoMatchingKid(t *testing.T) {
 	}
 }
 
-func GenerateSigningTestKey(sigAlg SignatureAlgorithm) (sig, ver interface{}) {
+func GenerateSigningTestKey(sigAlg SignatureAlgorithm) (sig, ver any) {
 	switch sigAlg {
 	case EdDSA:
 		sig = ed25519PrivateKey
@@ -532,7 +532,7 @@ func TestSignerKid(t *testing.T) {
 		t.Error("problem marshalling base JWK", err)
 	}
 
-	var jsonmsi map[string]interface{}
+	var jsonmsi map[string]any
 	err = json.Unmarshal(jsonbar, &jsonmsi)
 	if err != nil {
 		t.Error("problem unmarshalling base JWK", err)

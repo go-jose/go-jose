@@ -40,7 +40,7 @@ func LoadJSONWebKey(json []byte, pub bool) (*jose.JSONWebKey, error) {
 }
 
 // LoadPublicKey loads a public key from PEM/DER/JWK-encoded data.
-func LoadPublicKey(data []byte) (interface{}, error) {
+func LoadPublicKey(data []byte) (any, error) {
 	input := data
 
 	block, _ := pem.Decode(data)
@@ -68,7 +68,7 @@ func LoadPublicKey(data []byte) (interface{}, error) {
 }
 
 // LoadPrivateKey loads a private key from PEM/DER/JWK-encoded data.
-func LoadPrivateKey(data []byte) (interface{}, error) {
+func LoadPrivateKey(data []byte) (any, error) {
 	input := data
 
 	block, _ := pem.Decode(data)
@@ -76,7 +76,7 @@ func LoadPrivateKey(data []byte) (interface{}, error) {
 		input = block.Bytes
 	}
 
-	var priv interface{}
+	var priv any
 	priv, err0 := x509.ParsePKCS1PrivateKey(input)
 	if err0 == nil {
 		return priv, nil
