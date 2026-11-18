@@ -150,7 +150,8 @@ func TestRoundtripRsaPrivate(t *testing.T) {
 
 func TestRoundtripRsaPrivatePrecomputed(t *testing.T) {
 	// Isolate a shallow copy of the rsaTestKey to avoid polluting it with Precompute
-	localKey := &(*rsaTestKey)
+	keyCopy := *rsaTestKey
+	localKey := &keyCopy
 	localKey.Precompute()
 
 	jwk, err := fromRsaPrivateKey(localKey)
